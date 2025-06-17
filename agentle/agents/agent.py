@@ -2151,6 +2151,32 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                     ),
                 ]
             )
+        
+        # Sequence handling: Check for Message sequences or Part sequences
+        # Explicitly check for Sequence for MyPy's benefit
+        elif isinstance(input, Sequence) and not isinstance(input, (str, bytes)):  # pyright: ignore[reportUnnecessaryIsInstance]
+            # Check if it's a sequence of Messages or Parts (AFTER specific types)
+            if input and isinstance(
+                input[0], (AssistantMessage, DeveloperMessage, UserMessage)
+            ):
+                # Sequence of Messages
+                # Ensure it's a list of Messages for type consistency
+                return Context(
+                    message_history=list(
+                        cast(Sequence[DeveloperMessage | UserMessage], input)
+                    )
+                )
+            elif input and isinstance(input[0], (TextPart, FilePart, Tool)):
+                # Sequence of Parts
+                # Ensure it's a list of the correct Part types
+                valid_parts = cast(Sequence[TextPart | FilePart | Tool], input)
+                return Context(
+                    message_history=[
+                        developer_message,
+                        UserMessage(parts=list(valid_parts)),
+                    ]
+                )
+
         elif callable(input) and not isinstance(input, Tool):
             # Handle callable input (that's not a Tool)
             return Context(
@@ -2316,31 +2342,6 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                     UserMessage(parts=[TextPart(text=input.md)]),
                 ]
             )
-
-        # Sequence handling: Check for Message sequences or Part sequences
-        # Explicitly check for Sequence for MyPy's benefit
-        elif isinstance(input, Sequence) and not isinstance(input, (str, bytes)):  # pyright: ignore[reportUnnecessaryIsInstance]
-            # Check if it's a sequence of Messages or Parts (AFTER specific types)
-            if input and isinstance(
-                input[0], (AssistantMessage, DeveloperMessage, UserMessage)
-            ):
-                # Sequence of Messages
-                # Ensure it's a list of Messages for type consistency
-                return Context(
-                    message_history=list(
-                        cast(Sequence[DeveloperMessage | UserMessage], input)
-                    )
-                )
-            elif input and isinstance(input[0], (TextPart, FilePart, Tool)):
-                # Sequence of Parts
-                # Ensure it's a list of the correct Part types
-                valid_parts = cast(Sequence[TextPart | FilePart | Tool], input)
-                return Context(
-                    message_history=[
-                        developer_message,
-                        UserMessage(parts=list(valid_parts)),
-                    ]
-                )
 
         # Handle Pydantic models if available
         elif HAS_PYDANTIC:

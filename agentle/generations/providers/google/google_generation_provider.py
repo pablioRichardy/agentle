@@ -22,7 +22,7 @@ a consistent interface regardless of the underlying AI provider being used.
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, MutableSequence, Sequence
 from typing import TYPE_CHECKING, cast, override
 from rsb.adapters.adapter import Adapter
 
@@ -277,7 +277,7 @@ class GoogleGenerationProvider(GenerationProvider):
             ),
         )
 
-        contents = [self.message_adapter.adapt(message) for message in messages]
+        contents: MutableSequence[Content] = [self.message_adapter.adapt(message) for message in messages]
         generate_content_response: types.GenerateContentResponse = (
             await client.aio.models.generate_content(
                 model=used_model,
