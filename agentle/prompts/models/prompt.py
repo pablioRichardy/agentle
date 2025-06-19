@@ -107,6 +107,64 @@ class Prompt(BaseModel):
 
         return Prompt(content=result, compiled=True)
 
+    def compile_if(
+        self, context: dict[str, Any] | None = None, **replacements: Any
+    ) -> Prompt:
+        """
+        Create a new Prompt with template expressions processed only if the variables exist in the prompt.
+
+        This method works like compile() but only processes template variables that are actually
+        present in the prompt content. Variables in the context that don't have corresponding
+        placeholders in the prompt are ignored.
+
+        Args:
+            context (dict[str, Any], optional): A dictionary with values for template variables.
+            **replacements: Keyword arguments with values for template variables.
+                            Only used if context is None.
+
+        Returns:
+            Prompt: A new Prompt instance with only the matching template expressions processed
+
+        Examples:
+            >>> prompt = Prompt("Hello, {{name}}!")
+            >>> prompt.compile_if(name="World", age=25)  # age is ignored
+            Prompt(content="Hello, World!")
+        """
+        # If context is not provided, use the replacements
+        if context is None:
+            context = replacements
+
+        # Find all variable placeholders in the prompt
+        variable_pattern = r"{{([^#/][^}]*?)}}"
+        variables_in_prompt = set()
+
+        for match in re.finditer(variable_pattern, self.content):
+            var_name = match.group(1).strip()
+            # Handle nested properties by taking the root key
+            root_key = var_name.split(".")[0]
+            variables_in_prompt.add(root_key)
+
+        # Find conditional and iteration variables
+        if_pattern = r"{{#if\s+([^}]+)}}"
+        for match in re.finditer(if_pattern, self.content):
+            condition_var = match.group(1).strip()
+            root_key = condition_var.split(".")[0]
+            variables_in_prompt.add(root_key)
+
+        each_pattern = r"{{#each\s+([^}]+)}}"
+        for match in re.finditer(each_pattern, self.content):
+            items_var = match.group(1).strip()
+            root_key = items_var.split(".")[0]
+            variables_in_prompt.add(root_key)
+
+        # Create filtered context with only variables that exist in the prompt
+        filtered_context = {
+            key: value for key, value in context.items() if key in variables_in_prompt
+        }
+
+        # Use the regular compile method with the filtered context
+        return self.compile(filtered_context)
+
     def _simple_compile(self, context: dict[str, Any]) -> Prompt:
         """
         Perform simple variable replacement without processing control structures.

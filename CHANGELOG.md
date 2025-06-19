@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.4.13
+## v0.4.14
 
-- fix: unresolved models in agent.py
+- feat: new `compile_if` method in the `Prompt` class.
