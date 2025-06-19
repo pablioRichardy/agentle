@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.4.11
+## v0.4.12
 
-- fix: not propagating developer message when the input is a Sequence of Messages
+- fix: now calling `call_async` instead of `call` in `agent.py`

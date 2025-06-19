@@ -997,7 +997,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         # Execute the tool
         tool_start_time = time.time()
         try:
-            tool_result = selected_tool.call(context=context, **tool_args)
+            tool_result = await selected_tool.call_async(context=context, **tool_args)
             tool_execution_time = (time.time() - tool_start_time) * 1000
 
             _logger.bind_optional(
