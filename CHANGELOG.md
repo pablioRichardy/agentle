@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.4.12
+## v0.4.13
 
-- fix: now calling `call_async` instead of `call` in `agent.py`
+- fix: unresolved models in agent.py
