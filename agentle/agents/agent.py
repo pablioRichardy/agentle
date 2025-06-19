@@ -389,7 +389,13 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
 
     @property
     def resolved_model(self) -> str | ModelKind | None:
-        return self.model() if callable(self.model) else None
+        return (
+            self.model()
+            if callable(self.model)
+            else self.model
+            if isinstance(self.model, str)
+            else None
+        )
 
     @classmethod
     def from_agent_card(cls, agent_card: Mapping[str, Any]) -> "Agent[Any]":
