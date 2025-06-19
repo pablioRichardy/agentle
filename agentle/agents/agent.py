@@ -1334,7 +1334,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
 
                 tool_start_time = time.time()
                 try:
-                    tool_result = selected_tool.call(
+                    tool_result = await selected_tool.call_async(
                         context=context, **tool_execution_suggestion.args
                     )
                     tool_execution_time = (time.time() - tool_start_time) * 1000
@@ -1880,7 +1880,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 # Time the tool execution
                 tool_start_time = time.time()
                 try:
-                    tool_result = selected_tool.call(
+                    tool_result = await selected_tool.call_async(
                         context=context, **tool_execution_suggestion.args
                     )
                     tool_execution_time = (
