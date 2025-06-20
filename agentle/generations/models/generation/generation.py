@@ -158,7 +158,7 @@ class Generation[T](BaseModel):
 
     @property
     def message(self) -> GeneratedAssistantMessage[T]:
-        if len(self.choices) > 0:
+        if len(self.choices) > 1:
             raise ValueError(
                 "Cannot determine which choice to get message from."
                 + "please, use the `get_message()` method."
