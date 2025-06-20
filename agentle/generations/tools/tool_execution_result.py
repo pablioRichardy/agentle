@@ -1,0 +1,32 @@
+from typing import Any
+
+from rsb.models.base_model import BaseModel
+from rsb.models.field import Field
+
+from agentle.generations.models.message_parts.tool_execution_suggestion import (
+    ToolExecutionSuggestion,
+)
+
+
+class ToolExecutionResult(BaseModel):
+    """
+    Represents the result of a tool execution within a step.
+
+    This class captures both the suggestion that was executed and the result
+    that was returned, providing a complete record of the tool interaction.
+    """
+
+    suggestion: ToolExecutionSuggestion
+    """The tool execution suggestion that was executed."""
+
+    result: Any
+    """The result returned by the tool execution."""
+
+    execution_time_ms: float | None = Field(default=None)
+    """Time taken to execute the tool in milliseconds."""
+
+    success: bool = Field(default=True)
+    """Whether the tool execution was successful."""
+
+    error_message: str | None = Field(default=None)
+    """Error message if the tool execution failed."""
