@@ -47,6 +47,7 @@ from agentle.generations.models.message_parts.tool_execution_suggestion import (
     ToolExecutionSuggestion,
 )
 from agentle.generations.tools.tool import Tool
+from agentle.generations.tools.tool_execution_result import ToolExecutionResult
 
 if TYPE_CHECKING:
     from google.genai.types import Part as GooglePart
@@ -101,7 +102,8 @@ class PartToGooglePartAdapter(
     """
 
     def adapt(
-        self, _f: TextPart | FilePart | ToolExecutionSuggestion | Tool
+        self,
+        _f: TextPart | FilePart | ToolExecutionSuggestion | ToolExecutionResult | Tool,
     ) -> "GooglePart":
         """
         Convert an Agentle Part object to a Google AI Part.
@@ -140,7 +142,7 @@ class PartToGooglePartAdapter(
             # Result: GooglePart with function_call field
             ```
         """
-        from google.genai.types import Blob, FunctionCall
+        from google.genai.types import Blob, FunctionCall, FunctionResponse
         from google.genai.types import Part as GooglePart
 
         match _f:
@@ -160,6 +162,14 @@ class PartToGooglePartAdapter(
                         id=_f.id,
                         name=_f.tool_name,
                         args=_f.args,
+                    )
+                )
+            case ToolExecutionResult():
+                return GooglePart(
+                    function_response=FunctionResponse(
+                        id=_f.suggestion.id,
+                        name=_f.suggestion.tool_name,
+                        response={"output": _f.result},
                     )
                 )
             case Tool():

@@ -1,3 +1,4 @@
+from textwrap import dedent
 from typing import Any
 
 from rsb.models.base_model import BaseModel
@@ -30,3 +31,13 @@ class ToolExecutionResult(BaseModel):
 
     error_message: str | None = Field(default=None)
     """Error message if the tool execution failed."""
+
+    def __str__(self) -> str:
+        return dedent(f"""\
+        <sugestion>
+        {self.suggestion}
+        </suggestion>
+        <result>
+        {self.result}
+        </result>
+        """)

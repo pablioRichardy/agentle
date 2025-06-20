@@ -15,6 +15,9 @@ from agentle.generations.models.message_parts.tool_execution_suggestion import (
 from agentle.generations.tools.tool import (
     Tool as GenerationTool,
 )
+from agentle.generations.tools.tool_execution_result import (
+    ToolExecutionResult as GenerationToolExecutionResult,
+)
 
 
 class GenerationPartToAgentPartAdapter(
@@ -22,7 +25,8 @@ class GenerationPartToAgentPartAdapter(
         GenerationFilePart
         | GenerationTextPart
         | GenerationTool
-        | GenerationToolExecutionSuggestion,
+        | GenerationToolExecutionSuggestion
+        | GenerationToolExecutionResult,
         FilePart | TextPart,
     ]
 ):
@@ -31,7 +35,8 @@ class GenerationPartToAgentPartAdapter(
         _f: GenerationFilePart
         | GenerationTextPart
         | GenerationTool
-        | GenerationToolExecutionSuggestion,
+        | GenerationToolExecutionSuggestion
+        | GenerationToolExecutionResult,
     ) -> FilePart | TextPart:
         match _f:
             case GenerationFilePart():
@@ -48,5 +53,7 @@ class GenerationPartToAgentPartAdapter(
                 return TextPart(text=_f.text)
             case GenerationTool():
                 raise NotImplementedError("Tool declarations are not supported")
+            case GenerationToolExecutionResult():
+                raise NotImplementedError("Tool execution results are not supported.")
             case GenerationToolExecutionSuggestion():
                 raise NotImplementedError("Tool executions are not supported")

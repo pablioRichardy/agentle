@@ -16,6 +16,7 @@ from agentle.generations.models.message_parts.tool_execution_suggestion import (
     ToolExecutionSuggestion,
 )
 from agentle.generations.tools.tool import Tool
+from agentle.generations.tools.tool_execution_result import ToolExecutionResult
 
 
 class UserMessage(BaseModel):
@@ -31,14 +32,22 @@ class UserMessage(BaseModel):
         description="Discriminator field to identify this as a user message. Always set to 'user'.",
     )
 
-    parts: Sequence[TextPart | FilePart | Tool[Any] | ToolExecutionSuggestion] = Field(
+    parts: Sequence[
+        TextPart | FilePart | Tool[Any] | ToolExecutionSuggestion | ToolExecutionResult
+    ] = Field(
         description="The sequence of message parts that make up this user message.",
     )
 
     @classmethod
     def create_named(
         cls,
-        parts: Sequence[TextPart | FilePart | Tool[Any] | ToolExecutionSuggestion],
+        parts: Sequence[
+            TextPart
+            | FilePart
+            | Tool[Any]
+            | ToolExecutionSuggestion
+            | ToolExecutionResult
+        ],
         name: str | None = None,
     ) -> UserMessage:
         """
@@ -53,7 +62,7 @@ class UserMessage(BaseModel):
         """
         if name is None:
             return cls(role="user", parts=parts)
-        
+
         return cls(
             role="user",
             parts=[TextPart(text=f"[{name}]: ")] + list(parts),
