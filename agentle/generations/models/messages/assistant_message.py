@@ -4,14 +4,16 @@ Module defining the AssistantMessage class representing messages from assistants
 
 from typing import Literal, Sequence
 
+from rsb.decorators.value_objects import valueobject
+from rsb.models.base_model import BaseModel
+from rsb.models.field import Field
+
 from agentle.generations.models.message_parts.file import FilePart
 from agentle.generations.models.message_parts.text import TextPart
 from agentle.generations.models.message_parts.tool_execution_suggestion import (
     ToolExecutionSuggestion,
 )
-from rsb.decorators.value_objects import valueobject
-from rsb.models.base_model import BaseModel
-from rsb.models.field import Field
+from agentle.generations.tools.tool_execution_result import ToolExecutionResult
 
 
 @valueobject
@@ -28,6 +30,8 @@ class AssistantMessage(BaseModel):
         description="Discriminator field to identify this as an assistant message. Always set to 'assistant'.",
     )
 
-    parts: Sequence[TextPart | FilePart | ToolExecutionSuggestion] = Field(
+    parts: Sequence[
+        TextPart | FilePart | ToolExecutionSuggestion | ToolExecutionResult
+    ] = Field(
         description="The sequence of message parts that make up this assistant message.",
     )
