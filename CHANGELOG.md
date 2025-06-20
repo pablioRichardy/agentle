@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.4.19
+## v0.4.20
 
-- feat: utility method to get tool_execution results
+- fix: wrong boolean comparison in "message" property
