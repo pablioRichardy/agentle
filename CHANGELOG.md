@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.4.16
+## v0.4.17
 
-- fix: appending before the last message all the tools called by the agent
+- feat: utility methods in Generation and GeneratedAssistantMessage classes.
