@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.4.17
+## v0.4.18
 
 - feat: utility methods in Generation and GeneratedAssistantMessage classes.
