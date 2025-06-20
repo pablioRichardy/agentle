@@ -1,5 +1,5 @@
 from textwrap import dedent
-from typing import Any
+from typing import Any, Literal
 
 from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
@@ -16,6 +16,11 @@ class ToolExecutionResult(BaseModel):
     This class captures both the suggestion that was executed and the result
     that was returned, providing a complete record of the tool interaction.
     """
+
+    type: Literal["tool_execution_result"] = Field(
+        default="tool_execution_result",
+        description="Discriminator field to identify this as a tool execution suggestion.",
+    )
 
     suggestion: ToolExecutionSuggestion
     """The tool execution suggestion that was executed."""

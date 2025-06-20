@@ -27,6 +27,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 def create_server() -> Application:
     """
     Example 2: Production webhook server with Redis sessions

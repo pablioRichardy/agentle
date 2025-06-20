@@ -277,7 +277,9 @@ class GoogleGenerationProvider(GenerationProvider):
             ),
         )
 
-        contents: MutableSequence[Content] = [self.message_adapter.adapt(message) for message in messages]
+        contents: MutableSequence[Content] = [
+            self.message_adapter.adapt(message) for message in messages
+        ]
         generate_content_response: types.GenerateContentResponse = (
             await client.aio.models.generate_content(
                 model=used_model,

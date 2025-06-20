@@ -18,8 +18,8 @@ class ToolExecutionSuggestion(BaseModel):
     including the tool name and arguments.
     """
 
-    type: Literal["tool_execution"] = Field(
-        default="tool_execution",
+    type: Literal["tool_execution_suggestion"] = Field(
+        default="tool_execution_suggestion",
         description="Discriminator field to identify this as a tool execution suggestion.",
     )
 
