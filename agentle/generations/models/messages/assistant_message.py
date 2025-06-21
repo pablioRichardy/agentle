@@ -5,7 +5,6 @@ Module defining the AssistantMessage class representing messages from assistants
 from collections.abc import Sequence
 from typing import Literal
 
-from rsb.decorators.value_objects import valueobject
 from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
 
@@ -17,7 +16,6 @@ from agentle.generations.models.message_parts.tool_execution_suggestion import (
 from agentle.generations.tools.tool_execution_result import ToolExecutionResult
 
 
-@valueobject
 class AssistantMessage(BaseModel):
     """
     Represents a message from an assistant in the system.
