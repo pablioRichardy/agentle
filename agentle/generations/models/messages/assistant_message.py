@@ -2,7 +2,8 @@
 Module defining the AssistantMessage class representing messages from assistants.
 """
 
-from typing import Literal, Sequence
+from collections.abc import Sequence
+from typing import Literal
 
 from rsb.decorators.value_objects import valueobject
 from rsb.models.base_model import BaseModel
