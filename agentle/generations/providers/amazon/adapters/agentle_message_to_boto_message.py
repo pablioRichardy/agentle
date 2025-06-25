@@ -1,0 +1,25 @@
+from dataclasses import dataclass, field
+from typing import override
+from rsb.adapters.adapter import Adapter
+
+from agentle.generations.models.messages.assistant_message import AssistantMessage
+from agentle.generations.models.messages.developer_message import DeveloperMessage
+from agentle.generations.models.messages.user_message import UserMessage
+from agentle.generations.providers.amazon.adapters.agentle_part_to_boto_content import (
+    AgentlePartToBotoContent,
+)
+from agentle.generations.providers.amazon.contents.message import Message
+
+
+@dataclass(frozen=True)
+class AgentleMessageToBotoMessage(
+    Adapter[UserMessage | AssistantMessage | DeveloperMessage, Message]
+):
+    part_adapter: AgentlePartToBotoContent = field(
+        default_factory=AgentlePartToBotoContent
+    )
+
+    @override
+    def adapt(
+        self, _f: UserMessage | AssistantMessage | DeveloperMessage
+    ) -> Message: ...
