@@ -7,7 +7,7 @@ from agentle.generations.models.message_parts.text import TextPart
 from agentle.generations.models.message_parts.tool_execution_suggestion import (
     ToolExecutionSuggestion,
 )
-from agentle.generations.providers.amazon.contents.content_block import ContentBlock
+from agentle.generations.providers.amazon.models.content_block import ContentBlock
 from agentle.generations.tools.tool_execution_result import ToolExecutionResult
 
 

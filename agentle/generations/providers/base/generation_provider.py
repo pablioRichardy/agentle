@@ -114,9 +114,9 @@ class GenerationProvider(abc.ABC):
 
     def create_generation_by_prompt[T = WithoutStructuredOutput](
         self,
+        prompt: str | Prompt | Part | Sequence[Part],
         *,
         model: str | ModelKind | None = None,
-        prompt: str | Prompt | Part | Sequence[Part],
         developer_prompt: str | Prompt | None = None,
         response_schema: type[T] | None = None,
         generation_config: GenerationConfig | GenerationConfigDict | None = None,
@@ -161,9 +161,9 @@ class GenerationProvider(abc.ABC):
 
     async def create_generation_by_prompt_async[T = WithoutStructuredOutput](
         self,
+        prompt: str | Prompt | Part | Sequence[Part],
         *,
         model: str | ModelKind | None = None,
-        prompt: str | Prompt | Part | Sequence[Part],
         developer_prompt: str | Prompt | None = None,
         response_schema: type[T] | None = None,
         generation_config: GenerationConfig | GenerationConfigDict | None = None,

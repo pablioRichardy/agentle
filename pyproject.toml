@@ -48,6 +48,7 @@ dev = [
     "markdownify>=1.1.0",
     "motor>=3.7.0",
     "mypy>=1.15.0",
+    "mypy-boto3-bedrock-runtime>=1.38.4",
     "mysql-connector-python>=9.3.0",
     "openai>=1.77.0",
     "openai-agents>=0.0.11",

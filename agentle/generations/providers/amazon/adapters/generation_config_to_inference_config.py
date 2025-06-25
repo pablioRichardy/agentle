@@ -2,7 +2,7 @@ from typing import override
 from rsb.adapters.adapter import Adapter
 
 from agentle.generations.models.generation.generation_config import GenerationConfig
-from agentle.generations.providers.amazon.contents.inference_config import (
+from agentle.generations.providers.amazon.models.inference_config import (
     InferenceConfig,
 )
 

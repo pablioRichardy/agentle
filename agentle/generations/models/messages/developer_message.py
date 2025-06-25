@@ -30,3 +30,16 @@ class DeveloperMessage(BaseModel):
     parts: Sequence[TextPart | FilePart | Tool] = Field(
         description="The sequence of message parts that make up this developer message.",
     )
+
+    @property
+    def text(self) -> str:
+        """
+        Returns the concatenated text representation of all parts in this message.
+
+        Returns:
+            str: The concatenated text of all message parts.
+        """
+        return "".join(
+            part.text if isinstance(part.text, str) else part.text.text
+            for part in self.parts
+        )

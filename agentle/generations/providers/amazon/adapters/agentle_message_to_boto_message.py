@@ -8,7 +8,7 @@ from agentle.generations.models.messages.user_message import UserMessage
 from agentle.generations.providers.amazon.adapters.agentle_part_to_boto_content import (
     AgentlePartToBotoContent,
 )
-from agentle.generations.providers.amazon.contents.message import Message
+from agentle.generations.providers.amazon.models.message import Message
 
 
 @dataclass(frozen=True)

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
-from typing import Any, Sequence, override
+from dataclasses import dataclass, field
+from typing import Any, Sequence, cast, override
+
+from mypy_boto3_bedrock_runtime.type_defs import ConverseResponseTypeDef
 
 from agentle.generations.collections.message_sequence import MessageSequence
 from agentle.generations.models.generation.generation import Generation
@@ -16,13 +18,15 @@ from agentle.generations.models.messages.user_message import UserMessage
 from agentle.generations.providers.amazon.adapters.agentle_message_to_boto_message import (
     AgentleMessageToBotoMessage,
 )
-from agentle.generations.providers.amazon.adapters.agentle_part_to_boto_content import (
-    AgentlePartToBotoContent,
+from agentle.generations.providers.amazon.adapters.agentle_tool_to_bedrock_tool_adapter import (
+    AgentleToolToBedrockToolAdapter,
 )
 from agentle.generations.providers.amazon.adapters.generation_config_to_inference_config import (
     GenerationConfigToInferenceConfigAdapter,
 )
 from agentle.generations.providers.amazon.boto_config import BotoConfig
+from agentle.generations.providers.amazon.models.text_content import TextContent
+from agentle.generations.providers.amazon.models.tool_config import ToolConfig
 from agentle.generations.providers.base.generation_provider import GenerationProvider
 from agentle.generations.providers.types.model_kind import ModelKind
 from agentle.generations.tools.tool import Tool
@@ -30,13 +34,13 @@ from agentle.generations.tools.tool import Tool
 
 @dataclass(frozen=True)
 class BedrockGenerationProvider(GenerationProvider):
-    region_name: str
-    config: BotoConfig
+    region_name: str = field(default="us-east-1")
+    config: BotoConfig | None = field(default=None)
 
     @property
     @override
     def default_model(self) -> str:
-        return "us.anthropic.claude-sonnet-4-20250514-v1:0"
+        return "anthropic.claude-sonnet-4-20250514-v1:0"
 
     @property
     @override
@@ -59,23 +63,52 @@ class BedrockGenerationProvider(GenerationProvider):
 
         message_adapter = AgentleMessageToBotoMessage()
 
-        messages_without_system = (
-            MessageSequence(messages).without_developer_prompt().elements
+        message_sequence = MessageSequence(messages)
+
+        messages_without_system = message_sequence.without_developer_prompt().elements
+
+        system_message: DeveloperMessage | None = (
+            messages_without_system[0]
+            if isinstance(messages_without_system[0], DeveloperMessage)
+            else None
         )
 
         conversation = [
             message_adapter.adapt(message) for message in messages_without_system
         ]
+
         inference_config_adapter = GenerationConfigToInferenceConfigAdapter()
-        response = client.converse(
-            modelId=model or self.default_model,
-            messages=conversation,
-            inferenceConfig=inference_config_adapter.adapt(
-                generation_config
-                if isinstance(generation_config, GenerationConfig)
-                else GenerationConfig()
+        tool_adapter = AgentleToolToBedrockToolAdapter()
+
+        _inference_config = (
+            inference_config_adapter.adapt(generation_config)
+            if isinstance(generation_config, GenerationConfig)
+            else None
+        )
+
+        _tool_config = (
+            ToolConfig(
+                tools=[tool_adapter.adapt(tool) for tool in tools],
+                toolChoice={"auto": {}},
+            )
+            if tools
+            else None
+        )
+
+        response: ConverseResponseTypeDef = cast(
+            ConverseResponseTypeDef,
+            client.converse(
+                modelId=model or self.default_model,
+                system=[TextContent(text=system_message.text)]
+                if system_message
+                else None,
+                messages=conversation,
+                inferenceConfig=_inference_config,
+                toolConfig=_tool_config,
             ),
         )
+
+        print(response)
 
     @override
     def price_per_million_tokens_input(
