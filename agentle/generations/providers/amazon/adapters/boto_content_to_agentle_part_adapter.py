@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 class BotoContentToAgentlePartAdapter(
     Adapter[
-        ContentBlockOutputTypeDef,
+        "ContentBlockOutputTypeDef",
         TextPart | ToolExecutionSuggestion,
     ]
 ):
@@ -23,4 +23,20 @@ class BotoContentToAgentlePartAdapter(
     def adapt(
         self,
         _f: ContentBlockOutputTypeDef,
-    ) -> TextPart | ToolExecutionSuggestion: ...
+    ) -> TextPart | ToolExecutionSuggestion:
+        text = _f.get("text")
+        if text:
+            return TextPart(text=text)
+
+        tool_use = _f.get("toolUse")
+        if tool_use:
+            return ToolExecutionSuggestion(
+                id=tool_use["toolUseId"],
+                tool_name=tool_use["name"],
+                args=tool_use["input"],
+            )
+
+        raise ValueError(
+            "Could not adapt the Bedrock contents to Agentle Contents"
+            + f"Invalid part: {_f}"
+        )

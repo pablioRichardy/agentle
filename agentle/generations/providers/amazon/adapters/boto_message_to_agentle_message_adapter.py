@@ -23,7 +23,7 @@ class BotoMessageToAgentleMessageAdapter[T](
 
     @override
     def adapt(self, _f: MessageOutputTypeDef) -> GeneratedAssistantMessage[T]:
-        parsed: T = cast(T, None)
+        parsed = None
         if self.response_schema:
             from pydantic import BaseModel
 
@@ -44,5 +44,5 @@ class BotoMessageToAgentleMessageAdapter[T](
         return GeneratedAssistantMessage[T](
             role="assistant",
             parts=[part_adapter.adapt(p) for p in content],
-            parsed=parsed,
+            parsed=cast(T, parsed),
         )

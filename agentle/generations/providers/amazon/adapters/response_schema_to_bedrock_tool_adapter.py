@@ -29,7 +29,7 @@ class ResponseSchemaToBedrockToolAdapter[T](Adapter[type[T], BedrockTool]):
         tool = BedrockTool(
             toolSpec=ToolSpecification(
                 name=name,
-                description=self.tool_description or "",
+                description=self.tool_description or "Structured Output",
                 inputSchema=ToolInputSchema(json=input_schema),
             )
         )

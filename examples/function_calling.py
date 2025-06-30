@@ -6,8 +6,8 @@ to perform tasks beyond simple text generation.
 """
 
 from agentle.agents.agent import Agent
-from agentle.generations.providers.cerebras.cerebras_generation_provider import (
-    CerebrasGenerationProvider,
+from agentle.generations.providers.amazon.bedrock_generation_provider import (
+    BedrockGenerationProvider,
 )
 
 
@@ -57,8 +57,7 @@ def calculate_mortgage(principal: float, interest_rate: float, years: int) -> st
 # Create an agent with the tools
 agent_with_tools = Agent(
     name="Assistant with Tools",
-    generation_provider=CerebrasGenerationProvider(),
-    model="llama-3.3-70b",
+    generation_provider=BedrockGenerationProvider(),
     instructions="""You are a helpful assistant that can answer questions about the weather 
     and help with financial calculations. Use the provided tools when appropriate.""",
     tools=[get_weather, calculate_mortgage],  # Pass the functions as tools
