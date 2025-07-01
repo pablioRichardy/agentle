@@ -57,7 +57,6 @@ def calculate_mortgage(principal: float, interest_rate: float, years: int) -> st
 # Create an agent with the tools
 agent_with_tools = Agent(
     name="Assistant with Tools",
-    model="llama3.1:8b",
     generation_provider=GoogleGenerationProvider(),
     instructions="""You are a helpful assistant that can answer questions about the weather 
     and help with financial calculations. Use the provided tools when appropriate.""",
