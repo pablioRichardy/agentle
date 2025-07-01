@@ -351,7 +351,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
     The MCP servers to use for the agent.
     """
 
-    tools: Sequence[Tool[Any] | Callable[..., object]] = Field(default_factory=list)
+    tools: Sequence[Tool | Callable[..., object]] = Field(default_factory=list)
     """
     The tools to use for the agent.
     """
@@ -1698,7 +1698,10 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             Tool.from_mcp_tool(mcp_tool=tool, server=server)
             for server, tool in mcp_tools
         ] + [
-            Tool.from_callable(tool) if callable(tool) else tool for tool in self.tools
+            Tool.from_callable(tool)
+            if callable(tool) and not isinstance(tool, Tool)
+            else tool
+            for tool in self.tools
         ]
         _logger.bind_optional(
             lambda log: log.debug("Using %d tools in total", len(all_tools))

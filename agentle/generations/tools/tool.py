@@ -157,7 +157,7 @@ class Tool[T_Output = Any](BaseModel):
 
     _server: MCPServerProtocol | None = PrivateAttr(default=None)
 
-    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=False)
 
     def is_mcp_tool(self) -> bool:
         return self._server is not None
@@ -507,8 +507,30 @@ class Tool[T_Output = Any](BaseModel):
                 parameters=parameters,
             )
 
+            def copy_function(func: Callable[..., Any] | Callable[..., Awaitable[Any]]):
+                import types
+
+                new_func = types.FunctionType(
+                    func.__code__,
+                    func.__globals__,
+                    func.__name__,
+                    func.__defaults__,
+                    func.__closure__,
+                )
+                new_func.__kwdefaults__ = getattr(func, "__kwdefaults__", None)
+                new_func.__annotations__ = (
+                    func.__annotations__.copy()
+                    if hasattr(func, "__annotations__")
+                    else {}
+                )
+                new_func.__doc__ = func.__doc__
+                new_func.__module__ = func.__module__
+                new_func.__qualname__ = func.__qualname__
+                new_func.__dict__.update(func.__dict__)
+                return new_func
+
             # Definir o atributo privado após a criação da instância
-            instance._callable_ref = _callable
+            instance._callable_ref = copy_function(_callable)
             instance._before_call = before_call
             instance._after_call = after_call
 
@@ -522,6 +544,28 @@ class Tool[T_Output = Any](BaseModel):
                 f"Error creating Tool from callable '{name}': {str(e)}", exc_info=True
             )
             raise
+
+    def model_copy(
+        self,
+        *,
+        deep: Any = False,
+        update: Any = None,
+    ):
+        """
+        Override model_copy to preserve private attributes.
+
+        This ensures that _callable_ref and other private attributes are preserved
+        when the model is copied, which can happen during agent team operations.
+        """
+        copied = super().model_copy(deep=deep, update=update)
+
+        # Manually preserve private attributes
+        copied._callable_ref = self._callable_ref
+        copied._before_call = self._before_call
+        copied._after_call = self._after_call
+        copied._server = self._server
+
+        return copied
 
     def __str__(self) -> str:
         return self.text
