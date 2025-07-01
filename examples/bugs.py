@@ -24,7 +24,6 @@ def search_web(query: str, max_results: int = 10) -> str:
 
 
 search_web_tool = Tool.from_callable(search_web)
-print(f"✅ CHECKPOINT 1 - _callable_ref: {search_web_tool._callable_ref}")
 
 
 async def get_product_information(page_url: HttpUrl) -> str:
@@ -59,7 +58,6 @@ data_agent = Agent(
     """,
     debug=True,
 )
-print(f"✅ CHECKPOINT 2 - _callable_ref: {data_agent.tools[0]._callable_ref}")
 
 data_verification_agent = Agent(
     name="Data Verification Agent",
@@ -91,10 +89,5 @@ team = AgentTeam(
     orchestrator_model="gemini-2.0-flash",
     team_config=AgentConfig(maxIterations=5, maxToolCalls=20),
 )
-
-print(f"✅ CHECKPOINT 3 - _callable_ref: {team.agents[0].tools[0]._callable_ref}")
-
-# Before team run:
-print(f"✅ CHECKPOINT 4 - _callable_ref: {team.agents[0].tools[0]._callable_ref}")
 
 print(team.run("What is the valuation of Tesla?"))
