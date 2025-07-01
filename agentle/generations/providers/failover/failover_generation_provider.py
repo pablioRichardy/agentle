@@ -166,7 +166,7 @@ class FailoverGenerationProvider(GenerationProvider):
         return 0.0
 
     @override
-    async def create_generation_async[T = WithoutStructuredOutput](
+    async def generate_async[T = WithoutStructuredOutput](
         self,
         *,
         model: str | ModelKind | None = None,
@@ -227,7 +227,7 @@ class FailoverGenerationProvider(GenerationProvider):
 
             try:
                 # Attempt generation with this provider
-                result = await provider.create_generation_async(
+                result = await provider.generate_async(
                     model=model,
                     messages=messages,
                     response_schema=response_schema,
@@ -266,7 +266,7 @@ class FailoverGenerationProvider(GenerationProvider):
         if skipped_providers and exceptions:
             for provider in skipped_providers:
                 try:
-                    result = await provider.create_generation_async(
+                    result = await provider.generate_async(
                         model=model,
                         messages=messages,
                         response_schema=response_schema,

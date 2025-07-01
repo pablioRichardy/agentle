@@ -89,7 +89,7 @@ class BedrockGenerationProvider(GenerationProvider):
 
     @observe
     @override
-    async def create_generation_async[T](
+    async def generate_async[T](
         self,
         *,
         model: str | None | ModelKind = None,

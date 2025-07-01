@@ -26,7 +26,7 @@ from agentle.generations.models.message_parts.text import TextPart
 provider = GoogleGenerationProvider()
 
 # Generate content using the provider
-generation = provider.create_generation(
+generation = provider.generate(
     model="gemini-1.5-flash",
     messages=[
         UserMessage(parts=[

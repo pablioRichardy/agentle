@@ -59,7 +59,7 @@ class OllamaGenerationProvider(GenerationProvider):
         return "Ollama"
 
     @override
-    async def create_generation_async[T](
+    async def generate_async[T](
         self,
         *,
         model: str | ModelKind | None = None,
@@ -113,4 +113,40 @@ class OllamaGenerationProvider(GenerationProvider):
         self,
         model_kind: ModelKind,
     ) -> str:
-        return ""
+        """
+        Maps abstract ModelKind categories to specific Ollama model names.
+
+        This mapping is based on the latest available Ollama models as of July 2025,
+        focusing on the most capable and well-supported models in each category.
+        """
+        mapping: Mapping[ModelKind, str] = {
+            # Nano: Smallest, fastest, most cost-effective models
+            "category_nano": "llama3.2:1b",
+            "category_nano_experimental": "smollm2:135m",
+            # Mini: Small but capable models
+            "category_mini": "llama3.2:3b",
+            "category_mini_experimental": "phi4:mini",
+            # Standard: Mid-range, balanced performance models
+            "category_standard": "llama3.1:8b",
+            "category_standard_experimental": "qwen2.5:7b",
+            # Pro: High performance models
+            "category_pro": "llama3.1:70b",
+            "category_pro_experimental": "qwen2.5:14b",
+            # Flagship: Best available models from provider
+            "category_flagship": "llama3.3:70b",
+            "category_flagship_experimental": "qwen3:235b",
+            # Reasoning: Specialized for complex reasoning
+            "category_reasoning": "deepseek-r1:32b",
+            "category_reasoning_experimental": "qwq:32b",
+            # Vision: Multimodal capabilities for image/video processing
+            "category_vision": "llama3.2-vision:11b",
+            "category_vision_experimental": "qwen2-vl:7b",
+            # Coding: Specialized for programming tasks
+            "category_coding": "codellama:13b",
+            "category_coding_experimental": "qwen2.5-coder:7b",
+            # Instruct: Fine-tuned for instruction following
+            "category_instruct": "dolphin-llama3:8b",
+            "category_instruct_experimental": "openhermes:7b",
+        }
+
+        return mapping.get(model_kind, "llama3.1:8b")  # Default fallback

@@ -103,7 +103,7 @@ class GoogleSpeechToTextProvider(BaseModel, SpeechToTextProvider):
 
         path_audio_file = Path(audio_file)
 
-        transcription = await generation_provider.create_generation_by_prompt_async(
+        transcription = await generation_provider.generate_by_prompt_async(
             model=self.model,
             prompt=[
                 TextPart(

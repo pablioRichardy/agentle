@@ -30,7 +30,7 @@ def override_model_kind[F: Callable[..., Any]](func: F) -> F:
     model identifier string.
 
     Args:
-        func: The function to decorate, typically a create_generation_async method
+        func: The function to decorate, typically a generate_async method
               in a provider implementation.
 
     Returns:

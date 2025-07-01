@@ -37,7 +37,7 @@ def observe[F: Callable[..., Any]](
     """
     Decorator that adds observability to provider generation methods.
 
-    This decorator wraps generation methods (like create_generation_async) to automatically
+    This decorator wraps generation methods (like generate_async) to automatically
     handle observability concerns such as trace creation, metric collection, and error handling.
 
     When applied to a method, it:
@@ -53,7 +53,7 @@ def observe[F: Callable[..., Any]](
         ```python
         class MyProvider(GenerationProvider):
             @observe
-            async def create_generation_async(self, ...) -> Generation[T]:
+            async def generate_async(self, ...) -> Generation[T]:
                 # Method can now focus purely on generation logic
                 # without manual observability code
         ```

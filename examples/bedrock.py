@@ -9,6 +9,6 @@ logging.basicConfig(level=logging.CRITICAL)
 
 provider = OllamaGenerationProvider(host="http://localhost:11434")
 
-generation = provider.create_generation_by_prompt("Hello!")
+generation = provider.generate_by_prompt("Hello!")
 
 print(generation)

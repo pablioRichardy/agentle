@@ -164,7 +164,7 @@ class GoogleGenerationProvider(GenerationProvider):
     @observe
     @override
     @override_model_kind
-    async def create_generation_async[T = WithoutStructuredOutput](
+    async def generate_async[T = WithoutStructuredOutput](
         self,
         *,
         model: str | ModelKind | None = None,

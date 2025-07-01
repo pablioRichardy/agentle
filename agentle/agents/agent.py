@@ -1167,7 +1167,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
 
         if not agent_has_tools:
             # No tools, generate final response
-            generation = await generation_provider.create_generation_async(
+            generation = await generation_provider.generate_async(
                 model=self.resolved_model,
                 messages=context.message_history,
                 response_schema=self.response_schema,
@@ -1264,7 +1264,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 called_tools_prompt = UserMessage(parts=called_tools_prompt_parts)
 
             # Generate tool call response
-            tool_call_generation = await generation_provider.create_generation_async(
+            tool_call_generation = await generation_provider.generate_async(
                 model=self.resolved_model,
                 messages=MessageSequence(context.message_history)
                 .append_before_last_message(called_tools_prompt)
@@ -1295,7 +1295,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
 
                 # Generate final response if needed
                 if self.response_schema is not None or not tool_call_generation.text:
-                    generation = await generation_provider.create_generation_async(
+                    generation = await generation_provider.generate_async(
                         model=self.resolved_model,
                         messages=context.message_history,
                         response_schema=self.response_schema,
@@ -1655,9 +1655,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 token_usage=None,  # Will be updated after generation
             )
 
-            generation: Generation[
-                T_Schema
-            ] = await generation_provider.create_generation_async(
+            generation: Generation[T_Schema] = await generation_provider.generate_async(
                 model=self.resolved_model,
                 messages=context.message_history,
                 response_schema=self.response_schema,
@@ -1767,7 +1765,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             _logger.bind_optional(
                 lambda log: log.debug("Generating tool call response")
             )
-            tool_call_generation = await generation_provider.create_generation_async(
+            tool_call_generation = await generation_provider.generate_async(
                 model=self.resolved_model,
                 messages=MessageSequence(context.message_history)
                 .append_before_last_message(called_tools_prompt)
@@ -1808,7 +1806,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                     _logger.bind_optional(
                         lambda log: log.debug("Generating structured response")
                     )
-                    generation = await generation_provider.create_generation_async(
+                    generation = await generation_provider.generate_async(
                         model=self.resolved_model,
                         messages=MessageSequence(context.message_history)
                         .append_before_last_message(called_tools_prompt)

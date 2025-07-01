@@ -1,7 +1,9 @@
+from __future__ import annotations
+
+import json
 from collections.abc import MutableSequence
 from dataclasses import dataclass, field
 from datetime import datetime
-import json
 from typing import TYPE_CHECKING, cast, override
 from uuid import uuid4
 

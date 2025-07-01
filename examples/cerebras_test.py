@@ -8,7 +8,7 @@ tracing_client = LangfuseObservabilityClient()
 
 provider = CerebrasGenerationProvider(tracing_client=tracing_client)
 
-generation = provider.create_generation_by_prompt(
+generation = provider.generate_by_prompt(
     prompt="Hello, world!",
 )
 
