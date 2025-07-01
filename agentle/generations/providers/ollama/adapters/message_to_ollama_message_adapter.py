@@ -25,7 +25,7 @@ class MessageToOllamaMessageAdapter(
 ):
     @override
     def adapt(self, _f: DeveloperMessage | UserMessage | AssistantMessage) -> Message:
-        from ollama._types import Image
+        from ollama._types import Image, Message
 
         image_parts: MutableSequence[Image] = []
         text_parts: MutableSequence[

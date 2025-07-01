@@ -16,6 +16,9 @@ from agentle.generations.providers.base.generation_provider import GenerationPro
 from agentle.generations.providers.ollama.adapters.chat_response_to_generation_adapter import (
     ChatResponseToGenerationAdapter,
 )
+from agentle.generations.providers.ollama.adapters.message_to_ollama_message_adapter import (
+    MessageToOllamaMessageAdapter,
+)
 from agentle.generations.providers.ollama.adapters.tool_to_ollama_tool_adapter import (
     ToolToOllamaToolAdapter,
 )
@@ -45,6 +48,16 @@ class OllamaGenerationProvider(GenerationProvider):
         self.options = options
         self.think = think
 
+    @property
+    @override
+    def default_model(self) -> str:
+        return "gemma3n:e4b"
+
+    @property
+    @override
+    def organization(self) -> str:
+        return "Ollama"
+
     @override
     async def create_generation_async[T](
         self,
@@ -64,11 +77,16 @@ class OllamaGenerationProvider(GenerationProvider):
         _generation_config = self._normalize_generation_config(generation_config)
 
         _model = self._resolve_model(model)
+        message_adapter = MessageToOllamaMessageAdapter()
+        _messages = [message_adapter.adapt(m) for m in messages]
+
+        _tools = [tool_adapter.adapt(tool) for tool in tools] if tools else None
 
         async with asyncio.timeout(_generation_config.timeout_in_seconds):
             response = await self._client.chat(
                 model=_model,
-                tools=[tool_adapter.adapt(tool) for tool in tools] if tools else None,
+                messages=_messages,
+                tools=_tools,
                 format=bm.model_json_schema() if bm else None,
                 options=self.options,
                 think=self.think,

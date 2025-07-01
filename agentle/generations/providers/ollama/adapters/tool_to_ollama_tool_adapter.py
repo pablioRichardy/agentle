@@ -367,7 +367,7 @@ class ToolToOllamaToolAdapter(Adapter[Tool[Any], "OllamaTool"]):
         return parameters
 
     @override
-    def adapt(self, agentle_tool: Tool[Any]) -> "OllamaTool":
+    def adapt(self, agentle_tool: Tool[Any]) -> OllamaTool:
         """
         Convert an Agentle Tool to an Ollama Tool.
 
@@ -380,6 +380,8 @@ class ToolToOllamaToolAdapter(Adapter[Tool[Any], "OllamaTool"]):
         Raises:
             ValueError: If the tool name or parameters are invalid.
         """
+        from ollama._types import Tool as OllamaTool
+
         # Validate function name
         self._validate_function_name(agentle_tool.name)
 

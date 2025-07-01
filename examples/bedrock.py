@@ -1,12 +1,13 @@
 import logging
-from agentle.generations.providers.amazon.bedrock_generation_provider import (
-    BedrockGenerationProvider,
+from agentle.generations.providers.ollama.ollama_generation_provider import (
+    OllamaGenerationProvider,
 )
 
 
 logging.basicConfig(level=logging.CRITICAL)
 
-provider = BedrockGenerationProvider()
+
+provider = OllamaGenerationProvider(host="http://localhost:11434")
 
 generation = provider.create_generation_by_prompt("Hello!")
 

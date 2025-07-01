@@ -1,6 +1,7 @@
 from collections.abc import MutableSequence
 from dataclasses import dataclass, field
 from datetime import datetime
+import json
 from typing import TYPE_CHECKING, cast, override
 from uuid import uuid4
 
@@ -35,7 +36,7 @@ class ChatResponseToGenerationAdapter[T](Adapter["ChatResponse", Generation[T]])
 
         if self.response_schema:
             bm = cast(BaseModel, self.response_schema)
-            parsed = bm.model_validate(_f.message.content)
+            parsed = bm.model_validate(json.loads(_f.message.content or "{}"))
 
         parts: MutableSequence[TextPart | ToolExecutionSuggestion] = []
 
