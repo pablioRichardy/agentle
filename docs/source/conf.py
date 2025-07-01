@@ -6,8 +6,8 @@
 # -- Project information -----------------------------------------------------
 project = "Agentle"
 copyright = "2025, Agentle Team"
-author = "Agentle Team"
-release = "0.1.0"
+author = "Arthur Brenno"
+release = "0.6.12"
 
 # -- General configuration ---------------------------------------------------
 extensions = [

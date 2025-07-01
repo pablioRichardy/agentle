@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.6.1
+## v0.6.2
 
-- fix(agent): preserve Tool private attributes during validation (#1)
+- fix(tool): passing awaitable tools in methods as well

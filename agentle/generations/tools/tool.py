@@ -143,12 +143,16 @@ class Tool[T_Output = Any](BaseModel):
     )
 
     # change to private
-    _before_call: Callable[..., T_Output] | None = PrivateAttr(
-        default=None,
+    _before_call: Callable[..., Any] | Callable[..., Awaitable[Any]] | None = (
+        PrivateAttr(
+            default=None,
+        )
     )
 
-    _after_call: Callable[..., T_Output] | None = PrivateAttr(
-        default=None,
+    _after_call: Callable[..., Any] | Callable[..., Awaitable[Any]] | None = (
+        PrivateAttr(
+            default=None,
+        )
     )
 
     _callable_ref: (
@@ -414,9 +418,13 @@ class Tool[T_Output = Any](BaseModel):
     @classmethod
     def from_callable(
         cls,
-        _callable: Callable[..., T_Output],
-        before_call: Callable[..., T_Output] | None = None,
-        after_call: Callable[..., T_Output] | None = None,
+        _callable: Callable[..., T_Output] | Callable[..., Awaitable[T_Output]],
+        before_call: Callable[..., T_Output]
+        | Callable[..., Awaitable[T_Output]]
+        | None = None,
+        after_call: Callable[..., T_Output]
+        | Callable[..., Awaitable[T_Output]]
+        | None = None,
         /,
     ) -> Tool[T_Output]:
         """

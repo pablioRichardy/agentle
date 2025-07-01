@@ -35,6 +35,7 @@ import time
 import uuid
 from collections.abc import (
     AsyncGenerator,
+    Awaitable,
     Callable,
     Generator,
     Mapping,
@@ -351,7 +352,9 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
     The MCP servers to use for the agent.
     """
 
-    tools: Sequence[Tool | Callable[..., object]] = Field(default_factory=list)
+    tools: Sequence[Tool | Callable[..., object] | Callable[..., Awaitable[object]]] = (
+        Field(default_factory=list)
+    )
     """
     The tools to use for the agent.
     """
