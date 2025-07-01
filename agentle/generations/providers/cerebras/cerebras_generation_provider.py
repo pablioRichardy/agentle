@@ -18,6 +18,7 @@ request format and adapts responses back into Agentle's Generation objects,
 providing a consistent experience regardless of the AI provider being used.
 """
 
+import asyncio
 from collections.abc import Mapping, Sequence
 import logging
 from typing import TYPE_CHECKING, Any, cast, override
@@ -238,28 +239,33 @@ class CerebrasGenerationProvider(GenerationProvider):
 
         tool_adapter = AgentleToolToCerebrasToolAdapter()
 
-        cerebras_completion = cast(
-            ChatCompletionResponse,
-            await client.chat.completions.create(
-                messages=[self.message_adapter.adapt(message) for message in messages],
-                model=model or self.default_model,
-                tools=[tool_adapter.adapt(tool) for tool in tools] if tools else None,
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "json_schema",
-                        "strict": True,
-                        "schema": JsonSchemaBuilder(
-                            cast(type[Any], response_schema),
-                            use_defs_instead_of_definitions=True,
-                        ).build(dereference=True),
-                    },
-                }
-                if bool(response_schema)
-                else None,
-                stream=False,
-            ),
-        )
+        async with asyncio.timeout(_generation_config.timeout_in_seconds):
+            cerebras_completion = cast(
+                ChatCompletionResponse,
+                await client.chat.completions.create(
+                    messages=[
+                        self.message_adapter.adapt(message) for message in messages
+                    ],
+                    model=model or self.default_model,
+                    tools=[tool_adapter.adapt(tool) for tool in tools]
+                    if tools
+                    else None,
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "json_schema",
+                            "strict": True,
+                            "schema": JsonSchemaBuilder(
+                                cast(type[Any], response_schema),
+                                use_defs_instead_of_definitions=True,
+                            ).build(dereference=True),
+                        },
+                    }
+                    if bool(response_schema)
+                    else None,
+                    stream=False,
+                ),
+            )
 
         return CerebrasCompletionToGenerationAdapter[T](
             response_schema=response_schema,

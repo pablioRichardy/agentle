@@ -43,6 +43,7 @@ dev = [
     { name = "mypy" },
     { name = "mypy-boto3-bedrock-runtime" },
     { name = "mysql-connector-python" },
+    { name = "ollama" },
     { name = "openai" },
     { name = "openai-agents" },
     { name = "openpyxl" },
@@ -157,6 +158,7 @@ dev = [
     { name = "mypy", specifier = ">=1.15.0" },
     { name = "mypy-boto3-bedrock-runtime", specifier = ">=1.38.4" },
     { name = "mysql-connector-python", specifier = ">=9.3.0" },
+    { name = "ollama", specifier = ">=0.5.1" },
     { name = "openai", specifier = ">=1.77.0" },
     { name = "openai-agents", specifier = ">=0.0.11" },
     { name = "openpyxl", specifier = ">=3.1.5" },
@@ -2000,6 +2002,19 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/b1/c4/2e407e85df35b29f79945751b8f8e671057a13a376497d7fb2151ba0d290/numpy-2.2.5-cp313-cp313t-musllinux_1_2_x86_64.whl", hash = "sha256:c26843fd58f65da9491165072da2cccc372530681de481ef670dcc8e27cfb066", size = 17893672 },
     { url = "https://files.pythonhosted.org/packages/29/7e/d0b44e129d038dba453f00d0e29ebd6eaf2f06055d72b95b9947998aca14/numpy-2.2.5-cp313-cp313t-win32.whl", hash = "sha256:1a161c2c79ab30fe4501d5a2bbfe8b162490757cf90b7f05be8b80bc02f7bb8e", size = 6377102 },
     { url = "https://files.pythonhosted.org/packages/63/be/b85e4aa4bf42c6502851b971f1c326d583fcc68227385f92089cf50a7b45/numpy-2.2.5-cp313-cp313t-win_amd64.whl", hash = "sha256:d403c84991b5ad291d3809bace5e85f4bbf44a04bdc9a88ed2bb1807b3360bb8", size = 12750096 },
+]
+
+[[package]]
+name = "ollama"
+version = "0.5.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8d/96/c7fe0d2d1b3053be614822a7b722c7465161b3672ce90df71515137580a0/ollama-0.5.1.tar.gz", hash = "sha256:5a799e4dc4e7af638b11e3ae588ab17623ee019e496caaf4323efbaa8feeff93", size = 41112 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d6/76/3f96c8cdbf3955d7a73ee94ce3e0db0755d6de1e0098a70275940d1aff2f/ollama-0.5.1-py3-none-any.whl", hash = "sha256:4c8839f35bc173c7057b1eb2cbe7f498c1a7e134eafc9192824c8aecb3617506", size = 13369 },
 ]
 
 [[package]]

@@ -50,6 +50,7 @@ dev = [
     "mypy>=1.15.0",
     "mypy-boto3-bedrock-runtime>=1.38.4",
     "mysql-connector-python>=9.3.0",
+    "ollama>=0.5.1",
     "openai>=1.77.0",
     "openai-agents>=0.0.11",
     "openpyxl>=3.1.5",

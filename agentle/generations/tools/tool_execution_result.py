@@ -37,6 +37,10 @@ class ToolExecutionResult(BaseModel):
     error_message: str | None = Field(default=None)
     """Error message if the tool execution failed."""
 
+    @property
+    def text(self) -> str:
+        return str(self)
+
     def __str__(self) -> str:
         return dedent(f"""\
         <sugestion>

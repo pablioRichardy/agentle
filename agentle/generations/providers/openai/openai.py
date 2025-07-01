@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping
 from typing import Any, Literal, Sequence, override
 
@@ -47,16 +48,6 @@ class OpenaiGenerationProvider(GenerationProvider):
     OpenAI generation provider.
     """
 
-    api_key: str | None
-    organization_name: str | None
-    project_name: str | None
-    base_url: str | httpx.URL | None
-    websocket_base_url: str | httpx.URL | None
-    max_retries: int
-    default_headers: Mapping[str, str] | None
-    default_query: Mapping[str, object] | None
-    http_client: httpx.AsyncClient | None
-
     def __init__(
         self,
         api_key: str,
@@ -71,17 +62,21 @@ class OpenaiGenerationProvider(GenerationProvider):
         default_query: Mapping[str, object] | None = None,
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
+        from openai import AsyncOpenAI
+
         super().__init__(tracing_client=tracing_client)
 
-        self.api_key = api_key
-        self.organization_name = organization_name
-        self.project_name = project_name
-        self.base_url = base_url
-        self.websocket_base_url = websocket_base_url
-        self.max_retries = max_retries
-        self.default_headers = default_headers
-        self.default_query = default_query
-        self.http_client = http_client
+        self._client = AsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url,
+            websocket_base_url=websocket_base_url,
+            max_retries=max_retries,
+            default_headers=default_headers,
+            default_query=default_query,
+            http_client=http_client,
+            organization=organization_name,
+            project=project_name,
+        )
 
     @property
     @override
@@ -117,46 +112,26 @@ class OpenaiGenerationProvider(GenerationProvider):
         Returns:
             Generation[T]: An Agentle Generation object containing the response
         """
-        from openai import AsyncOpenAI
         from openai._types import NOT_GIVEN as OPENAI_NOT_GIVEN
         from openai.types.chat.chat_completion import ChatCompletion
 
         _generation_config = self._normalize_generation_config(generation_config)
 
-        # Calculate timeout based on available timeout parameters with correct priority
-        timeout = None
-        if _generation_config.timeout is not None:
-            timeout = _generation_config.timeout  # Already in milliseconds
-        elif _generation_config.timeout_s is not None:
-            timeout = _generation_config.timeout_s * 1000  # Convert to milliseconds
-        elif _generation_config.timeout_m is not None:
-            timeout = (
-                _generation_config.timeout_m * 60 * 1000
-            )  # Convert to milliseconds
-
-        client = AsyncOpenAI(
-            api_key=self.api_key,
-            base_url=self.base_url,
-            websocket_base_url=self.websocket_base_url,
-            timeout=timeout,
-            max_retries=self.max_retries,
-            default_headers=self.default_headers,
-            default_query=self.default_query,
-            http_client=self.http_client,
-            organization=self.organization_name,
-            project=self.project_name,
-        )
-
         input_message_adapter = AgentleMessageToOpenaiMessageAdapter()
         openai_tool_adapter = AgentleToolToOpenaiToolAdapter()
 
-        chat_completion: ChatCompletion = await client.chat.completions.create(
-            messages=[input_message_adapter.adapt(message) for message in messages],
-            model=model or self.default_model,
-            tools=[openai_tool_adapter.adapt(tool) for tool in tools]
-            if tools
-            else OPENAI_NOT_GIVEN,
-        )
+        async with asyncio.timeout(_generation_config.timeout_in_seconds):
+            chat_completion: ChatCompletion = (
+                await self._client.chat.completions.create(
+                    model=self._resolve_model(model),
+                    messages=[
+                        input_message_adapter.adapt(message) for message in messages
+                    ],
+                    tools=[openai_tool_adapter.adapt(tool) for tool in tools]
+                    if tools
+                    else OPENAI_NOT_GIVEN,
+                )
+            )
 
         output_adapter = ChatCompletionToGenerationAdapter[T](
             response_schema=response_schema

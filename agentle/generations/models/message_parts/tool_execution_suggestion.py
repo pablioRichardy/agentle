@@ -2,6 +2,7 @@
 Module for tool execution suggestion message parts.
 """
 
+from collections.abc import Mapping
 import uuid
 from typing import Literal
 
@@ -30,7 +31,7 @@ class ToolExecutionSuggestion(BaseModel):
 
     tool_name: str = Field(description="The name of the tool to be executed.")
 
-    args: dict[str, object] = Field(
+    args: Mapping[str, object] = Field(
         default_factory=dict,
         description="The arguments to pass to the tool during execution.",
     )

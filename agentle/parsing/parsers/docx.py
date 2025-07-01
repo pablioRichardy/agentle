@@ -19,8 +19,9 @@ from agentle.generations.models.structured_outputs_store.visual_media_descriptio
     VisualMediaDescription,
 )
 from agentle.generations.providers.base.generation_provider import GenerationProvider
-from agentle.generations.providers.google.google_genai_generation_provider import (
-    GoogleGenaiGenerationProvider,
+
+from agentle.generations.providers.google.google_generation_provider import (
+    GoogleGenerationProvider,
 )
 from agentle.parsing.document_parser import DocumentParser
 from agentle.parsing.factories.visual_description_agent_default_factory import (
@@ -129,7 +130,7 @@ class DocxFileParser(DocumentParser):
     """
 
     multi_modal_provider: GenerationProvider = Field(
-        default_factory=GoogleGenaiGenerationProvider,
+        default_factory=GoogleGenerationProvider,
     )
     """
     The multi-modal provider to use for generating the visual description of the document.

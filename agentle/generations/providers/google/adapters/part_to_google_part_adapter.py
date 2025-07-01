@@ -37,7 +37,7 @@ response = model.generate_content([google_part])
 from __future__ import annotations
 
 import base64
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from rsb.adapters.adapter import Adapter
 
@@ -161,7 +161,7 @@ class PartToGooglePartAdapter(
                     function_call=FunctionCall(
                         id=_f.id,
                         name=_f.tool_name,
-                        args=_f.args,
+                        args=cast(dict[str, Any], _f.args),
                     )
                 )
             case ToolExecutionResult():

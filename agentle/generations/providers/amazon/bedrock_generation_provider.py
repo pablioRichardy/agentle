@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from collections.abc import Mapping
@@ -116,13 +117,7 @@ class BedrockGenerationProvider(GenerationProvider):
         inference_config_adapter = GenerationConfigToInferenceConfigAdapter()
         tool_adapter = AgentleToolToBedrockToolAdapter()
 
-        _generation_config = (
-            generation_config
-            if isinstance(generation_config, GenerationConfig)
-            else GenerationConfig()
-            if not isinstance(generation_config, dict)
-            else GenerationConfig(**generation_config)
-        )
+        _generation_config = self._normalize_generation_config(generation_config)
 
         if _generation_config.n > 1:
             raise ValueError(
@@ -161,26 +156,27 @@ class BedrockGenerationProvider(GenerationProvider):
             )
         ]
 
-        _model = model or self.default_model
+        _model = self._resolve_model(model)
 
-        if _tool_config:
-            response = await run_async(
-                self._client.converse,
-                modelId=_model,
-                system=_system,
-                messages=conversation,
-                inferenceConfig=_inference_config,
-                toolConfig=_tool_config,
-            )
+        async with asyncio.timeout(_generation_config.timeout_in_seconds):
+            if _tool_config:
+                response = await run_async(
+                    self._client.converse,
+                    modelId=_model,
+                    system=_system,
+                    messages=conversation,
+                    inferenceConfig=_inference_config,
+                    toolConfig=_tool_config,
+                )
 
-        else:
-            response = await run_async(
-                self._client.converse,
-                modelId=_model,
-                system=_system,
-                messages=conversation,
-                inferenceConfig=_inference_config,
-            )
+            else:
+                response = await run_async(
+                    self._client.converse,
+                    modelId=_model,
+                    system=_system,
+                    messages=conversation,
+                    inferenceConfig=_inference_config,
+                )
 
         logger.debug(f"Received Bedrock Response: {response}")
 

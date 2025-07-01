@@ -21,20 +21,18 @@ a consistent interface regardless of the underlying AI provider being used.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Mapping, MutableSequence, Sequence
 from typing import TYPE_CHECKING, cast, override
-from rsb.adapters.adapter import Adapter
 
 from agentle.generations.models.generation.generation import Generation
 from agentle.generations.models.generation.generation_config import GenerationConfig
 from agentle.generations.models.generation.generation_config_dict import (
     GenerationConfigDict,
 )
-from agentle.generations.models.messages.assistant_message import AssistantMessage
 from agentle.generations.models.messages.developer_message import DeveloperMessage
 from agentle.generations.models.messages.message import Message
-from agentle.generations.models.messages.user_message import UserMessage
 from agentle.generations.providers.base.generation_provider import (
     GenerationProvider,
 )
@@ -65,7 +63,7 @@ if TYPE_CHECKING:
     from google.genai.client import (
         DebugConfig,
     )
-    from google.genai.types import Content, HttpOptions, GenerateContentResponse
+    from google.genai.types import Content, GenerateContentResponse, HttpOptions
 
 
 type WithoutStructuredOutput = None
@@ -98,16 +96,6 @@ class GoogleGenerationProvider(GenerationProvider):
         function_calling_config: Configuration for function calling behavior.
     """
 
-    use_vertex_ai: bool
-    api_key: str | None
-    credentials: Credentials | None
-    project: str | None
-    location: str | None
-    debug_config: DebugConfig | None
-    http_options: HttpOptions | None
-    message_adapter: Adapter[AssistantMessage | UserMessage | DeveloperMessage, Content]
-    function_calling_config: FunctionCallingConfig
-
     def __init__(
         self,
         *,
@@ -119,10 +107,6 @@ class GoogleGenerationProvider(GenerationProvider):
         location: str | None = None,
         debug_config: DebugConfig | None = None,
         http_options: HttpOptions | None = None,
-        message_adapter: Adapter[
-            AssistantMessage | UserMessage | DeveloperMessage, Content
-        ]
-        | None = None,
         function_calling_config: FunctionCallingConfig | None = None,
     ) -> None:
         """
@@ -140,16 +124,23 @@ class GoogleGenerationProvider(GenerationProvider):
             message_adapter: Optional adapter to convert Agentle messages to Google Content.
             function_calling_config: Optional configuration for function calling behavior.
         """
+        from google import genai
+        from google.genai import types
+
         super().__init__(tracing_client=tracing_client)
-        self.use_vertex_ai = use_vertex_ai
-        self.api_key = api_key
-        self.credentials = credentials
-        self.project = project
-        self.location = location
-        self.debug_config = debug_config
-        self.http_options = http_options
-        self.message_adapter = message_adapter or MessageToGoogleContentAdapter()
+        self.message_adapter = MessageToGoogleContentAdapter()
         self.function_calling_config = function_calling_config or {}
+
+        _http_options = http_options or types.HttpOptions()
+        self._client = genai.Client(
+            vertexai=use_vertex_ai,
+            api_key=api_key,
+            credentials=credentials,
+            project=project if use_vertex_ai else None,
+            location=location if use_vertex_ai else None,
+            debug_config=debug_config,
+            http_options=_http_options,
+        )
 
     @property
     @override
@@ -201,35 +192,10 @@ class GoogleGenerationProvider(GenerationProvider):
             Generation[T]: An Agentle Generation object containing the model's response,
                 potentially with structured output if a response_schema was provided.
         """
-        from google import genai
         from google.genai import types
 
-        used_model = model or self.default_model
+        used_model = self._resolve_model(model)
         _generation_config = self._normalize_generation_config(generation_config)
-
-        _http_options = self.http_options or types.HttpOptions()
-        # change so if the timeout is provided in the constructor and the user doesnt inform the timeout in the generation config, the timeout in the constructor is used
-        _http_options.timeout = (
-            int(
-                _generation_config.timeout
-            )  # Convertendo de segundos para milissegundos
-            if _generation_config.timeout
-            else int(_generation_config.timeout_s * 1000)
-            if _generation_config.timeout_s
-            else int(_generation_config.timeout_m * 60 * 1000)
-            if _generation_config.timeout_m
-            else _http_options.timeout
-        )
-
-        client = genai.Client(
-            vertexai=self.use_vertex_ai,
-            api_key=self.api_key,
-            credentials=self.credentials,
-            project=self.project,
-            location=self.location,
-            debug_config=self.debug_config,
-            http_options=_http_options,
-        )
 
         system_instruction: Content | None = None
         first_message = messages[0]
@@ -280,13 +246,15 @@ class GoogleGenerationProvider(GenerationProvider):
         contents: MutableSequence[Content] = [
             self.message_adapter.adapt(message) for message in messages
         ]
-        generate_content_response: types.GenerateContentResponse = (
-            await client.aio.models.generate_content(
-                model=used_model,
-                contents=cast(types.ContentListUnion, contents),
-                config=config,
+
+        async with asyncio.timeout(_generation_config.timeout_in_seconds):
+            generate_content_response: types.GenerateContentResponse = (
+                await self._client.aio.models.generate_content(
+                    model=used_model,
+                    contents=cast(types.ContentListUnion, contents),
+                    config=config,
+                )
             )
-        )
 
         # Create the response
         response = GenerateGenerateContentResponseToGenerationAdapter[T](

@@ -347,6 +347,33 @@ class GenerationProvider(abc.ABC):
         """
         ...
 
+    def _resolve_model(self, model: str | ModelKind | None) -> str:
+        if model and model in [
+            "category_nano",
+            "category_mini",
+            "category_standard",
+            "category_pro",
+            "category_flagship",
+            "category_reasoning",
+            "category_vision",
+            "category_coding",
+            "category_instruct",
+            "category_nano_experimental",
+            "category_mini_experimental",
+            "category_standard_experimental",
+            "category_pro_experimental",
+            "category_flagship_experimental",
+            "category_reasoning_experimental",
+            "category_vision_experimental",
+            "category_coding_experimental",
+            "category_instruct_experimental",
+        ]:
+            return self.map_model_kind_to_provider_model(
+                model_kind=cast(ModelKind, model)
+            )
+
+        return model or self.default_model
+
     def _normalize_generation_config(
         self, generation_config: GenerationConfig | GenerationConfigDict | None
     ) -> GenerationConfig:

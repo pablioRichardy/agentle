@@ -115,6 +115,19 @@ class GenerationConfig(BaseModel):
 
         return self
 
+    @property
+    def timeout_in_seconds(self) -> float | None:
+        return (
+            self.timeout / 1000
+            # Convertendo de segundos para milissegundos
+            if self.timeout
+            else self.timeout_s
+            if self.timeout_s
+            else self.timeout_m * 60
+            if self.timeout_m
+            else None
+        )
+
     def clone(
         self,
         *,

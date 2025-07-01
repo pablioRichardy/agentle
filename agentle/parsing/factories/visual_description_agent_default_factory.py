@@ -58,14 +58,14 @@ def visual_description_agent_default_factory(
     from agentle.generations.models.structured_outputs_store.visual_media_description import (
         VisualMediaDescription,
     )
-    from agentle.generations.providers.google.google_genai_generation_provider import (
-        GoogleGenaiGenerationProvider,
+    from agentle.generations.providers.google.google_generation_provider import (
+        GoogleGenerationProvider,
     )
 
     agent = Agent(
         model="gemini-2.0-pro-vision",
         instructions="You are a helpful assistant that deeply understands visual media.",
-        generation_provider=provider or GoogleGenaiGenerationProvider(),
+        generation_provider=provider or GoogleGenerationProvider(),
         response_schema=VisualMediaDescription,
     )
 

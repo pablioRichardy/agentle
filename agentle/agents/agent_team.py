@@ -80,8 +80,8 @@ from agentle.agents.agent_config import AgentConfig
 from agentle.agents.agent_input import AgentInput
 from agentle.agents.agent_run_output import AgentRunOutput
 from agentle.generations.providers.base.generation_provider import GenerationProvider
-from agentle.generations.providers.google.google_genai_generation_provider import (
-    GoogleGenaiGenerationProvider,
+from agentle.generations.providers.google.google_generation_provider import (
+    GoogleGenerationProvider,
 )
 
 logger = logging.getLogger(__name__)
@@ -197,7 +197,7 @@ class AgentTeam(BaseModel):
     )
 
     orchestrator_provider: GenerationProvider = Field(
-        default_factory=GoogleGenaiGenerationProvider,
+        default_factory=GoogleGenerationProvider,
         description="The generation provider used by the orchestrator agent.",
     )
 
