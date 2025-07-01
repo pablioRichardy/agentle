@@ -470,7 +470,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             )
             skills.append(skill)
 
-        # Create capabilities
+        # Create capabilities 
         capabilities_data = agent_card.get("capabilities", {})
         capabilities = Capabilities(
             streaming=capabilities_data.get("streaming"),
