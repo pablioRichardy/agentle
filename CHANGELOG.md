@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.6.2
+## v0.6.3
 
-- fix(tool): passing awaitable tools in methods as well
+- refactor: renamed `ParsedDocument` to `ParsedFile`.
