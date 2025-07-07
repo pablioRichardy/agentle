@@ -22,7 +22,7 @@ from agentle.parsing.document_parser import DocumentParser
 from agentle.parsing.factories.visual_description_agent_default_factory import (
     visual_description_agent_default_factory,
 )
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.parsers.static_image import StaticImageParser
 from agentle.parsing.section_content import SectionContent
 
@@ -109,7 +109,7 @@ class DWGFileParser(DocumentParser):
     """
 
     @override
-    async def parse_async(self, document_path: str) -> ParsedDocument:
+    async def parse_async(self, document_path: str) -> ParsedFile:
         """
         Asynchronously parse a DWG file and generate a structured representation.
 
@@ -123,7 +123,7 @@ class DWGFileParser(DocumentParser):
             document_path (str): Path to the DWG file to be parsed
 
         Returns:
-            ParsedDocument: A structured representation where:
+            ParsedFile: A structured representation where:
                 - Each page/view from the drawing is a separate section
                 - Each section contains an AI-generated description of the visual content
 
@@ -201,7 +201,7 @@ class DWGFileParser(DocumentParser):
                 for section in parsed_file.sections
             ]
 
-            return ParsedDocument.from_sections(document_path, sections)
+            return ParsedFile.from_sections(document_path, sections)
 
     def __pdf_to_image_paths(self, pdf_path: str, temp_dir: str) -> list[str]:
         """

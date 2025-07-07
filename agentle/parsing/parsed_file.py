@@ -9,11 +9,11 @@ from rsb.models.field import Field
 from agentle.parsing.section_content import SectionContent
 
 
-class ParsedDocument(BaseModel):
+class ParsedFile(BaseModel):
     """
     Represents a fully parsed document with its sections and metadata.
 
-    The ParsedDocument class is the main output of the document parsing process.
+    The ParsedFile class is the main output of the document parsing process.
     It contains the document's name and a collection of sections representing
     the content of the document. This structured representation makes it easy
     to work with parsed content from any supported file type in a consistent way.
@@ -25,7 +25,7 @@ class ParsedDocument(BaseModel):
 
         **Example:**
         ```python
-        doc = ParsedDocument(name="report.pdf", sections=[])
+        doc = ParsedFile(name="report.pdf", sections=[])
         print(doc.name)  # Output: report.pdf
         ```
 
@@ -40,7 +40,7 @@ class ParsedDocument(BaseModel):
         section1 = SectionContent(number=1, text="First section content")
         section2 = SectionContent(number=2, text="Second section content")
 
-        doc = ParsedDocument(name="document.txt", sections=[section1, section2])
+        doc = ParsedFile(name="document.txt", sections=[section1, section2])
 
         for section in doc.sections:
             print(f"Section {section.number}: {section.text[:20]}...")
@@ -48,7 +48,7 @@ class ParsedDocument(BaseModel):
 
     **Usage Examples:**
 
-    Creating a ParsedDocument with multiple sections:
+    Creating a ParsedFile with multiple sections:
     ```python
     from agentle.parsing.section_content import SectionContent
 
@@ -72,7 +72,7 @@ class ParsedDocument(BaseModel):
     )
 
     # Create the parsed document
-    doc = ParsedDocument(
+    doc = ParsedFile(
         name="example_document.docx",
         sections=[intro, body, conclusion]
     )
@@ -108,7 +108,7 @@ class ParsedDocument(BaseModel):
             ```python
             from agentle.parsing.section_content import SectionContent
 
-            doc = ParsedDocument(
+            doc = ParsedFile(
                 name="example.txt",
                 sections=[
                     SectionContent(number=1, text="First section", md="# First section"),
@@ -135,18 +135,18 @@ class ParsedDocument(BaseModel):
         )
         return f"<file>\n\n**name:** {self.name} \n**sections:** {sections}\n\n</file>"
 
-    def merge_all(self, others: Sequence[ParsedDocument]) -> ParsedDocument:
+    def merge_all(self, others: Sequence[ParsedFile]) -> ParsedFile:
         """
-        Merge this document with a sequence of other ParsedDocument objects.
+        Merge this document with a sequence of other ParsedFile objects.
 
-        This method combines the current document with other ParsedDocument objects,
+        This method combines the current document with other ParsedFile objects,
         keeping the name of the current document but merging all sections from all documents.
 
         Args:
-            others (Sequence[ParsedDocument]): Other parsed documents to merge with this one
+            others (Sequence[ParsedFile]): Other parsed documents to merge with this one
 
         Returns:
-            ParsedDocument: A new document containing all sections from this document
+            ParsedFile: A new document containing all sections from this document
                            and the other documents
 
         Example:
@@ -154,17 +154,17 @@ class ParsedDocument(BaseModel):
             from agentle.parsing.section_content import SectionContent
 
             # Create sample documents
-            doc1 = ParsedDocument(
+            doc1 = ParsedFile(
                 name="doc1.txt",
                 sections=[SectionContent(number=1, text="Content from doc1")]
             )
 
-            doc2 = ParsedDocument(
+            doc2 = ParsedFile(
                 name="doc2.txt",
                 sections=[SectionContent(number=1, text="Content from doc2")]
             )
 
-            doc3 = ParsedDocument(
+            doc3 = ParsedFile(
                 name="doc3.txt",
                 sections=[SectionContent(number=1, text="Content from doc3")]
             )
@@ -178,19 +178,17 @@ class ParsedDocument(BaseModel):
         """
         from itertools import chain
 
-        return ParsedDocument(
+        return ParsedFile(
             name=self.name,
             sections=list(chain(self.sections, *[other.sections for other in others])),
         )
 
     @classmethod
-    def from_sections(
-        cls, name: str, sections: Sequence[SectionContent]
-    ) -> ParsedDocument:
+    def from_sections(cls, name: str, sections: Sequence[SectionContent]) -> ParsedFile:
         """
-        Create a ParsedDocument from a name and a sequence of sections.
+        Create a ParsedFile from a name and a sequence of sections.
 
-        This factory method provides a convenient way to create a ParsedDocument
+        This factory method provides a convenient way to create a ParsedFile
         by specifying the document name and its sections.
 
         Args:
@@ -198,7 +196,7 @@ class ParsedDocument(BaseModel):
             sections (Sequence[SectionContent]): The sections to include in the document
 
         Returns:
-            ParsedDocument: A new ParsedDocument instance with the specified name and sections
+            ParsedFile: A new ParsedFile instance with the specified name and sections
 
         Example:
             ```python
@@ -210,7 +208,7 @@ class ParsedDocument(BaseModel):
                 SectionContent(number=3, text="Third section")
             ]
 
-            doc = ParsedDocument.from_sections("compiled_document.txt", sections)
+            doc = ParsedFile.from_sections("compiled_document.txt", sections)
 
             print(doc.name)  # Output: compiled_document.txt
             print(len(doc.sections))  # Output: 3
@@ -219,37 +217,37 @@ class ParsedDocument(BaseModel):
         return cls(name=name, sections=sections)
 
     @classmethod
-    def from_parsed_files(cls, files: Sequence[ParsedDocument]) -> ParsedDocument:
+    def from_parsed_files(cls, files: Sequence[ParsedFile]) -> ParsedFile:
         """
-        Create a merged ParsedDocument from multiple existing ParsedDocument objects.
+        Create a merged ParsedFile from multiple existing ParsedFile objects.
 
         This factory method provides a convenient way to combine multiple documents
         into a single document. The resulting document will have the name "MergedFile"
         and will contain all sections from all input files.
 
         Args:
-            files (Sequence[ParsedDocument]): The ParsedDocument objects to merge
+            files (Sequence[ParsedFile]): The ParsedFile objects to merge
 
         Returns:
-            ParsedDocument: A new ParsedDocument containing all sections from the input files
+            ParsedFile: A new ParsedFile containing all sections from the input files
 
         Example:
             ```python
             from agentle.parsing.section_content import SectionContent
 
             # Create sample documents
-            doc1 = ParsedDocument(
+            doc1 = ParsedFile(
                 name="chapter1.txt",
                 sections=[SectionContent(number=1, text="Chapter 1 content")]
             )
 
-            doc2 = ParsedDocument(
+            doc2 = ParsedFile(
                 name="chapter2.txt",
                 sections=[SectionContent(number=1, text="Chapter 2 content")]
             )
 
             # Merge documents
-            book = ParsedDocument.from_parsed_files([doc1, doc2])
+            book = ParsedFile.from_parsed_files([doc1, doc2])
 
             print(book.name)  # Output: MergedFile
             print(len(book.sections))  # Output: 2
@@ -276,7 +274,7 @@ class ParsedDocument(BaseModel):
             ```python
             from agentle.parsing.section_content import SectionContent
 
-            doc = ParsedDocument(
+            doc = ParsedFile(
                 name="document.md",
                 sections=[
                     SectionContent(number=1, text="First section", md="# First section\nContent"),

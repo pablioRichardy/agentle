@@ -106,7 +106,7 @@ def parses[ParserT: DocumentParser](
 
         @parses("txt", "text", "log")
         class TextFileParser(DocumentParser):
-            async def parse_async(self, document_path: str) -> ParsedDocument:
+            async def parse_async(self, document_path: str) -> ParsedFile:
                 # Implementation for parsing text files
                 ...
         ```

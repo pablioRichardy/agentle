@@ -2228,7 +2228,7 @@ print(f"Best time to visit: {rec.best_time_to_visit}")
 from typing import override
 from pathlib import Path
 from agentle.parsing.document_parser import DocumentParser
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_document import ParsedFile
 from agentle.parsing.section_content import SectionContent
 
 # Create a custom parser
@@ -2236,7 +2236,7 @@ class CustomParser(DocumentParser):
     """Parser with specialized document understanding"""
     
     @override
-    async def parse_async(self, document_path: str) -> ParsedDocument:
+    async def parse_async(self, document_path: str) -> ParsedFile:
         # Read the document file
         path = Path(document_path)
         file_content = path.read_text(encoding="utf-8")
@@ -2244,8 +2244,8 @@ class CustomParser(DocumentParser):
         # Use your custom parsing logic
         parsed_content = file_content.upper()  # Simple example transformation
         
-        # Return in the standard ParsedDocument format
-        return ParsedDocument(
+        # Return in the standard ParsedFile format
+        return ParsedFile(
             name=path.name,
             sections=[
                 SectionContent(

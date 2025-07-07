@@ -20,7 +20,7 @@ from agentle.parsing.document_parser import DocumentParser
 from agentle.parsing.factories.visual_description_agent_default_factory import (
     visual_description_agent_default_factory,
 )
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.parsers.file_parser import FileParser
 
 
@@ -31,7 +31,7 @@ class CompressedFileParser(DocumentParser):
     This parser extracts files from compressed archives and processes each file using
     the appropriate parser for its file type. It acts as a container parser that delegates
     the actual parsing work to specialized parsers for each contained file type.
-    The results from all contained files are then combined into a single ParsedDocument.
+    The results from all contained files are then combined into a single ParsedFile.
 
     **Attributes:**
 
@@ -134,19 +134,19 @@ class CompressedFileParser(DocumentParser):
     """
 
     @override
-    async def parse_async(self, document_path: str) -> ParsedDocument:
+    async def parse_async(self, document_path: str) -> ParsedFile:
         """
         Asynchronously parse a compressed archive file and process its contents.
 
         This method extracts files from a compressed archive (ZIP, RAR, or PKZ),
         processes each file using the appropriate parser for its file type, and
-        combines the results into a single ParsedDocument.
+        combines the results into a single ParsedFile.
 
         Args:
             document_path (str): Path to the compressed archive file to be parsed
 
         Returns:
-            ParsedDocument: A structured representation combining the parsed content
+            ParsedFile: A structured representation combining the parsed content
                 from all files in the archive
 
         Raises:
@@ -187,7 +187,7 @@ class CompressedFileParser(DocumentParser):
         file_contents = path.read_bytes()
 
         # We'll accumulate ParsedFile objects from each extracted child file
-        parsed_files: MutableSequence[ParsedDocument] = []
+        parsed_files: MutableSequence[ParsedFile] = []
 
         # Write the compressed file to a temporary location
         with tempfile.NamedTemporaryFile(delete=True) as tmp:
@@ -237,4 +237,4 @@ class CompressedFileParser(DocumentParser):
                     )
 
         # Merge all the parsed files into a single ParsedFile
-        return ParsedDocument.from_parsed_files(parsed_files)
+        return ParsedFile.from_parsed_files(parsed_files)

@@ -17,7 +17,7 @@ from rsb.models.config_dict import ConfigDict
 from rsb.models.field import Field
 
 from agentle.parsing.cache.document_cache_store import CacheTTL, DocumentCacheStore
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +116,7 @@ class InMemoryDocumentCacheStore(BaseModel, DocumentCacheStore):
         """Initialize the InMemoryDocumentCacheStore."""
 
         # Initialize threading objects here to avoid Pydantic's deepcopy issues
-        self._cache_store: dict[str, tuple[ParsedDocument, float, CacheTTL]] = {}
+        self._cache_store: dict[str, tuple[ParsedFile, float, CacheTTL]] = {}
         self._cache_lock = threading.RLock()
         self._cleanup_timer: Optional[threading.Timer] = None
         self._is_shutdown = threading.Event()
@@ -131,7 +131,7 @@ class InMemoryDocumentCacheStore(BaseModel, DocumentCacheStore):
             self._start_cleanup_timer()
 
     @override
-    async def get_async(self, key: str) -> ParsedDocument | None:
+    async def get_async(self, key: str) -> ParsedFile | None:
         """
         Retrieve a parsed document from the in-memory cache.
 
@@ -142,7 +142,7 @@ class InMemoryDocumentCacheStore(BaseModel, DocumentCacheStore):
             key: The cache key to retrieve
 
         Returns:
-            The cached ParsedDocument if found and not expired, None otherwise
+            The cached ParsedFile if found and not expired, None otherwise
         """
         if self._is_shutdown.is_set():
             return None
@@ -167,14 +167,14 @@ class InMemoryDocumentCacheStore(BaseModel, DocumentCacheStore):
 
     @override
     async def set_async(
-        self, key: str, value: ParsedDocument, ttl: CacheTTL = None
+        self, key: str, value: ParsedFile, ttl: CacheTTL = None
     ) -> None:
         """
         Store a parsed document in the in-memory cache.
 
         Args:
             key: The cache key to store under
-            value: The ParsedDocument to cache
+            value: The ParsedFile to cache
             ttl: Time to live for the cache entry
         """
         if ttl is None or self._is_shutdown.is_set():

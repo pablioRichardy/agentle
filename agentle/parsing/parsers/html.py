@@ -26,7 +26,7 @@ from agentle.parsing.factories.visual_description_agent_default_factory import (
     visual_description_agent_default_factory,
 )
 from agentle.parsing.image import Image
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
 
 
@@ -115,7 +115,7 @@ class HTMLParser(DocumentParser):
     )
 
     @override
-    async def parse_async(self, document_path: str) -> ParsedDocument:
+    async def parse_async(self, document_path: str) -> ParsedFile:
         """
         Asynchronously parse an HTML file and generate a structured representation.
 
@@ -126,7 +126,7 @@ class HTMLParser(DocumentParser):
             document_path (str): Path to the HTML file to be parsed
 
         Returns:
-            ParsedDocument: A structured representation containing the extracted content,
+            ParsedFile: A structured representation containing the extracted content,
                 with images and their descriptions if the "high" strategy is used
 
         Example:
@@ -270,7 +270,7 @@ class HTMLParser(DocumentParser):
             images=images,
         )
 
-        return ParsedDocument(
+        return ParsedFile(
             name=title,
             sections=[section],
         )

@@ -101,7 +101,7 @@ from agentle.parsing.document_parser import DocumentParser
 from agentle.parsing.factories.file_parser_default_factory import (
     file_parser_default_factory,
 )
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 from agentle.prompts.models.prompt import Prompt
 from agentle.stt.providers.base.speech_to_text_provider import SpeechToTextProvider
 
@@ -401,7 +401,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         )
 
     @classmethod
-    def from_agent_card(cls, agent_card: Mapping[str, Any]) -> "Agent[Any]":
+    def from_agent_card(cls, agent_card: Mapping[str, Any]) -> Agent[Any]:
         """
         Creates an Agent instance from an A2A agent card.
 
@@ -470,7 +470,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             )
             skills.append(skill)
 
-        # Create capabilities 
+        # Create capabilities
         capabilities_data = agent_card.get("capabilities", {})
         capabilities = Capabilities(
             streaming=capabilities_data.get("streaming"),
@@ -2349,7 +2349,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                     UserMessage(parts=[TextPart(text=text)]),
                 ]
             )
-        elif isinstance(input, ParsedDocument):
+        elif isinstance(input, ParsedFile):
             return Context(
                 message_history=[
                     developer_message,

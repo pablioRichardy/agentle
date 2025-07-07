@@ -8,8 +8,8 @@ from agentle.generations.models.structured_outputs_store.audio_description impor
 from agentle.generations.models.structured_outputs_store.visual_media_description import (
     VisualMediaDescription,
 )
-from agentle.parsing.parsed_document import ParsedDocument
-from agentle.parsing.parsers.parse_async import parse_async
+from agentle.parsing.parsed_file import ParsedFile
+from agentle.parsing.parse_async import parse_async
 from agentle.parsing.parses import parser_registry
 from rsb.coroutines.run_sync import run_sync
 
@@ -19,9 +19,9 @@ def parse(
     strategy: Literal["low", "high"] = "high",
     visual_description_agent: Agent[VisualMediaDescription] | None = None,
     audio_description_agent: Agent[AudioDescription] | None = None,
-) -> ParsedDocument:
+) -> ParsedFile:
     """
-    Parse any supported document type into a structured ParsedDocument representation.
+    Parse any supported document type into a structured ParsedFile representation.
 
     This function serves as the main entry point for document parsing in the Agentle framework.
     It automatically selects the appropriate parser based on the file extension and applies
@@ -47,7 +47,7 @@ def parse(
             the audio analysis behavior. Defaults to None.
 
     Returns:
-        ParsedDocument: A structured representation of the parsed document with:
+        ParsedFile: A structured representation of the parsed document with:
             - sections: list of content sections
             - images: extracted images with optional OCR text
             - structured items: headings, tables, and text blocks

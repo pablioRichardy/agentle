@@ -51,7 +51,7 @@ agentle.agents.agent
       MessageSequence
       MutableMapping
       MutableSequence
-      ParsedDocument
+      ParsedFile
       Path
       Prompt
       RunState

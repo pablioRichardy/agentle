@@ -3,7 +3,7 @@ Document Parser Implementations for Various File Types
 
 This package contains parser implementations for different file formats, each extending
 the base DocumentParser class. Each parser is designed to extract structured content
-from a specific file type and transform it into a standardized ParsedDocument format.
+from a specific file type and transform it into a standardized ParsedFile format.
 
 The parsers in this package can handle:
 

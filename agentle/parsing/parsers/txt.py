@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Literal, override
 
 from agentle.parsing.document_parser import DocumentParser
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
 
 
@@ -18,7 +18,7 @@ class TxtFileParser(DocumentParser):
     Parser for processing plain text files (.txt, .alg).
 
     This parser provides a simple implementation for reading text files and converting
-    them into a structured ParsedDocument representation. The parser reads the entire
+    them into a structured ParsedFile representation. The parser reads the entire
     file content and places it into a single section. It handles both .txt files and
     .alg (algorithm) files.
 
@@ -57,18 +57,18 @@ class TxtFileParser(DocumentParser):
     type: Literal["txt"] = "txt"
 
     @override
-    async def parse_async(self, document_path: str) -> ParsedDocument:
+    async def parse_async(self, document_path: str) -> ParsedFile:
         """
         Asynchronously parse a text file into a structured representation.
 
-        This method reads the content of a text file and converts it into a ParsedDocument
+        This method reads the content of a text file and converts it into a ParsedFile
         with a single section containing the file's text.
 
         Args:
             document_path (str): Path to the text file to be parsed
 
         Returns:
-            ParsedDocument: A structured representation of the text file with a
+            ParsedFile: A structured representation of the text file with a
                 single section containing the entire file content
 
         Example:
@@ -98,7 +98,7 @@ class TxtFileParser(DocumentParser):
             md=text_content,
         )
 
-        return ParsedDocument(
+        return ParsedFile(
             name=path.name,
             sections=[page_content],
         )

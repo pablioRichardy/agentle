@@ -24,7 +24,7 @@ from agentle.parsing.factories.visual_description_agent_default_factory import (
     visual_description_agent_default_factory,
 )
 from agentle.parsing.image import Image
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
 
 
@@ -111,7 +111,7 @@ class GifFileParser(DocumentParser):
     async def parse_async(
         self,
         document_path: str,
-    ) -> ParsedDocument:
+    ) -> ParsedFile:
         """
         Asynchronously parse a GIF file and generate a structured representation.
 
@@ -124,7 +124,7 @@ class GifFileParser(DocumentParser):
             document_path (str): Path to the GIF file to be parsed
 
         Returns:
-            ParsedDocument: A structured representation where:
+            ParsedFile: A structured representation where:
                 - Each selected frame is represented as a separate section
                 - Frames contain image data and descriptions
                 - OCR text is extracted if text is present in the frames
@@ -180,7 +180,7 @@ class GifFileParser(DocumentParser):
         num_frames = len(frames)
         if num_frames == 0:
             # No frames => no content
-            return ParsedDocument(name=path.name, sections=[])
+            return ParsedFile(name=path.name, sections=[])
 
         # --- 2. Pick up to 3 frames, splitting the GIF into 3 segments ---
         # If there are fewer than 3 frames, just use them all.
@@ -238,7 +238,7 @@ class GifFileParser(DocumentParser):
             pages.append(page_content)
 
         # --- 4. Return the multi-page ParsedFile ---
-        return ParsedDocument(
+        return ParsedFile(
             name=path.name,
             sections=pages,
         )

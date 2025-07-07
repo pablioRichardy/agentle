@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Literal, override
 
 from agentle.parsing.document_parser import DocumentParser
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
 
 
@@ -64,7 +64,7 @@ class PKTFileParser(DocumentParser):
     type: Literal["pkt"] = "pkt"
 
     @override
-    async def parse_async(self, document_path: str) -> ParsedDocument:
+    async def parse_async(self, document_path: str) -> ParsedFile:
         """
         Asynchronously parse a Packet Tracer file and extract its XML content.
 
@@ -76,7 +76,7 @@ class PKTFileParser(DocumentParser):
             document_path (str): Path to the Packet Tracer file to be parsed
 
         Returns:
-            ParsedDocument: A structured representation containing the extracted
+            ParsedFile: A structured representation containing the extracted
                 XML content in a single section
 
         Example:
@@ -122,7 +122,7 @@ class PKTFileParser(DocumentParser):
                 items=[],
             )
 
-            return ParsedDocument(
+            return ParsedFile(
                 name=document_path,
                 sections=[page_content],
             )

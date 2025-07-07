@@ -28,7 +28,7 @@ from agentle.parsing.factories.visual_description_agent_default_factory import (
     visual_description_agent_default_factory,
 )
 from agentle.parsing.image import Image
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
 
 
@@ -141,7 +141,7 @@ class DocxFileParser(DocumentParser):
     async def parse_async(
         self,
         document_path: str,
-    ) -> ParsedDocument:
+    ) -> ParsedFile:
         """
         Asynchronously parse a Word document and generate a structured representation.
 
@@ -153,7 +153,7 @@ class DocxFileParser(DocumentParser):
             document_path (str): Path to the Word document to be parsed
 
         Returns:
-            ParsedDocument: A structured representation where:
+            ParsedFile: A structured representation where:
                 - The document is represented as a single section
                 - The section includes all text content from the document
                 - Embedded images are extracted and (optionally) analyzed
@@ -234,7 +234,7 @@ class DocxFileParser(DocumentParser):
             if image_descriptions:
                 doc_text += "\n\n" + "\n".join(image_descriptions)
 
-        return ParsedDocument(
+        return ParsedFile(
             name=document_path,
             sections=[
                 SectionContent(

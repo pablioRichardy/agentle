@@ -25,7 +25,7 @@ from agentle.parsing.document_parser import DocumentParser
 from agentle.parsing.factories.audio_description_agent_default_factory import (
     audio_description_agent_default_factory,
 )
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
 
 logger = logging.getLogger(__name__)
@@ -106,7 +106,7 @@ class AudioFileParser(DocumentParser):
         default_factory=audio_description_agent_default_factory,
     )
 
-    async def parse_async(self, document_path: str) -> ParsedDocument:
+    async def parse_async(self, document_path: str) -> ParsedFile:
         """
         Asynchronously parse an audio file and generate a structured representation.
 
@@ -117,7 +117,7 @@ class AudioFileParser(DocumentParser):
             document_path (str): Path to the audio file to be parsed
 
         Returns:
-            ParsedDocument: A structured representation containing the transcription and
+            ParsedFile: A structured representation containing the transcription and
                 analysis of the audio content in a single section
 
         Raises:
@@ -210,7 +210,7 @@ class AudioFileParser(DocumentParser):
             FilePart(data=file_contents, mime_type=ext2mime(file_extension))
         )
 
-        return ParsedDocument(
+        return ParsedFile(
             name=path.name,
             sections=[
                 SectionContent(

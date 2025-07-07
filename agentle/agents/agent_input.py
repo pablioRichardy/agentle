@@ -11,7 +11,7 @@ from agentle.generations.models.messages.user_message import UserMessage
 from agentle.generations.tools.tool import Tool
 from agentle.mcp.sampling.messages.assistant_message import AssistantMessage
 from agentle.prompts.models.prompt import Prompt
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 
 if TYPE_CHECKING:
     import datetime
@@ -48,5 +48,5 @@ type AgentInput = (
     | BytesIO
     | StringIO
     | PydanticBaseModel
-    | ParsedDocument
+    | ParsedFile
 )

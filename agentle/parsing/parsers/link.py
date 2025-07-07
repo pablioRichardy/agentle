@@ -18,7 +18,7 @@ from agentle.parsing.factories.audio_description_agent_default_factory import (
 from agentle.parsing.factories.visual_description_agent_default_factory import (
     visual_description_agent_default_factory,
 )
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.parsers.file_parser import FileParser
 from agentle.parsing.section_content import SectionContent
 
@@ -42,7 +42,7 @@ class LinkParser(DocumentParser):
     parse_timeout: float = Field(default=30)
 
     @override
-    async def parse_async(self, document_path: str) -> ParsedDocument:
+    async def parse_async(self, document_path: str) -> ParsedFile:
         """
         Parse the link.
 
@@ -50,7 +50,7 @@ class LinkParser(DocumentParser):
             document_path (str): URL or local file path to parse
 
         Returns:
-            ParsedDocument: A structured representation of the parsed content
+            ParsedFile: A structured representation of the parsed content
         """
         # Determine if the document_path is a URL or a local file path
         parsed_url = urlparse(document_path)
@@ -137,7 +137,7 @@ class LinkParser(DocumentParser):
         )
         return await file_parser.parse_async(document_path)
 
-    async def _download_and_parse_file(self, url: str) -> ParsedDocument:
+    async def _download_and_parse_file(self, url: str) -> ParsedFile:
         """Download a file from a URL and parse it using the appropriate FileParser."""
         # Create a temporary file
         with tempfile.NamedTemporaryFile(
@@ -170,7 +170,7 @@ class LinkParser(DocumentParser):
             # Update the name to reflect the original URL
             original_name = Path(urlparse(url).path).name
             if original_name:
-                parsed_document = ParsedDocument(
+                parsed_document = ParsedFile(
                     name=original_name, sections=parsed_document.sections
                 )
 
@@ -180,7 +180,7 @@ class LinkParser(DocumentParser):
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
 
-    async def _parse_webpage(self, url: str) -> ParsedDocument:
+    async def _parse_webpage(self, url: str) -> ParsedFile:
         """Parse a webpage using Playwright."""
         # Import playwright here to handle ImportError gracefully
         from playwright.async_api import async_playwright
@@ -250,7 +250,7 @@ class LinkParser(DocumentParser):
                         os.unlink(html_path)
 
                 # Return the parsed document
-                return ParsedDocument(
+                return ParsedFile(
                     name=title or Path(urlparse(url).path).name or "webpage",
                     sections=[section],
                 )

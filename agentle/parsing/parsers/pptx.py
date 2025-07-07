@@ -29,7 +29,7 @@ from agentle.parsing.factories.visual_description_agent_default_factory import (
     visual_description_agent_default_factory,
 )
 from agentle.parsing.image import Image
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
 
 
@@ -39,7 +39,7 @@ class PptxFileParser(DocumentParser):
 
     This parser extracts content from PowerPoint presentations, including text and embedded
     images. Each slide in the presentation is parsed as a separate section in the resulting
-    ParsedDocument. With the "high" strategy, embedded images are analyzed using a visual
+    ParsedFile. With the "high" strategy, embedded images are analyzed using a visual
     description agent to extract text via OCR and generate descriptions.
 
     The parser supports both modern PowerPoint formats (.pptx, .pptm) and the legacy
@@ -155,7 +155,7 @@ class PptxFileParser(DocumentParser):
     async def parse_async(
         self,
         document_path: str,
-    ) -> ParsedDocument:
+    ) -> ParsedFile:
         """
         Asynchronously parse a PowerPoint presentation and generate a structured representation.
 
@@ -170,7 +170,7 @@ class PptxFileParser(DocumentParser):
             document_path (str): Path to the PowerPoint file to be parsed
 
         Returns:
-            ParsedDocument: A structured representation where:
+            ParsedFile: A structured representation where:
                 - Each slide is a separate section
                 - Text content is extracted from each slide
                 - Images are extracted and (optionally) analyzed
@@ -295,7 +295,7 @@ class PptxFileParser(DocumentParser):
             )
             sections.append(section_content)
 
-        return ParsedDocument(
+        return ParsedFile(
             name=path.name,
             sections=sections,
         )

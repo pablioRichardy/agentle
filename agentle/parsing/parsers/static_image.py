@@ -23,7 +23,7 @@ from agentle.parsing.factories.visual_description_agent_default_factory import (
     visual_description_agent_default_factory,
 )
 from agentle.parsing.image import Image
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
 
 
@@ -108,7 +108,7 @@ class StaticImageParser(DocumentParser):
     """
 
     @override
-    async def parse_async(self, document_path: str) -> ParsedDocument:
+    async def parse_async(self, document_path: str) -> ParsedFile:
         """
         Asynchronously parse a static image file and generate a structured representation.
 
@@ -120,7 +120,7 @@ class StaticImageParser(DocumentParser):
             document_path (str): Path to the image file to be parsed
 
         Returns:
-            ParsedDocument: A structured representation where:
+            ParsedFile: A structured representation where:
                 - The image is contained in a single section
                 - The section includes the image data and a description
                 - OCR text is extracted if text is present in the image
@@ -208,7 +208,7 @@ class StaticImageParser(DocumentParser):
             images=[image_obj],
         )
 
-        return ParsedDocument(
+        return ParsedFile(
             name=path.name,
             sections=[page_content],
         )

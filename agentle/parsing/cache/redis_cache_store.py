@@ -13,7 +13,7 @@ from rsb.models.config_dict import ConfigDict
 from rsb.models.field import Field
 
 from agentle.parsing.cache.document_cache_store import CacheTTL, DocumentCacheStore
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 
 
 class RedisCacheStore(BaseModel, DocumentCacheStore):
@@ -88,7 +88,7 @@ class RedisCacheStore(BaseModel, DocumentCacheStore):
         return f"{self.key_prefix}{key}"
 
     @override
-    async def get_async(self, key: str) -> ParsedDocument | None:
+    async def get_async(self, key: str) -> ParsedFile | None:
         """
         Retrieve a parsed document from Redis cache.
 
@@ -96,7 +96,7 @@ class RedisCacheStore(BaseModel, DocumentCacheStore):
             key: The cache key to retrieve
 
         Returns:
-            The cached ParsedDocument if found and not expired, None otherwise
+            The cached ParsedFile if found and not expired, None otherwise
         """
         redis_client = await self._get_redis_client()
         full_key = self._get_full_key(key)
@@ -111,8 +111,8 @@ class RedisCacheStore(BaseModel, DocumentCacheStore):
             # Deserialize the document
             document_data = json.loads(serialized_data)
 
-            # Reconstruct the ParsedDocument
-            return ParsedDocument.model_validate(document_data)
+            # Reconstruct the ParsedFile
+            return ParsedFile.model_validate(document_data)
 
         except Exception:
             # If there's any error (JSON parsing, validation, etc.), return None
@@ -120,14 +120,14 @@ class RedisCacheStore(BaseModel, DocumentCacheStore):
 
     @override
     async def set_async(
-        self, key: str, value: ParsedDocument, ttl: CacheTTL = None
+        self, key: str, value: ParsedFile, ttl: CacheTTL = None
     ) -> None:
         """
         Store a parsed document in Redis cache.
 
         Args:
             key: The cache key to store under
-            value: The ParsedDocument to cache
+            value: The ParsedFile to cache
             ttl: Time to live for the cache entry
         """
         if ttl is None:

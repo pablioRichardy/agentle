@@ -25,7 +25,7 @@ from agentle.parsing.factories.visual_description_agent_default_factory import (
 )
 from agentle.parsing.image import Image
 from agentle.parsing.page_item.table_page_item import TablePageItem
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
 from rsb.models.field import Field
 
@@ -36,7 +36,7 @@ class XlsxFileParser(DocumentParser):
 
     This parser extracts content from Excel files, including text data, tables, and
     embedded images. Each worksheet in the Excel file is parsed as a separate section
-    in the resulting ParsedDocument. The parser preserves the tabular structure of
+    in the resulting ParsedFile. The parser preserves the tabular structure of
     the data by creating TablePageItem objects for each worksheet.
 
     **Attributes:**
@@ -141,7 +141,7 @@ class XlsxFileParser(DocumentParser):
     async def parse_async(
         self,
         document_path: str,
-    ) -> ParsedDocument:
+    ) -> ParsedFile:
         """
         Asynchronously parse an Excel spreadsheet file and convert it to a structured representation.
 
@@ -153,7 +153,7 @@ class XlsxFileParser(DocumentParser):
             document_path (str): Path to the Excel file to be parsed
 
         Returns:
-            ParsedDocument: A structured representation of the Excel file where:
+            ParsedFile: A structured representation of the Excel file where:
                 - Each worksheet is a separate section
                 - Each section contains a TablePageItem with the worksheet data
                 - Images are extracted and (optionally) analyzed
@@ -254,7 +254,7 @@ class XlsxFileParser(DocumentParser):
             )
             sections.append(section_content)
 
-        return ParsedDocument(
+        return ParsedFile(
             name=Path(document_path).name,
             sections=sections,
         )

@@ -23,7 +23,7 @@ from agentle.parsing.factories.visual_description_agent_default_factory import (
     visual_description_agent_default_factory,
 )
 from agentle.parsing.image import Image
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
 
 
@@ -32,7 +32,7 @@ class PDFFileParser(DocumentParser):
     Parser for processing PDF documents into structured representations.
 
     This parser extracts content from PDF files, including text and embedded images.
-    Each page in the PDF is represented as a separate section in the resulting ParsedDocument.
+    Each page in the PDF is represented as a separate section in the resulting ParsedFile.
     With the "high" strategy, embedded images are analyzed using a visual description agent
     to extract text via OCR and generate descriptions.
 
@@ -118,7 +118,7 @@ class PDFFileParser(DocumentParser):
     """
 
     @override
-    async def parse_async(self, document_path: str) -> ParsedDocument:
+    async def parse_async(self, document_path: str) -> ParsedFile:
         """
         Asynchronously parse a PDF document and convert it to a structured representation.
 
@@ -130,7 +130,7 @@ class PDFFileParser(DocumentParser):
             document_path (str): Path to the PDF file to be parsed
 
         Returns:
-            ParsedDocument: A structured representation of the PDF where:
+            ParsedFile: A structured representation of the PDF where:
                 - Each PDF page is a separate section
                 - Text content is extracted from each page
                 - Images are extracted and (optionally) analyzed
@@ -221,7 +221,7 @@ class PDFFileParser(DocumentParser):
                 )
                 section_contents.append(section_content)
 
-            return ParsedDocument(
+            return ParsedFile(
                 name=document_path,
                 sections=section_contents,
             )

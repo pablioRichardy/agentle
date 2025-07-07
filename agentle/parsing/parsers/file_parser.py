@@ -20,7 +20,7 @@ from agentle.parsing.factories.audio_description_agent_default_factory import (
 from agentle.parsing.factories.visual_description_agent_default_factory import (
     visual_description_agent_default_factory,
 )
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 
 
 class FileParser(DocumentParser):
@@ -161,7 +161,7 @@ class FileParser(DocumentParser):
     """The timeout for the parse operation in seconds."""
 
     @override
-    async def parse_async(self, document_path: str) -> ParsedDocument:
+    async def parse_async(self, document_path: str) -> ParsedFile:
         """
         Asynchronously parse a document using the appropriate parser for its file type.
 
@@ -174,7 +174,7 @@ class FileParser(DocumentParser):
             document_path (str): Path to the document file to be parsed
 
         Returns:
-            ParsedDocument: A structured representation of the parsed document
+            ParsedFile: A structured representation of the parsed document
 
         Raises:
             ValueError: If the file extension is not supported by any registered parser

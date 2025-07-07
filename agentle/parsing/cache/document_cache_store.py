@@ -10,7 +10,7 @@ from typing import Literal
 
 from rsb.models.config_dict import ConfigDict
 
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 
 type CacheTTL = int | Literal["infinite"] | None
 
@@ -51,7 +51,7 @@ class DocumentCacheStore(abc.ABC):
     )
 
     @abc.abstractmethod
-    async def get_async(self, key: str) -> ParsedDocument | None:
+    async def get_async(self, key: str) -> ParsedFile | None:
         """
         Retrieve a parsed document from the cache asynchronously.
 
@@ -59,7 +59,7 @@ class DocumentCacheStore(abc.ABC):
             key: The cache key to retrieve
 
         Returns:
-            The cached ParsedDocument if found and not expired, None otherwise
+            The cached ParsedFile if found and not expired, None otherwise
 
         Example:
             ```python
@@ -74,14 +74,14 @@ class DocumentCacheStore(abc.ABC):
 
     @abc.abstractmethod
     async def set_async(
-        self, key: str, value: ParsedDocument, ttl: CacheTTL = None
+        self, key: str, value: ParsedFile, ttl: CacheTTL = None
     ) -> None:
         """
         Store a parsed document in the cache asynchronously.
 
         Args:
             key: The cache key to store under
-            value: The ParsedDocument to cache
+            value: The ParsedFile to cache
             ttl: Time to live for the cache entry:
                 - int: Expire after this many seconds
                 - "infinite": Never expire (until process restart)

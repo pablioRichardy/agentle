@@ -19,7 +19,7 @@ from agentle.parsing.document_parser import DocumentParser
 from agentle.parsing.factories.visual_description_agent_default_factory import (
     visual_description_agent_default_factory,
 )
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
 
 
@@ -29,7 +29,7 @@ class VideoFileParser(DocumentParser):
 
     This parser extracts descriptive information from video files by sending them to a
     visual description agent that can analyze the video content. The agent generates
-    a structured description of the video, which is then used to create a ParsedDocument.
+    a structured description of the video, which is then used to create a ParsedFile.
 
     Currently, this parser only supports MP4 files and relies on the visual description
     agent to perform the actual analysis of the video content.
@@ -103,18 +103,18 @@ class VideoFileParser(DocumentParser):
     Useful when you want to customize the prompt for the visual description.
     """
 
-    async def parse_async(self, document_path: str) -> ParsedDocument:
+    async def parse_async(self, document_path: str) -> ParsedFile:
         """
         Asynchronously parse a video file and generate a structured description.
 
         This method reads the video file data, sends it to the visual description agent for
-        analysis, and creates a ParsedDocument containing the generated description.
+        analysis, and creates a ParsedFile containing the generated description.
 
         Args:
             document_path (str): Path to the video file to be parsed
 
         Returns:
-            ParsedDocument: A structured representation of the parsed video with
+            ParsedFile: A structured representation of the parsed video with
                 descriptive content in the first section
 
         Raises:
@@ -143,7 +143,7 @@ class VideoFileParser(DocumentParser):
             FilePart(data=file_contents, mime_type=ext2mime(extension))
         )
 
-        return ParsedDocument(
+        return ParsedFile(
             name=path.name,
             sections=[
                 SectionContent(

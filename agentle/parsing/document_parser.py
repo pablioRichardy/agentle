@@ -4,7 +4,7 @@ from rsb.models.base_model import BaseModel
 from rsb.models.config_dict import ConfigDict
 
 
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 
 
 class DocumentParser(BaseModel, abc.ABC):
@@ -13,7 +13,7 @@ class DocumentParser(BaseModel, abc.ABC):
 
     This class defines the interface that all document parsers must implement.
     Document parsers are responsible for taking a document file path, parsing its
-    contents, and returning a structured ParsedDocument object representing the
+    contents, and returning a structured ParsedFile object representing the
     document's content.
 
     Different file types will have different parser implementations that extend
@@ -47,17 +47,17 @@ class DocumentParser(BaseModel, abc.ABC):
 
     ```python
     from agentle.parsing.document_parser import DocumentParser
-    from agentle.parsing.parsed_document import ParsedDocument
+    from agentle.parsing.parsed_document import ParsedFile
     from agentle.parsing.parses import parses
     from agentle.parsing.section_content import SectionContent
 
     @parses("xyz")  # Register this parser for .xyz files
     class XYZFileParser(DocumentParser):
-        async def parse_async(self, document_path: str) -> ParsedDocument:
+        async def parse_async(self, document_path: str) -> ParsedFile:
             # Custom logic to parse .xyz files
             # ...
 
-            return ParsedDocument(
+            return ParsedFile(
                 name=document_path,
                 sections=[
                     SectionContent(
@@ -75,7 +75,7 @@ class DocumentParser(BaseModel, abc.ABC):
         frozen=True,
     )
 
-    def parse(self, document_path: str) -> ParsedDocument:
+    def parse(self, document_path: str) -> ParsedFile:
         """
         Parse a document synchronously and return a structured representation.
 
@@ -87,7 +87,7 @@ class DocumentParser(BaseModel, abc.ABC):
             document_path (str): Path to the document file to be parsed
 
         Returns:
-            ParsedDocument: A structured representation of the parsed document
+            ParsedFile: A structured representation of the parsed document
 
         Example:
             ```python
@@ -104,19 +104,19 @@ class DocumentParser(BaseModel, abc.ABC):
         return run_sync(self.parse_async, document_path=document_path)
 
     @abc.abstractmethod
-    async def parse_async(self, document_path: str) -> ParsedDocument:
+    async def parse_async(self, document_path: str) -> ParsedFile:
         """
         Parse a document asynchronously and return a structured representation.
 
         This abstract method must be implemented by all concrete subclasses.
         It should contain the specific logic for parsing a particular document format
-        and transforming it into a standardized ParsedDocument structure.
+        and transforming it into a standardized ParsedFile structure.
 
         Args:
             document_path (str): Path to the document file to be parsed
 
         Returns:
-            ParsedDocument: A structured representation of the parsed document
+            ParsedFile: A structured representation of the parsed document
 
         Raises:
             NotImplementedError: If this method is not overridden by a subclass

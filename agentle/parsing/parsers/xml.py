@@ -15,7 +15,7 @@ from rsb.models.config_dict import ConfigDict
 from rsb.models.field import Field
 
 from agentle.parsing.document_parser import DocumentParser
-from agentle.parsing.parsed_document import ParsedDocument
+from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ class XMLFileParser(DocumentParser):
     """
     Parser for processing XML files into structured document representations.
 
-    This parser reads XML files and converts them into a ParsedDocument representation,
+    This parser reads XML files and converts them into a ParsedFile representation,
     transforming the XML structure into a nested markdown format for better readability.
     The parser attempts to preserve the hierarchical structure of the XML by using
     indented markdown lists, making complex XML documents easier to navigate and understand.
@@ -71,19 +71,19 @@ class XMLFileParser(DocumentParser):
     type: Literal["xml"] = Field(default="xml")
 
     @override
-    async def parse_async(self, document_path: str) -> ParsedDocument:
+    async def parse_async(self, document_path: str) -> ParsedFile:
         """
         Asynchronously parse an XML file into a structured representation.
 
         This method reads an XML file, attempts to parse its structure, and converts it
-        into a ParsedDocument with a single section containing both the raw XML text
+        into a ParsedFile with a single section containing both the raw XML text
         and a markdown representation of the XML structure.
 
         Args:
             document_path (str): Path to the XML file to be parsed
 
         Returns:
-            ParsedDocument: A structured representation of the XML file with:
+            ParsedFile: A structured representation of the XML file with:
                 - text: The raw XML text content
                 - md: A markdown representation of the XML structure
 
@@ -114,7 +114,7 @@ class XMLFileParser(DocumentParser):
             items=[],
         )
 
-        return ParsedDocument(
+        return ParsedFile(
             name=file.name,
             sections=[section_content],
         )
