@@ -31,7 +31,6 @@ import datetime
 import importlib.util
 import json
 import logging
-from textwrap import dedent
 import time
 import uuid
 from collections.abc import (
@@ -47,8 +46,10 @@ from collections.abc import (
 from contextlib import asynccontextmanager, contextmanager
 from io import BytesIO, StringIO
 from pathlib import Path
+from textwrap import dedent
 from typing import TYPE_CHECKING, Any, cast
 
+from async_lru import alru_cache
 from rsb.containers.maybe import Maybe
 from rsb.coroutines.run_sync import run_sync
 from rsb.models.base_model import BaseModel
@@ -400,6 +401,24 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             if isinstance(self.model, str)
             else None
         )
+
+    @alru_cache(maxsize=128, typed=True)
+    async def _all_tools(self) -> Sequence[Tool[Any]]:
+        # Reconstruct the tool execution environment
+        mcp_tools: Sequence[tuple[MCPServerProtocol, MCPTool]] = []
+        if self.mcp_servers:
+            for server in self.mcp_servers:
+                tools = await server.list_tools_async()
+                mcp_tools.extend((server, tool) for tool in tools)
+
+        all_tools: Sequence[Tool[Any]] = [
+            Tool.from_mcp_tool(mcp_tool=tool, server=server)
+            for server, tool in mcp_tools
+        ] + [
+            Tool.from_callable(tool) if callable(tool) else tool for tool in self.tools
+        ]
+
+        return all_tools
 
     @classmethod
     def from_agent_card(cls, agent_card: Mapping[str, Any]) -> Agent[Any]:
@@ -935,19 +954,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             )
         )
 
-        # Reconstruct the tool execution environment
-        mcp_tools: MutableSequence[tuple[MCPServerProtocol, MCPTool]] = []
-        if self.mcp_servers:
-            for server in self.mcp_servers:
-                tools = await server.list_tools_async()
-                mcp_tools.extend((server, tool) for tool in tools)
-
-        all_tools: MutableSequence[Tool[Any]] = [
-            Tool.from_mcp_tool(mcp_tool=tool, server=server)
-            for server, tool in mcp_tools
-        ] + [
-            Tool.from_callable(tool) if callable(tool) else tool for tool in self.tools
-        ]
+        all_tools = await self._all_tools()
 
         available_tools: MutableMapping[str, Tool[Any]] = {
             tool.name: tool for tool in all_tools
@@ -1206,7 +1213,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         self,
         context: Context,
         current_iteration: int,
-        all_tools: MutableSequence[Tool[Any]],
+        all_tools: Sequence[Tool[Any]],
         called_tools: dict[str, tuple[ToolExecutionSuggestion, Any]],
     ) -> AgentRunOutput[T_Schema]:
         """
@@ -1408,7 +1415,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         suspension_type: str,
         tool_suggestion: ToolExecutionSuggestion | None = None,
         current_iteration: int | None = None,
-        all_tools: MutableSequence[Tool[Any]] | None = None,
+        all_tools: Sequence[Tool[Any]] | None = None,
         called_tools: dict[str, tuple[ToolExecutionSuggestion, Any]] | None = None,
         current_step: dict[str, Any] | None = None,
     ) -> None:
@@ -1707,6 +1714,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             else tool
             for tool in self.tools
         ]
+
         _logger.bind_optional(
             lambda log: log.debug("Using %d tools in total", len(all_tools))
         )
@@ -1720,12 +1728,8 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         called_tools: dict[str, tuple[ToolExecutionSuggestion, Any]] = {}
 
         # Initialize tracking systems before the while loop
-        tool_call_cache: dict[
-            str, tuple[Any, float]
-        ] = {}  # cache_key -> (result, timestamp)
         tool_call_patterns: dict[str, int] = {}  # pattern_hash -> count
         tool_budget: dict[str, int] = {}  # tool_name -> call_count
-        CACHE_TTL = 300  # 5 minutes
         MAX_CALLS_PER_TOOL = 3
         MAX_IDENTICAL_CALLS = 1
 
@@ -1750,16 +1754,16 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                     if count > 1:
                         tool_name, args = pattern.split(":", 1)
                         redundancy_warnings.append(
-                            f"REDUNDANT: '{tool_name}' called {count} times with args: {args}"
+                            f"⚠️ REDUNDANT: '{tool_name}' called {count} times with args: {args}"
                         )
 
                 header_text = dedent(f"""\
                     <previous_tool_calls>
                     <critical_rules>
-                    NEVER call the same tool with identical arguments twice
-                    DO NOT repeat tool calls that already have results
-                      Check the results below BEFORE making any new tool call
-                      If information was already obtained, use it instead of calling again
+                    🚫 NEVER call the same tool with identical arguments twice
+                    🚫 DO NOT repeat tool calls that already have results
+                    ⚠️  Check the results below BEFORE making any new tool call
+                    ⚠️  If information was already obtained, use it instead of calling again
                     </critical_rules>
                     
                     <iteration_info>
@@ -1771,7 +1775,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 if redundancy_warnings:
                     header_text += "\n<redundancy_alerts>\n"
                     header_text += "\n".join(redundancy_warnings)
-                    header_text += "\nThese redundant calls are wasting resources and iterations!\n"
+                    header_text += "\n❌ These redundant calls are wasting resources and iterations!\n"
                     header_text += "</redundancy_alerts>\n"
 
                 # Add budget warnings
@@ -1820,7 +1824,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                                 + f"Tool: {suggestion.tool_name}\n"
                                 + f"Args: {json.dumps(suggestion.args, indent=2)}\n"
                                 + f"Result: {result_str}\n"
-                                + "Status: COMPLETED - DO NOT CALL AGAIN WITH SAME ARGS\n"
+                                + "Status: ✅ COMPLETED - DO NOT CALL AGAIN WITH SAME ARGS\n"
                             )
                         )
 
@@ -1941,45 +1945,13 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             skipped_tools: MutableSequence[str] = []
 
             for tool_execution_suggestion in tool_call_generation.tool_calls:
-                cache_key = self._get_cache_key(
+                pattern_key = self._get_tool_call_pattern_key(
                     tool_execution_suggestion.tool_name,
                     dict(tool_execution_suggestion.args),
                 )
 
-                # Check cache first
-                current_time = time.time()
-                if cache_key in tool_call_cache:
-                    cached_result, cache_time = tool_call_cache[cache_key]
-                    if current_time - cache_time < CACHE_TTL:
-                        _logger.bind_optional(
-                            lambda log: log.info(
-                                "Using cached result for tool: %s with args: %s",
-                                tool_execution_suggestion.tool_name,
-                                tool_execution_suggestion.args,
-                            )
-                        )
-
-                        # Use cached result
-                        called_tools[tool_execution_suggestion.id] = (
-                            tool_execution_suggestion,
-                            cached_result,
-                        )
-
-                        # Add to step as cached result
-                        step.add_tool_execution_result(
-                            suggestion=tool_execution_suggestion,
-                            result=f"[CACHED] {cached_result}",
-                            execution_time_ms=0,  # No execution time for cached results
-                            success=True,
-                        )
-
-                        skipped_tools.append(
-                            f"{tool_execution_suggestion.tool_name} (cached)"
-                        )
-                        continue
-
                 # Check if this exact pattern was already called
-                pattern_count = tool_call_patterns.get(cache_key, 0)
+                pattern_count = tool_call_patterns.get(pattern_key, 0)
                 if pattern_count >= MAX_IDENTICAL_CALLS:
                     _logger.bind_optional(
                         lambda log: log.warning(
@@ -2013,6 +1985,18 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                             result=f"[DUPLICATE BLOCKED - Using previous result] {previous_result}",
                             execution_time_ms=0,
                             success=True,
+                        )
+                    else:
+                        # This shouldn't happen, but handle it gracefully
+                        error_msg = (
+                            "Duplicate tool call blocked but no previous result found"
+                        )
+                        step.add_tool_execution_result(
+                            suggestion=tool_execution_suggestion,
+                            result=error_msg,
+                            execution_time_ms=0,
+                            success=False,
+                            error_message=error_msg,
                         )
 
                     skipped_tools.append(
@@ -2074,11 +2058,8 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                         tool_result,
                     )
 
-                    # Update cache
-                    tool_call_cache[cache_key] = (tool_result, current_time)
-
                     # Update pattern tracking
-                    tool_call_patterns[cache_key] = pattern_count + 1
+                    tool_call_patterns[pattern_key] = pattern_count + 1
 
                     # Update budget
                     tool_budget[tool_name] = current_tool_calls + 1
@@ -2141,7 +2122,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             if skipped_tools:
                 _logger.bind_optional(
                     lambda log: log.info(
-                        "Skipped %d redundant/cached tool calls: %s",
+                        "Skipped %d redundant tool calls: %s",
                         len(skipped_tools),
                         ", ".join(skipped_tools),
                     )
@@ -2616,8 +2597,10 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             ]
         )
 
-    def _get_cache_key(self, tool_name: str, args: Mapping[str, object]) -> str:
-        """Generate a deterministic cache key for tool calls."""
+    def _get_tool_call_pattern_key(
+        self, tool_name: str, args: Mapping[str, object]
+    ) -> str:
+        """Generate a deterministic key for tracking tool call patterns."""
         return f"{tool_name}:{json.dumps(args, sort_keys=True)}"
 
     def __call__(self, input: AgentInput | Any) -> AgentRunOutput[T_Schema]:
