@@ -1754,16 +1754,16 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                     if count > 1:
                         tool_name, args = pattern.split(":", 1)
                         redundancy_warnings.append(
-                            f"⚠️ REDUNDANT: '{tool_name}' called {count} times with args: {args}"
+                            f"(warning) REDUNDANT: '{tool_name}' called {count} times with args: {args}"
                         )
 
                 header_text = dedent(f"""\
                     <previous_tool_calls>
                     <critical_rules>
-                    🚫 NEVER call the same tool with identical arguments twice
-                    🚫 DO NOT repeat tool calls that already have results
-                    ⚠️  Check the results below BEFORE making any new tool call
-                    ⚠️  If information was already obtained, use it instead of calling again
+                    (danger) NEVER call the same tool with identical arguments twice
+                    (danger) DO NOT repeat tool calls that already have results
+                    (warning)  Check the results below BEFORE making any new tool call
+                    (warning)  If information was already obtained, use it instead of calling again
                     </critical_rules>
                     
                     <iteration_info>
@@ -1775,7 +1775,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 if redundancy_warnings:
                     header_text += "\n<redundancy_alerts>\n"
                     header_text += "\n".join(redundancy_warnings)
-                    header_text += "\n❌ These redundant calls are wasting resources and iterations!\n"
+                    header_text += "\n(danger) These redundant calls are wasting resources and iterations!\n"
                     header_text += "</redundancy_alerts>\n"
 
                 # Add budget warnings
@@ -1783,7 +1783,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 for tool_name, count in tool_budget.items():
                     if count >= MAX_CALLS_PER_TOOL - 1:
                         budget_warnings.append(
-                            f"⚠️ Tool '{tool_name}' approaching limit: {count}/{MAX_CALLS_PER_TOOL} calls"
+                            f"(warning) Tool '{tool_name}' approaching limit: {count}/{MAX_CALLS_PER_TOOL} calls"
                         )
 
                 if budget_warnings:
@@ -1824,7 +1824,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                                 + f"Tool: {suggestion.tool_name}\n"
                                 + f"Args: {json.dumps(suggestion.args, indent=2)}\n"
                                 + f"Result: {result_str}\n"
-                                + "Status: ✅ COMPLETED - DO NOT CALL AGAIN WITH SAME ARGS\n"
+                                + "Status: (success) COMPLETED - DO NOT CALL AGAIN WITH SAME ARGS\n"
                             )
                         )
 
