@@ -54,20 +54,14 @@ class ProgressiveProfilingAgent(BaseModel):
     def model_post_init(self, context: Any) -> None:
         """Initialize the internal agent with appropriate tools and instructions"""
         # Create tools for data collection
-        save_tool = Tool.from_callable(
-            self._save_field,
-        )
+        save_tool = Tool.from_callable(self._save_field, name="save_field")
 
         list_tool = Tool.from_callable(
-            self._list_collected_fields,
-        )
-
-        validate_tool = Tool.from_callable(
-            self._validate_field,
+            self._list_collected_fields, name="list_collected_fields"
         )
 
         get_state_tool = Tool.from_callable(
-            self._get_current_state,
+            self._get_current_state, name="get_current_state"
         )
 
         # Build field descriptions for instructions
@@ -85,8 +79,8 @@ class ProgressiveProfilingAgent(BaseModel):
         1. Be conversational and friendly while collecting information
         2. Ask for one or a few related fields at a time, not all at once
         3. Validate data before saving using the validate_field tool
-        4. Use the save_field tool to store validated data
-        5. Check progress with list_collected_fields tool
+        4. Use the _save_field tool to store validated data
+        5. Check progress with _list_collected_fields tool
         6. Always call get_current_state at the end to get the current CollectedData state
         7. If a user provides multiple pieces of information at once, extract and save all of them
         8. Be flexible - users might provide information in any order
@@ -109,7 +103,7 @@ class ProgressiveProfilingAgent(BaseModel):
             generation_provider=self.generation_provider,
             model=self.model or self.generation_provider.default_model,
             instructions=instructions,
-            tools=[save_tool, list_tool, validate_tool, get_state_tool],
+            tools=[save_tool, list_tool, get_state_tool],
             response_schema=CollectedData,
         )
 
