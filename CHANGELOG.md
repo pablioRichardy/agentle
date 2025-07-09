@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.6.5
+## v0.6.6
 
-- fix: removing emojis from internal messages sent to the Agent
+- feat: adding observability to google's speech-to-text provider
