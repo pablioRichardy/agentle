@@ -19,7 +19,7 @@ API requirements, while maintaining the common interface for framework consumers
 from __future__ import annotations
 
 import abc
-from collections.abc import Sequence
+from collections.abc import MutableSequence, Sequence
 from typing import TYPE_CHECKING, Any, Never, cast
 
 from rsb.containers.maybe import Maybe
@@ -389,13 +389,22 @@ class GenerationProvider(abc.ABC):
             f"Model kind {model_kind} is not supported by {self.__class__.__name__}"
         )
 
-    def __add__(self, other: GenerationProvider) -> FailoverGenerationProvider:
+    def __add__(
+        self, other: GenerationProvider | Sequence[GenerationProvider]
+    ) -> FailoverGenerationProvider:
         from agentle.generations.providers.failover.failover_generation_provider import (
             FailoverGenerationProvider,
         )
 
+        match other:
+            case GenerationProvider():
+                providers: MutableSequence[GenerationProvider] = [self, other]
+            case _:
+                providers = [self] + list(other)
+
         return FailoverGenerationProvider(
-            generation_providers=[self, other],
-            tracing_client=self.tracing_client.unwrap()
-            or other.tracing_client.unwrap(),
+            generation_providers=providers,
+            tracing_client=self.tracing_client.unwrap() or other.tracing_client.unwrap()
+            if isinstance(other, GenerationProvider)
+            else other[0].tracing_client.unwrap(),
         )
