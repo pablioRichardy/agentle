@@ -247,14 +247,20 @@ class GoogleGenerationProvider(GenerationProvider):
             self.message_adapter.adapt(message) for message in messages
         ]
 
-        async with asyncio.timeout(_generation_config.timeout_in_seconds):
-            generate_content_response: types.GenerateContentResponse = (
-                await self._client.aio.models.generate_content(
-                    model=used_model,
-                    contents=cast(types.ContentListUnion, contents),
-                    config=config,
+        try:
+            async with asyncio.timeout(_generation_config.timeout_in_seconds):
+                generate_content_response: types.GenerateContentResponse = (
+                    await self._client.aio.models.generate_content(
+                        model=used_model,
+                        contents=cast(types.ContentListUnion, contents),
+                        config=config,
+                    )
                 )
+        except asyncio.TimeoutError as e:
+            e.add_note(
+                f"Content generation timed out after {_generation_config.timeout_in_seconds}s"
             )
+            raise
 
         # Create the response
         response = GenerateGenerateContentResponseToGenerationAdapter[T](
