@@ -12,6 +12,7 @@ from rsb.functions.ext2mime import ext2mime
 
 from agentle.generations.models.message_parts.file import FilePart
 from agentle.generations.models.message_parts.text import TextPart
+from agentle.generations.providers.base.generation_provider import GenerationProvider
 from agentle.generations.providers.failover.failover_generation_provider import (
     FailoverGenerationProvider,
 )
@@ -625,34 +626,45 @@ class GoogleSpeechToTextProvider(SpeechToTextProvider):
     def __init__(
         self,
         generation_provider: FailoverGenerationProvider | GoogleGenerationProvider,
-        model: str = "gemini-2.5-flash",
+        model: str = "gemini-1.5-flash",
     ) -> None:
+        """
+        Initializes the provider, ensuring that all nested providers are from Google.
+        """
         self.model = model
-        _provider = generation_provider
 
-        if isinstance(_provider, FailoverGenerationProvider):
-            all_google = True
-            for provider in _provider.generation_providers:
-                if provider.organization.lower() != "google":
-                    all_google = False
-                    _provider -= provider
-                    logger.warning("WARNING: removing provider ")
-                    break
+        # Perform recursive validation.
+        if not self._validate_google_providers_recursively(generation_provider):
+            raise ValueError(
+                "Invalid provider configuration. All providers, including those "
+                + "within a nested FailoverGenerationProvider, must be instances of "
+                + "GoogleGenerationProvider."
+            )
 
-            if not all_google:
-                raise ValueError(
-                    "ALL providers of the FailoverGenerationProvider must "
-                    + "be instances of GoogleGenerationProvider class."
-                )
+        self._generation_provider = generation_provider
 
-            if not _provider.generation_providers:
-                raise ValueError(
-                    "Cannot proceed since there are no more "
-                    + "GenerationProviders left in the "
-                    + "provider list."
-                )
+    def _validate_google_providers_recursively(
+        self, provider: GenerationProvider
+    ) -> bool:
+        """
+        Recursively validates that a provider or a hierarchy of providers are all
+        from Google.
+        """
+        # Base case: If the provider is a GoogleGenerationProvider, it's valid.
+        if isinstance(provider, GoogleGenerationProvider):
+            return True
 
-        self._generation_provider = _provider
+        # Recursive step: If it's a Failover provider, check all its sub-providers.
+        if isinstance(provider, FailoverGenerationProvider):
+            # The 'all()' function ensures every sub-provider in the list is valid.
+            # It will short-circuit and return False on the first invalid one found.
+            return all(
+                self._validate_google_providers_recursively(p)
+                for p in provider.generation_providers
+            )
+
+        # If the provider is neither Google nor Failover, it's invalid in this context.
+        return False
 
     async def transcribe_async(
         self, audio_file: str | Path, config: TranscriptionConfig | None = None
