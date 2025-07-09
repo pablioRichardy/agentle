@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 from collections.abc import Mapping, MutableSequence, Sequence
 from pathlib import Path
@@ -11,6 +12,9 @@ from rsb.functions.ext2mime import ext2mime
 
 from agentle.generations.models.message_parts.file import FilePart
 from agentle.generations.models.message_parts.text import TextPart
+from agentle.generations.providers.failover.failover_generation_provider import (
+    FailoverGenerationProvider,
+)
 from agentle.generations.providers.google.google_generation_provider import (
     GoogleGenerationProvider,
 )
@@ -612,26 +616,43 @@ _LANGUAGE_TO_PROMPTS: Mapping[str, Prompt] = {
     ),
 }
 
+logger = logging.getLogger(__name__)
+
 
 class GoogleSpeechToTextProvider(SpeechToTextProvider):
     model: str
 
     def __init__(
         self,
+        generation_provider: FailoverGenerationProvider | GoogleGenerationProvider,
         model: str = "gemini-2.5-flash",
-        use_vertex_ai: bool = False,
-        api_key: str | None = None,
-        project: str | None = None,
-        location: str | None = None,
     ) -> None:
         self.model = model
+        _provider = generation_provider
 
-        self._generation_provider = GoogleGenerationProvider(
-            use_vertex_ai=use_vertex_ai,
-            api_key=api_key,
-            project=project,
-            location=location,
-        )
+        if isinstance(_provider, FailoverGenerationProvider):
+            all_google = True
+            for provider in _provider.generation_providers:
+                if provider.organization.lower() != "google":
+                    all_google = False
+                    _provider -= provider
+                    logger.warning("WARNING: removing provider ")
+                    break
+
+            if not all_google:
+                raise ValueError(
+                    "ALL providers of the FailoverGenerationProvider must "
+                    + "be instances of GoogleGenerationProvider class."
+                )
+
+            if not _provider.generation_providers:
+                raise ValueError(
+                    "Cannot proceed since there are no more "
+                    + "GenerationProviders left in the "
+                    + "provider list."
+                )
+
+        self._generation_provider = _provider
 
     async def transcribe_async(
         self, audio_file: str | Path, config: TranscriptionConfig | None = None

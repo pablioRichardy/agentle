@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.6.5
+## v0.6.8
 
-- fix: removing emojis from internal messages sent to the Agent
+- feat: new `GoogleSpeechToTextProvider` that uses Gemini to provide audio Transcriptions
