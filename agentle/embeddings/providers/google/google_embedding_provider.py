@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from collections.abc import MutableSequence
 from typing import TYPE_CHECKING, Literal, override
 
@@ -9,20 +10,17 @@ from google import genai
 
 if TYPE_CHECKING:
     from google.auth.credentials import Credentials
+    from google.genai import types
     from google.genai.client import (
         DebugConfig,
     )
-    from google.genai import types
-
-client = genai.Client()
-emb = client.aio.models.embed_content(model="", contents="")
 
 
 class GoogleEmbeddingProvider(EmbeddingProvider):
     def __init__(
         self,
         *,
-        model: str,
+        model: str = "gemini-embedding-001",
         task_type: Literal[
             "SEMANTIC_SIMILARITY",
             "CLASSIFICATION",
@@ -50,7 +48,7 @@ class GoogleEmbeddingProvider(EmbeddingProvider):
         self.model = model
         self._client = genai.Client(
             vertexai=vertexai,
-            api_key=api_key,
+            api_key=api_key if vertexai is False else None,
             credentials=credentials,
             project=project,
             location=location,
@@ -69,7 +67,7 @@ class GoogleEmbeddingProvider(EmbeddingProvider):
         if content_embeddings is None:
             raise ValueError("Provided content embeddings is None.")
 
-        vectors: MutableSequence[MutableSequence[float]] = []
+        vectors: MutableSequence[float] = []
 
         for content_embedding in content_embeddings:
             if not content_embedding.values:
@@ -78,6 +76,15 @@ class GoogleEmbeddingProvider(EmbeddingProvider):
                     + f"Content embeddings: {content_embeddings}"
                 )
 
-            vectors.append(content_embedding.values or [])
+            vectors = content_embedding.values
 
         return EmbedContent(embeddings=Embeddings(value=vectors))
+
+
+if __name__ == "__main__":
+    provider = GoogleEmbeddingProvider(
+        vertexai=True, project="unicortex", location="global"
+    )
+    embed_content = provider.generate_embeddings("oi tudo bem?")
+    print(embed_content)
+    print(len(embed_content.embeddings.value))

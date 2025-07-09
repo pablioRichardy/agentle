@@ -27,7 +27,9 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 
 # Initialize the provider
-provider = GoogleSpeechToTextProvider()
+provider = GoogleSpeechToTextProvider(
+    use_vertex_ai=True, project="unicortex", location="global"
+)
 
 # Path to the sample audio file
 audio_file = Path(__file__).parent / "harvard.wav"

@@ -22,7 +22,6 @@ from agentle.agents.agent_run_output import AgentRunOutput
 from agentle.agents.templates.data_collection.collected_data import CollectedData
 from agentle.agents.templates.data_collection.field_spec import FieldSpec
 from agentle.generations.providers.base.generation_provider import GenerationProvider
-from agentle.generations.tools.tool import Tool
 
 if TYPE_CHECKING:
     from agentle.agents.agent_input import AgentInput
@@ -30,7 +29,7 @@ if TYPE_CHECKING:
 
 
 class ProgressiveProfilingAgent(BaseModel):
-    """An agent specialized in progressive data collection"""
+    """An agent specialized in progressive data collection using structured outputs"""
 
     field_specs: Sequence[FieldSpec]
     generation_provider: GenerationProvider
@@ -42,6 +41,7 @@ class ProgressiveProfilingAgent(BaseModel):
     _agent: Agent[CollectedData] | None = PrivateAttr(default=None)
     _collected_data: MutableMapping[str, Any] = PrivateAttr(default_factory=dict)
     _attempts: MutableMapping[str, int] = PrivateAttr(default_factory=dict)
+    _conversation_history: MutableSequence[str] = PrivateAttr(default_factory=list)
 
     model_config = ConfigDict(frozen=False, arbitrary_types_allowed=True)
 
@@ -52,24 +52,13 @@ class ProgressiveProfilingAgent(BaseModel):
         return self._agent
 
     def model_post_init(self, context: Any) -> None:
-        """Initialize the internal agent with appropriate tools and instructions"""
-        # Create tools for data collection
-        save_tool = Tool.from_callable(self._save_field, name="save_field")
-
-        list_tool = Tool.from_callable(
-            self._list_collected_fields, name="list_collected_fields"
-        )
-
-        get_state_tool = Tool.from_callable(
-            self._get_current_state, name="get_current_state"
-        )
-
+        """Initialize the internal agent with instructions for structured output"""
         # Build field descriptions for instructions
         field_descriptions = self._build_field_descriptions()
 
         # Create specialized instructions
         instructions = dedent(f"""\
-        You are a data collection specialist focused on progressive profiling.
+        You are a friendly data collection specialist focused on progressive profiling.
         Your goal is to collect all required information from the user in a natural, conversational way.
 
         ## Fields to Collect:
@@ -78,32 +67,45 @@ class ProgressiveProfilingAgent(BaseModel):
         ## Guidelines:
         1. Be conversational and friendly while collecting information
         2. Ask for one or a few related fields at a time, not all at once
-        3. Validate data before saving using the validate_field tool
-        4. Use the _save_field tool to store validated data
-        5. Check progress with _list_collected_fields tool
-        6. Always call get_current_state at the end to get the current CollectedData state
-        7. If a user provides multiple pieces of information at once, extract and save all of them
-        8. Be flexible - users might provide information in any order
-        9. Handle corrections gracefully if users want to update previously provided information
+        3. Extract and validate any information the user provides
+        4. If a user provides multiple pieces of information at once, extract all of them
+        5. Be flexible - users might provide information in any order
+        6. Handle corrections gracefully if users want to update previously provided information
+        7. Provide a conversational response while collecting data
 
-        ## IMPORTANT - Response Format:
-        You MUST always return your response as a CollectedData object by calling get_current_state.
-        Your response should include:
-        - fields: The current collected data
-        - pending_fields: List of field names still needed
+        ## Response Format:
+        You MUST always return a CollectedData object with:
+        - fields: A dictionary containing ALL collected data (both previous and new)
+        - pending_fields: List of field names still needed (only required fields)
         - completed: Whether all required fields have been collected
 
-        Always structure your final response using the current state from get_current_state.
+        ## Current State:
+        The current state of collected data and conversation history will be provided in the input.
+        You should:
+        1. Acknowledge what has already been collected
+        2. Extract any new information from the user's message
+        3. Merge new data with existing data in your response
+        4. Update the pending_fields list accordingly
+        5. Set completed=true only when all required fields are collected
+
+        ## Validation Rules:
+        - string: Any text value
+        - integer: Must be a valid whole number
+        - float: Must be a valid decimal number
+        - boolean: Accept "yes", "no", "true", "false", "1", "0"
+        - email: Must contain @ and a domain
+        - date: Accept common date formats
+
+        Always provide a natural, conversational response while ensuring the structured data is complete and accurate.
         """)
 
-        # Create the internal agent
+        # Create the internal agent with structured output only
         self._agent = Agent(
             name="Progressive Profiling Agent",
-            description="An agent that progressively collects user information",
+            description="An agent that progressively collects user information through conversation",
             generation_provider=self.generation_provider,
             model=self.model or self.generation_provider.default_model,
             instructions=instructions,
-            tools=[save_tool, list_tool, get_state_tool],
             response_schema=CollectedData,
         )
 
@@ -115,33 +117,35 @@ class ProgressiveProfilingAgent(BaseModel):
         trace_params: TraceParams | None = None,
     ) -> AgentRunOutput[CollectedData]:
         """Run the progressive profiling agent"""
-        # Include current state in the input context
-        current_state_info = (
-            f"\n\nCurrent collected data: {json.dumps(self._collected_data, indent=2)}"
-            if self._collected_data
-            else ""
-        )
+        # Build the current state context
+        state_context = self._build_state_context(input)
 
         # Run the internal agent with state context
-        enhanced_input = f"{input}{current_state_info}"
-        return self.agent.run(
-            enhanced_input, timeout=timeout, trace_params=trace_params
+        result = self.agent.run(
+            state_context, timeout=timeout, trace_params=trace_params
         )
+
+        # Update internal state based on the response
+        if result.parsed:
+            self._update_state_from_response(result.parsed, input)
+
+        return result
 
     async def run_async(
         self, input: AgentInput | Any, *, trace_params: TraceParams | None = None
     ) -> AgentRunOutput[CollectedData]:
         """Run the progressive profiling agent asynchronously"""
-        # Include current state in the input context
-        current_state_info = (
-            f"\n\nCurrent collected data: {json.dumps(self._collected_data, indent=2)}"
-            if self._collected_data
-            else ""
-        )
+        # Build the current state context
+        state_context = self._build_state_context(input)
 
         # Run the internal agent with state context
-        enhanced_input = f"{input}{current_state_info}"
-        return await self.agent.run_async(enhanced_input, trace_params=trace_params)
+        result = await self.agent.run_async(state_context, trace_params=trace_params)
+
+        # Update internal state based on the response
+        if result.parsed:
+            self._update_state_from_response(result.parsed, input)
+
+        return result
 
     @contextmanager
     def start_mcp_servers(self) -> Generator[None, None, None]:
@@ -159,6 +163,7 @@ class ProgressiveProfilingAgent(BaseModel):
         """Reset the collected data to start fresh"""
         self._collected_data.clear()
         self._attempts.clear()
+        self._conversation_history.clear()
 
     def get_collected_data(self) -> Mapping[str, Any]:
         """Get the currently collected data"""
@@ -167,6 +172,70 @@ class ProgressiveProfilingAgent(BaseModel):
     def is_complete(self) -> bool:
         """Check if all required fields have been collected"""
         return self._check_completion()
+
+    def _build_state_context(self, user_input: Any) -> str:
+        """Build the context including current state and user input"""
+        # Current collected data
+        collected_info = {
+            field_name: value for field_name, value in self._collected_data.items()
+        }
+
+        # Pending fields
+        pending_fields = self._get_pending_fields()
+
+        # Build state summary
+        state_summary = {
+            "collected_data": collected_info,
+            "pending_required_fields": pending_fields,
+            "total_fields": len(self.field_specs),
+            "required_fields": len([fs for fs in self.field_specs if fs.required]),
+            "optional_fields": len([fs for fs in self.field_specs if not fs.required]),
+        }
+
+        # Build conversation history context (last 3 exchanges)
+        history_context = ""
+        if self._conversation_history:
+            recent_history = self._conversation_history[-6:]  # Last 3 exchanges
+            history_context = "\n\nRecent conversation:\n" + "\n".join(recent_history)
+
+        # Combine everything
+        context = dedent(f"""\
+        ## Current State:
+        {json.dumps(state_summary, indent=2)}
+        {history_context}
+        
+        ## User Input:
+        {user_input}
+        
+        Please analyze the user input, extract any relevant field values, and return the complete CollectedData object with all collected fields (both previous and new).
+        """)
+
+        return context
+
+    def _update_state_from_response(
+        self, response: CollectedData, user_input: Any
+    ) -> None:
+        """Update internal state based on the agent's response"""
+        # Update collected data with any new fields
+        for field_name, value in response.fields.items():
+            # Validate that the field exists in our spec
+            field_spec = next(
+                (fs for fs in self.field_specs if fs.name == field_name), None
+            )
+            if field_spec:
+                # Convert and validate the value
+                try:
+                    converted_value = self._convert_value(value, field_spec.type)
+                    self._collected_data[field_name] = converted_value
+                except ValueError:
+                    # Skip invalid values
+                    pass
+
+        # Update conversation history
+        if isinstance(user_input, str):
+            self._conversation_history.append(f"User: {user_input}")
+
+        # We don't store the agent's response text here since it's in the AgentRunOutput
 
     def _build_field_descriptions(self) -> str:
         """Build a formatted description of all fields to collect"""
@@ -187,87 +256,6 @@ class ProgressiveProfilingAgent(BaseModel):
             descriptions.append(desc)
 
         return "\n".join(descriptions)
-
-    def _save_field(self, field_name: str, value: Any) -> str:
-        """Save a collected field value"""
-        # Find the field spec
-        field_spec = next(
-            (fs for fs in self.field_specs if fs.name == field_name), None
-        )
-
-        if not field_spec:
-            return f"Error: Field '{field_name}' is not a recognized field."
-
-        # Type conversion based on field spec
-        try:
-            converted_value = self._convert_value(value, field_spec.type)
-            self._collected_data[field_name] = converted_value
-
-            # Reset attempts for this field on successful save
-            self._attempts[field_name] = 0
-
-            # Return current state info
-            pending = self._get_pending_fields()
-            return f"Successfully saved {field_name}: {converted_value}\n\nCurrent state: {len(self._collected_data)} fields collected, {len(pending)} still needed."
-        except ValueError as e:
-            return f"Error saving {field_name}: {str(e)}"
-
-    def _validate_field(self, field_name: str, value: Any) -> str:
-        """Validate a field value against its specification"""
-        field_spec = next(
-            (fs for fs in self.field_specs if fs.name == field_name), None
-        )
-
-        if not field_spec:
-            return f"Error: Field '{field_name}' is not recognized."
-
-        try:
-            # Type validation
-            converted_value = self._convert_value(value, field_spec.type)
-
-            # Custom validation if provided
-            if field_spec.validation:
-                # This could be enhanced with actual validation logic
-                return f"Validation passed for {field_name}: {converted_value}"
-
-            return f"Valid: {field_name} = {converted_value} ({field_spec.type})"
-        except ValueError as e:
-            return f"Validation failed for {field_name}: {str(e)}"
-
-    def _list_collected_fields(self) -> str:
-        """List all collected fields and what's still needed"""
-        collected: MutableSequence[str] = []
-        pending: MutableSequence[str] = []
-
-        for spec in self.field_specs:
-            if spec.name in self._collected_data:
-                collected.append(f"✓ {spec.name}: {self._collected_data[spec.name]}")
-            elif spec.required:
-                pending.append(f"○ {spec.name} ({spec.type}) - {spec.description}")
-            else:
-                pending.append(
-                    f"○ {spec.name} ({spec.type}) [optional] - {spec.description}"
-                )
-
-        result = "## Collection Status:\n\n"
-
-        if collected:
-            result += "### Collected:\n" + "\n".join(collected) + "\n\n"
-
-        if pending:
-            result += "### Still Needed:\n" + "\n".join(pending)
-        else:
-            result += "### All required fields have been collected! ✓"
-
-        return result
-
-    def _get_current_state(self) -> CollectedData:
-        """Get the current state as a CollectedData object"""
-        return CollectedData(
-            fields=dict(self._collected_data),
-            pending_fields=self._get_pending_fields(),
-            completed=self._check_completion(),
-        )
 
     def _convert_value(self, value: Any, field_type: str) -> Any:
         """Convert a value to the specified type"""
@@ -307,6 +295,33 @@ class ProgressiveProfilingAgent(BaseModel):
             if spec.required and spec.name not in self._collected_data:
                 pending.append(spec.name)
         return pending
+
+    def get_collection_status(self) -> str:
+        """Get a human-readable status of the collection progress"""
+        collected: MutableSequence[str] = []
+        pending: MutableSequence[str] = []
+
+        for spec in self.field_specs:
+            if spec.name in self._collected_data:
+                collected.append(f"✓ {spec.name}: {self._collected_data[spec.name]}")
+            elif spec.required:
+                pending.append(f"○ {spec.name} ({spec.type}) - {spec.description}")
+            else:
+                pending.append(
+                    f"○ {spec.name} ({spec.type}) [optional] - {spec.description}"
+                )
+
+        result = "## Collection Status:\n\n"
+
+        if collected:
+            result += "### Collected:\n" + "\n".join(collected) + "\n\n"
+
+        if pending:
+            result += "### Still Needed:\n" + "\n".join(pending)
+        else:
+            result += "### All required fields have been collected! ✓"
+
+        return result
 
 
 if __name__ == "__main__":
@@ -354,7 +369,6 @@ if __name__ == "__main__":
     # Start collecting data
     response = profiler.run("Hi! I'd like to sign up for your service.")
     print(response.text)
-    exit()
 
     # Continue the conversation
     response = profiler.run("My name is John Doe")
