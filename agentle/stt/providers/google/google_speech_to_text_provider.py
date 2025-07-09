@@ -10,10 +10,15 @@ from rsb.models.base_model import BaseModel
 from rsb.models.config_dict import ConfigDict
 from rsb.models.field import Field
 
+from agentle.generations.models.generation.generation_config import GenerationConfig
+from agentle.generations.models.generation.trace_params import TraceParams
 from agentle.generations.models.message_parts.file import FilePart
 from agentle.generations.models.message_parts.text import TextPart
 from agentle.generations.providers.google.google_generation_provider import (
     GoogleGenerationProvider,
+)
+from agentle.generations.tracing.contracts.stateful_observability_client import (
+    StatefulObservabilityClient,
 )
 from agentle.stt.models.audio_transcription import AudioTranscription
 from agentle.stt.models.sentence_segment import SentenceSegment
@@ -36,7 +41,81 @@ class GoogleSpeechToTextProvider(BaseModel, SpeechToTextProvider):
     api_key: str | None = None
     project: str | None = None
     location: str | None = None
+    tracing_client: StatefulObservabilityClient | None = None
+    trace_params: TraceParams | None = None
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    async def transcribe_async(
+        self, audio_file: str | Path, config: TranscriptionConfig | None = None
+    ) -> AudioTranscription:
+        """Gemini has the amazing 'ability' to transcribe audio files."""
+        generation_provider = GoogleGenerationProvider(
+            tracing_client=self.tracing_client,
+            use_vertex_ai=self.use_vertex_ai,
+            api_key=self.api_key,
+            project=self.project,
+            location=self.location,
+        )
+
+        _config = config or TranscriptionConfig()
+        language = _config.language or "en"
+
+        path_audio_file = Path(audio_file)
+
+        if self.trace_params:
+            self.trace_params.update(
+                user_id=config.consumer_id or "unknown" if config else "unknown"
+            )
+
+        transcription = await generation_provider.generate_by_prompt_async(
+            model=self.model,
+            prompt=[
+                TextPart(
+                    text=f"""
+            You are a helpful assistant that transcribes audio files.
+            The audio file is {audio_file}.
+            The language of the audio file is {language}.
+            """
+                ),
+                FilePart(
+                    data=path_audio_file.read_bytes(),
+                    mime_type=ext2mime(path_audio_file.suffix),
+                ),
+            ],
+            response_schema=_TranscriptionOutput,
+            generation_config=GenerationConfig(trace_params=self.trace_params)
+            if self.trace_params
+            else GenerationConfig(),
+        )
+
+        prompt_tokens_used = transcription.usage.prompt_tokens
+        completion_tokens_used = transcription.usage.completion_tokens
+
+        ppmi = generation_provider.price_per_million_tokens_input(
+            self.model, estimate_tokens=prompt_tokens_used
+        )
+
+        ppco = generation_provider.price_per_million_tokens_output(
+            self.model, estimate_tokens=completion_tokens_used
+        )
+
+        cost: float = (
+            prompt_tokens_used * ppmi + completion_tokens_used * ppco
+        ) / 1_000_000
+
+        transcription_output = transcription.parsed
+
+        # Get audio duration
+        duration = await self._get_audio_duration(audio_file)
+
+        return AudioTranscription(
+            text=transcription_output.text,
+            segments=transcription_output.segments,
+            subtitles=transcription_output.subtitles,
+            cost=cost,
+            duration=duration,
+        )
 
     async def _get_audio_duration(self, audio_file: str | Path) -> float:
         """Get the duration of an audio file using ffprobe."""
@@ -86,65 +165,3 @@ class GoogleSpeechToTextProvider(BaseModel, SpeechToTextProvider):
             except Exception:
                 pass
             return 1.0  # Final fallback
-
-    async def transcribe_async(
-        self, audio_file: str | Path, config: TranscriptionConfig | None = None
-    ) -> AudioTranscription:
-        """Gemini has the amazing 'ability' to transcribe audio files."""
-        generation_provider = GoogleGenerationProvider(
-            use_vertex_ai=self.use_vertex_ai,
-            api_key=self.api_key,
-            project=self.project,
-            location=self.location,
-        )
-
-        _config = config or TranscriptionConfig()
-        language = _config.language or "en"
-
-        path_audio_file = Path(audio_file)
-
-        transcription = await generation_provider.generate_by_prompt_async(
-            model=self.model,
-            prompt=[
-                TextPart(
-                    text=f"""
-            You are a helpful assistant that transcribes audio files.
-            The audio file is {audio_file}.
-            The language of the audio file is {language}.
-            """
-                ),
-                FilePart(
-                    data=path_audio_file.read_bytes(),
-                    mime_type=ext2mime(path_audio_file.suffix),
-                ),
-            ],
-            response_schema=_TranscriptionOutput,
-        )
-
-        prompt_tokens_used = transcription.usage.prompt_tokens
-        completion_tokens_used = transcription.usage.completion_tokens
-
-        ppmi = generation_provider.price_per_million_tokens_input(
-            self.model, estimate_tokens=prompt_tokens_used
-        )
-
-        ppco = generation_provider.price_per_million_tokens_output(
-            self.model, estimate_tokens=completion_tokens_used
-        )
-
-        cost: float = (
-            prompt_tokens_used * ppmi + completion_tokens_used * ppco
-        ) / 1_000_000
-
-        transcription_output = transcription.parsed
-
-        # Get audio duration
-        duration = await self._get_audio_duration(audio_file)
-
-        return AudioTranscription(
-            text=transcription_output.text,
-            segments=transcription_output.segments,
-            subtitles=transcription_output.subtitles,
-            cost=cost,
-            duration=duration,
-        )

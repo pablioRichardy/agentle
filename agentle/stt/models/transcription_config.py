@@ -24,3 +24,7 @@ class TranscriptionConfig(BaseModel):
         default="",
         description="A prompt to provide context for the transcription.",
     )
+
+    consumer_id: str | None = Field(
+        default=None, description="The consumer of the transcription generation."
+    )
