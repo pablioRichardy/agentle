@@ -31,8 +31,11 @@ from agentle.generations.models.generation.generation_config import GenerationCo
 from agentle.generations.models.generation.generation_config_dict import (
     GenerationConfigDict,
 )
+from agentle.generations.models.message_parts.file import FilePart
+from agentle.generations.models.message_parts.text import TextPart
 from agentle.generations.models.messages.developer_message import DeveloperMessage
 from agentle.generations.models.messages.message import Message
+from agentle.generations.models.messages.user_message import UserMessage
 from agentle.generations.providers.base.generation_provider import (
     GenerationProvider,
 )
@@ -242,6 +245,10 @@ class GoogleGenerationProvider(GenerationProvider):
                 ignore_call_history=ignore_call_history,
             ),
         )
+
+        if all(isinstance(message, FilePart) for message in messages):
+            # All messages are file parts. we must have at least one text part
+            messages = list(messages) + [UserMessage(parts=[TextPart(text=".")])]
 
         contents: MutableSequence[Content] = [
             self.message_adapter.adapt(message)
