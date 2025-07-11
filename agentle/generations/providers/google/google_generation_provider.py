@@ -246,8 +246,10 @@ class GoogleGenerationProvider(GenerationProvider):
             ),
         )
 
-        if all(isinstance(message, FilePart) for message in messages):
-            # All messages are file parts. we must have at least one text part
+        user_messages = [msg for msg in messages if isinstance(msg, UserMessage)]
+        if user_messages and all(
+            isinstance(part, FilePart) for part in user_messages[-1].parts
+        ):
             messages = list(messages) + [UserMessage(parts=[TextPart(text=".")])]
 
         contents: MutableSequence[Content] = [
