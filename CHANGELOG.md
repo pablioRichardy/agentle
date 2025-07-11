@@ -1,6 +1,5 @@
 # Changelog
 
-## v0.6.14
+## v0.6.15
 
-- making openai key optional
-.
+- 
