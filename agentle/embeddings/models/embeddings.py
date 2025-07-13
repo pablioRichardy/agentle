@@ -1,9 +1,12 @@
 from collections.abc import Sequence
+
 from rsb.models.base_model import BaseModel
 
 
 class Embeddings(BaseModel):
+    id: str
     value: Sequence[float]
+    
 
     @property
     def shape(self) -> tuple[int, int]:

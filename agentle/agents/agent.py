@@ -349,14 +349,14 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
     The schema of the response to be returned by the agent.
     """
 
-    mcp_servers: Sequence[MCPServerProtocol] = Field(default_factory=list)
+    mcp_servers: MutableSequence[MCPServerProtocol] = Field(default_factory=list)
     """
     The MCP servers to use for the agent.
     """
 
-    tools: Sequence[Tool | Callable[..., object] | Callable[..., Awaitable[object]]] = (
-        Field(default_factory=list)
-    )
+    tools: MutableSequence[
+        Tool | Callable[..., Any] | Callable[..., Awaitable[Any]]
+    ] = Field(default_factory=list)
     """
     The tools to use for the agent.
     """
@@ -383,7 +383,10 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
     """
 
     # Internal fields
-    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    def add_tool(self, tool: Callable[..., Any] | Callable[..., Awaitable[Any] | Tool]):
+        self.tools += [tool]
 
     @property
     def agent_config(self) -> AgentConfig:
@@ -2170,7 +2173,10 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         *,
         new_name: str | None = None,
         new_instructions: str | None = None,
-        new_tools: Sequence[Tool | Callable[..., object]] | None = None,
+        new_tools: MutableSequence[
+            Tool | Callable[..., Any] | Callable[..., Awaitable[Any]]
+        ]
+        | None = None,
         new_config: AgentConfig | AgentConfigDict | None = None,
         new_model: str | None = None,
         new_version: str | None = None,
@@ -2180,7 +2186,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         new_default_input_modes: Sequence[str] | None = None,
         new_default_output_modes: Sequence[str] | None = None,
         new_skills: Sequence[AgentSkill] | None = None,
-        new_mcp_servers: Sequence[MCPServerProtocol] | None = None,
+        new_mcp_servers: MutableSequence[MCPServerProtocol] | None = None,
         new_generation_provider: GenerationProvider | None = None,
         new_url: str | None = None,
         new_suspension_manager: SuspensionManager | None = None,

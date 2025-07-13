@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import MutableSequence
 from typing import TYPE_CHECKING, Literal, override
+import uuid
 
 from agentle.embeddings.models.embed_content import EmbedContent
 from agentle.embeddings.models.embeddings import Embeddings
@@ -40,6 +41,7 @@ class GoogleEmbeddingProvider(EmbeddingProvider):
         location: str | None = None,
         debug_config: DebugConfig | None = None,
         http_options: types.HttpOptions | None = None,
+        extract_metadata: bool = True,
         config: types.EmbedContentConfig | types.EmbedContentConfigDict | None = None,
     ) -> None:
         self.task_type = task_type
@@ -78,7 +80,7 @@ class GoogleEmbeddingProvider(EmbeddingProvider):
 
             vectors = content_embedding.values
 
-        return EmbedContent(embeddings=Embeddings(value=vectors))
+        return EmbedContent(embeddings=Embeddings(id=str(uuid.uuid4()), value=vectors))
 
 
 if __name__ == "__main__":
