@@ -11,20 +11,17 @@ from agentle.generations.providers.openai.adapters.openai_message_to_generated_a
 
 if TYPE_CHECKING:
     from openai.types.chat.chat_completion import Choice as OpenAIChoice
+    from openai.types.chat.parsed_chat_completion import ParsedChoice
 
 
-class OpenaiChoiceToChoiceAdapter[T](Adapter["OpenAIChoice", Choice[T]]):
-    response_schema: type[T] | None
-
-    def __init__(self, response_schema: type[T] | None) -> None:
-        super().__init__()
-        self.response_schema = response_schema
-
-    def adapt(self, _f: OpenAIChoice) -> Choice[T]:
+class OpenaiChoiceToChoiceAdapter[T](
+    Adapter["OpenAIChoice | ParsedChoice[T]", Choice[T]]
+):
+    def adapt(self, _f: OpenAIChoice | ParsedChoice[T]) -> Choice[T]:
         openai_choice = _f
         return Choice(
             index=openai_choice.index,
-            message=OpenAIMessageToGeneratedAssistantMessageAdapter[T](
-                response_schema=self.response_schema
-            ).adapt(openai_choice.message),
+            message=OpenAIMessageToGeneratedAssistantMessageAdapter[T]().adapt(
+                openai_choice.message
+            ),
         )

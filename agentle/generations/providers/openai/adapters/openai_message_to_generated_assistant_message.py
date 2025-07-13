@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 from collections.abc import MutableSequence
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
-from openai.types.chat.chat_completion_message import ChatCompletionMessage
+import ujson
+from pydantic import BaseModel
 from rsb.adapters.adapter import Adapter
 
 from agentle.generations.models.message_parts.text import TextPart
@@ -15,20 +16,39 @@ from agentle.generations.models.messages.generated_assistant_message import (
     GeneratedAssistantMessage,
 )
 
+if TYPE_CHECKING:
+    from openai.types.chat.chat_completion_message import ChatCompletionMessage
+    from openai.types.chat.parsed_chat_completion import ParsedChatCompletionMessage
+
 
 class OpenAIMessageToGeneratedAssistantMessageAdapter[T](
-    Adapter["ChatCompletionMessage", GeneratedAssistantMessage[T]]
+    Adapter[
+        "ChatCompletionMessage | ParsedChatCompletionMessage[T]",
+        GeneratedAssistantMessage[T],
+    ]
 ):
-    response_schema: type[T] | None
-
-    def __init__(self, response_schema: type[T] | None) -> None:
-        super().__init__()
-        self.response_schema = response_schema
-
-    def adapt(self, _f: ChatCompletionMessage) -> GeneratedAssistantMessage[T]:
+    def adapt(
+        self, _f: ChatCompletionMessage | ParsedChatCompletionMessage[T]
+    ) -> GeneratedAssistantMessage[T]:
         from openai.types.chat.chat_completion_message_tool_call import (
             ChatCompletionMessageToolCall,
         )
+        from openai.types.chat.parsed_chat_completion import ParsedChatCompletionMessage
+
+        if isinstance(_f, ParsedChatCompletionMessage):
+            parsed = cast(T, _f.parsed)
+            if parsed is None:
+                raise ValueError(
+                    "Could not get parsed response schema for chat completion."
+                )
+
+            return GeneratedAssistantMessage[T](
+                role="assistant",
+                parts=[
+                    TextPart(text=ujson.dumps(cast(BaseModel, _f.parsed).model_dump()))
+                ],
+                parsed=parsed,
+            )
 
         openai_message = _f
         if openai_message.content is None:
@@ -48,7 +68,5 @@ class OpenAIMessageToGeneratedAssistantMessageAdapter[T](
 
         return GeneratedAssistantMessage[T](
             parts=[TextPart(text=openai_message.content)] + tool_parts,
-            parsed=self.response_schema(**json.loads(openai_message.content))
-            if self.response_schema
-            else cast(T, None),
+            parsed=cast(T, None),
         )

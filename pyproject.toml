@@ -9,6 +9,7 @@ dependencies = [
     "google-genai>=1.14.0",
     "mcp[cli]>=1.6.0",
     "openai>=1.95.0",
+    "pydantic>=2.11.3",
     "rock-solid-base>=0.1.2",
     "ujson>=5.10.0",
 ]

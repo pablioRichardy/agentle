@@ -119,6 +119,7 @@ class OpenaiGenerationProvider(GenerationProvider):
         """
         from openai._types import NOT_GIVEN as OPENAI_NOT_GIVEN
         from openai.types.chat.chat_completion import ChatCompletion
+        from openai.types.chat.parsed_chat_completion import ParsedChatCompletion
 
         _generation_config = self._normalize_generation_config(generation_config)
 
@@ -127,7 +128,7 @@ class OpenaiGenerationProvider(GenerationProvider):
 
         try:
             async with asyncio.timeout(_generation_config.timeout_in_seconds):
-                chat_completion: ChatCompletion = (
+                chat_completion: ChatCompletion | ParsedChatCompletion[T] = (
                     await self._client.chat.completions.create(
                         model=self._resolve_model(model),
                         messages=[
@@ -137,6 +138,17 @@ class OpenaiGenerationProvider(GenerationProvider):
                         if tools
                         else OPENAI_NOT_GIVEN,
                     )
+                    if not bool(response_schema)
+                    else await self._client.chat.completions.parse(
+                        model=self._resolve_model(model),
+                        messages=[
+                            input_message_adapter.adapt(message) for message in messages
+                        ],
+                        tools=[openai_tool_adapter.adapt(tool) for tool in tools]
+                        if tools
+                        else OPENAI_NOT_GIVEN,
+                        response_format=response_schema,
+                    )
                 )
         except asyncio.TimeoutError as e:
             e.add_note(
@@ -144,10 +156,7 @@ class OpenaiGenerationProvider(GenerationProvider):
             )
             raise
 
-        output_adapter = ChatCompletionToGenerationAdapter[T](
-            response_schema=response_schema
-        )
-
+        output_adapter = ChatCompletionToGenerationAdapter[T]()
         return output_adapter.adapt(chat_completion)
 
     @property

@@ -22,7 +22,6 @@ if TYPE_CHECKING:
     )
     from openai.types.chat.chat_completion_content_part_param import (
         File,
-        FileFile,
     )
     from openai.types.chat.chat_completion_content_part_text_param import (
         ChatCompletionContentPartTextParam,
@@ -49,6 +48,20 @@ class AgentlePartToOpenaiPartAdapter(
         | ChatCompletionContentPartInputAudioParam
         | File
     ):
+        from openai.types.chat.chat_completion_content_part_image_param import (
+            ChatCompletionContentPartImageParam,
+        )
+        from openai.types.chat.chat_completion_content_part_input_audio_param import (
+            ChatCompletionContentPartInputAudioParam,
+        )
+        from openai.types.chat.chat_completion_content_part_param import (
+            File,
+            FileFile,
+        )
+        from openai.types.chat.chat_completion_content_part_text_param import (
+            ChatCompletionContentPartTextParam,
+        )
+
         part = _f
 
         match part:

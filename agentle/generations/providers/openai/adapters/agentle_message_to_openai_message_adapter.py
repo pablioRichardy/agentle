@@ -18,9 +18,6 @@ if TYPE_CHECKING:
     from openai.types.chat.chat_completion_assistant_message_param import (
         ChatCompletionAssistantMessageParam,
     )
-    from openai.types.chat.chat_completion_content_part_text_param import (
-        ChatCompletionContentPartTextParam,
-    )
     from openai.types.chat.chat_completion_developer_message_param import (
         ChatCompletionDeveloperMessageParam,
     )
@@ -42,6 +39,19 @@ class AgentleMessageToOpenaiMessageAdapter(
         | ChatCompletionDeveloperMessageParam
         | ChatCompletionUserMessageParam
     ):
+        from openai.types.chat.chat_completion_assistant_message_param import (
+            ChatCompletionAssistantMessageParam,
+        )
+        from openai.types.chat.chat_completion_content_part_text_param import (
+            ChatCompletionContentPartTextParam,
+        )
+        from openai.types.chat.chat_completion_developer_message_param import (
+            ChatCompletionDeveloperMessageParam,
+        )
+        from openai.types.chat.chat_completion_user_message_param import (
+            ChatCompletionUserMessageParam,
+        )
+
         message = _f
         tool_execution_sugestion_to_openai_tool_param_adapter = (
             AgentleToolExecutionSugestionToOpenaiTool()

@@ -11,6 +11,7 @@ dependencies = [
     { name = "google-genai" },
     { name = "mcp", extra = ["cli"] },
     { name = "openai" },
+    { name = "pydantic" },
     { name = "rock-solid-base" },
     { name = "ujson" },
 ]
@@ -134,6 +135,7 @@ requires-dist = [
     { name = "google-genai", specifier = ">=1.14.0" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.6.0" },
     { name = "openai", specifier = ">=1.95.0" },
+    { name = "pydantic", specifier = ">=2.11.3" },
     { name = "rock-solid-base", specifier = ">=0.1.2" },
     { name = "ujson", specifier = ">=5.10.0" },
 ]
