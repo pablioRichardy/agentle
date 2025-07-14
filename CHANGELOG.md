@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.6.19
+## v0.6.20
 
--fix: applying messagesequence changes to the run_async method as well
+- fix: wrong order in text part merging.
