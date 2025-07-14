@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from functools import cached_property
 from itertools import chain
 
 from rsb.models.base_model import BaseModel
@@ -91,6 +92,9 @@ class ParsedFile(BaseModel):
     sections: Sequence[SectionContent] = Field(
         description="Pages of the document",
     )
+
+    @cached_property
+    def id(self) -> str: ...
 
     @property
     def llm_described_text(self) -> str:
