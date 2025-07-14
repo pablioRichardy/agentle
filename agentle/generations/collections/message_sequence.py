@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Sequence
+from typing import cast
 
 from rsb.collections.readonly_collection import ReadonlyCollection
 
@@ -158,6 +159,116 @@ class MessageSequence(ReadonlyCollection[Message]):
         return MessageSequence(
             elements=list(self.elements[:-1]) + message + list(self.elements[-1:])
         )
+
+    def merge_with_last_user_message(self, other: UserMessage) -> MessageSequence:
+        """
+        Replaces the last UserMessage in the sequence with the provided message.
+
+        This method finds the last UserMessage in the sequence and replaces it
+        with the provided UserMessage, creating a new MessageSequence. This is
+        useful when you need to modify the most recent user input while preserving
+        the rest of the conversation history.
+
+        Args:
+            other: The UserMessage to replace the last UserMessage with.
+
+        Returns:
+            MessageSequence: A new message sequence with the last UserMessage
+                replaced. If no UserMessage is found in the sequence, the new
+                message is appended to the end.
+
+        Example:
+            ```python
+            # Create a sequence with user and assistant messages
+            sequence = MessageSequence([
+                UserMessage(parts=[TextPart(text="Hello")]),
+                AssistantMessage(parts=[TextPart(text="Hi there!")]),
+                UserMessage(parts=[TextPart(text="How are you?")])
+            ])
+
+            # Replace the last user message
+            new_message = UserMessage(parts=[TextPart(text="What's the weather?")])
+            updated = sequence.replace_last_user_message(new_message)
+
+            # The sequence now has "What's the weather?" as the last user message
+            # Original sequence: [User: "Hello", Assistant: "Hi there!", User: "How are you?"]
+            # Updated sequence:  [User: "Hello", Assistant: "Hi there!", User: "What's the weather?"]
+            ```
+
+        Note:
+            If no UserMessage is found in the sequence, a warning is logged and
+            the new message is appended to the end of the sequence instead.
+        """
+        elements = list(self.elements)
+
+        # Find the last UserMessage by iterating backwards through the sequence
+        for i in range(len(elements) - 1, -1, -1):
+            if isinstance(elements[i], UserMessage):
+                # Replace the last UserMessage and return new sequence
+                elements[i] = cast(UserMessage, elements[i]).merge_text_parts(other)
+                return MessageSequence(elements=elements)
+
+        # If no UserMessage found, log a warning and append the new message
+        logger.warning(
+            "No UserMessage found in sequence to replace. "
+            + "Appending the new message to the end instead."
+        )
+        return MessageSequence(elements=elements + [other])
+
+    def replace_last_user_message(self, other: UserMessage) -> MessageSequence:
+        """
+        Replaces the last UserMessage in the sequence with the provided message.
+
+        This method finds the last UserMessage in the sequence and replaces it
+        with the provided UserMessage, creating a new MessageSequence. This is
+        useful when you need to modify the most recent user input while preserving
+        the rest of the conversation history.
+
+        Args:
+            other: The UserMessage to replace the last UserMessage with.
+
+        Returns:
+            MessageSequence: A new message sequence with the last UserMessage
+                replaced. If no UserMessage is found in the sequence, the new
+                message is appended to the end.
+
+        Example:
+            ```python
+            # Create a sequence with user and assistant messages
+            sequence = MessageSequence([
+                UserMessage(parts=[TextPart(text="Hello")]),
+                AssistantMessage(parts=[TextPart(text="Hi there!")]),
+                UserMessage(parts=[TextPart(text="How are you?")])
+            ])
+
+            # Replace the last user message
+            new_message = UserMessage(parts=[TextPart(text="What's the weather?")])
+            updated = sequence.replace_last_user_message(new_message)
+
+            # The sequence now has "What's the weather?" as the last user message
+            # Original sequence: [User: "Hello", Assistant: "Hi there!", User: "How are you?"]
+            # Updated sequence:  [User: "Hello", Assistant: "Hi there!", User: "What's the weather?"]
+            ```
+
+        Note:
+            If no UserMessage is found in the sequence, a warning is logged and
+            the new message is appended to the end of the sequence instead.
+        """
+        elements = list(self.elements)
+
+        # Find the last UserMessage by iterating backwards through the sequence
+        for i in range(len(elements) - 1, -1, -1):
+            if isinstance(elements[i], UserMessage):
+                # Replace the last UserMessage and return new sequence
+                elements[i] = other
+                return MessageSequence(elements=elements)
+
+        # If no UserMessage found, log a warning and append the new message
+        logger.warning(
+            "No UserMessage found in sequence to replace. "
+            + "Appending the new message to the end instead."
+        )
+        return MessageSequence(elements=elements + [other])
 
     def filter(self, predicate: Callable[[Message], bool]) -> MessageSequence:
         """

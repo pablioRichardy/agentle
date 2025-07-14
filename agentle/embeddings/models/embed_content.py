@@ -1,7 +1,7 @@
 from rsb.models.base_model import BaseModel
 
-from agentle.embeddings.models.embeddings import Embeddings
+from agentle.embeddings.models.embedding import Embedding
 
 
 class EmbedContent(BaseModel):
-    embeddings: Embeddings
+    embeddings: Embedding

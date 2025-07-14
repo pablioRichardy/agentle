@@ -1241,7 +1241,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             )
 
             # Build called tools prompt
-            called_tools_prompt: UserMessage | str = ""
+            called_tools_prompt: UserMessage = UserMessage(parts=[TextPart(text="")])
             if called_tools:
                 called_tools_prompt_parts: MutableSequence[TextPart | FilePart] = []
                 for suggestion, result in called_tools.values():
@@ -1275,14 +1275,24 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                             )
                         )
 
-                called_tools_prompt = UserMessage(parts=called_tools_prompt_parts)
+                called_tools_prompt = UserMessage(
+                    parts=[
+                        TextPart(
+                            text="".join(str(p.text) for p in called_tools_prompt_parts)
+                        )
+                    ]
+                )
+
+            _new_messages = (
+                MessageSequence(context.message_history)
+                .merge_with_last_user_message(called_tools_prompt)
+                .elements
+            )
 
             # Generate tool call response
             tool_call_generation = await generation_provider.generate_async(
                 model=self.resolved_model,
-                messages=MessageSequence(context.message_history)
-                .append_before_last_message(called_tools_prompt)
-                .elements,
+                messages=_new_messages,
                 generation_config=self.agent_config.generation_config,
                 tools=all_tools,
             )

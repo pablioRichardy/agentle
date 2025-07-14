@@ -67,3 +67,89 @@ class UserMessage(BaseModel):
             role="user",
             parts=[TextPart(text=f"[{name}]: ")] + list(parts),
         )
+
+    def merge_text_parts(self, other: UserMessage) -> UserMessage:
+        """
+        Merges text parts from another UserMessage with this one.
+
+        This method takes all TextPart instances from the other UserMessage,
+        concatenates their text, and appends it to the last TextPart in this
+        message. If this message has no TextParts, a new TextPart is created
+        with the concatenated text from the other message.
+
+        Args:
+            other: Another UserMessage whose text parts will be merged into this one.
+
+        Returns:
+            A new UserMessage with the merged text parts and all other parts preserved.
+
+        Example:
+            ```python
+            # Original message with text and file parts
+            msg1 = UserMessage(parts=[
+                TextPart(text="Hello "),
+                FilePart(file_path="document.pdf"),
+                TextPart(text="world")
+            ])
+
+            # Other message with text parts
+            msg2 = UserMessage(parts=[
+                TextPart(text=" and "),
+                TextPart(text="universe!")
+            ])
+
+            # Merge text parts
+            merged = msg1.merge_text_parts(msg2)
+            # Result: [TextPart("Hello "), FilePart("document.pdf"), TextPart("world and universe!")]
+            ```
+        """
+        # Extract text parts from the other message
+        other_text_parts = [p for p in other.parts if isinstance(p, TextPart)]
+
+        # If other has no text parts, return a copy of self
+        if not other_text_parts:
+            return UserMessage(role="user", parts=list(self.parts))
+
+        # Concatenate all text from other message's text parts
+        other_text = "".join([str(tp.text) for tp in other_text_parts])
+
+        # Create a copy of self parts to work with
+        new_parts = list(self.parts)
+
+        # Find the last text part in self.parts
+        last_text_part_index = -1
+        for i in range(len(new_parts) - 1, -1, -1):
+            if isinstance(new_parts[i], TextPart):
+                last_text_part_index = i
+                break
+
+        if last_text_part_index >= 0:
+            # Merge with the last text part
+            last_text_part = new_parts[last_text_part_index]
+            merged_text_part = TextPart(text=last_text_part.text + other_text)
+
+            # Replace the last text part with the merged one
+            new_parts[last_text_part_index] = merged_text_part
+        else:
+            # No text parts in self, append a new text part with other's text
+            new_parts.append(TextPart(text=other_text))
+
+        return UserMessage(role="user", parts=new_parts)
+
+    def __add__(self, other: UserMessage) -> UserMessage:
+        """
+        Combines two UserMessage instances by concatenating their parts.
+
+        Args:
+            other: Another UserMessage instance to combine with this one.
+
+        Returns:
+            A new UserMessage with parts from both messages combined.
+
+        Raises:
+            TypeError: If other is not a UserMessage instance.
+        """
+        # Combine parts from both messages
+        combined_parts = list(self.parts) + list(other.parts)
+
+        return UserMessage(role="user", parts=combined_parts)

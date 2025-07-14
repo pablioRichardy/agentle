@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Literal, override
 import uuid
 
 from agentle.embeddings.models.embed_content import EmbedContent
-from agentle.embeddings.models.embeddings import Embeddings
+from agentle.embeddings.models.embedding import Embedding
 from agentle.embeddings.providers.embedding_provider import EmbeddingProvider
 from google import genai
 
@@ -80,7 +80,7 @@ class GoogleEmbeddingProvider(EmbeddingProvider):
 
             vectors = content_embedding.values
 
-        return EmbedContent(embeddings=Embeddings(id=str(uuid.uuid4()), value=vectors))
+        return EmbedContent(embeddings=Embedding(id=str(uuid.uuid4()), value=vectors))
 
 
 if __name__ == "__main__":
