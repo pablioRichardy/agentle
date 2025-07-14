@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+import uuid
 from collections.abc import Sequence
 from functools import cached_property
 from itertools import chain
@@ -94,7 +96,36 @@ class ParsedFile(BaseModel):
     )
 
     @cached_property
-    def id(self) -> str: ...
+    def id(self) -> str:
+        # Sanitize name
+        base_name = self._sanitize_name()
+
+        # Generate UUID5 based on name and content for some determinism
+        namespace = uuid.NAMESPACE_OID
+        content_str = f"{self.name}:{len(self.sections)}:{hash(tuple(s.text for s in self.sections))}"
+        content_uuid = uuid.uuid5(namespace, content_str)
+
+        return f"{base_name}_{str(content_uuid)[:8]}"
+
+    def _sanitize_name(self) -> str:
+        """Extract name sanitization into reusable method."""
+        if not self.name:
+            return "unnamed_file"
+
+        # Remove file extension
+        base_name = self.name.rsplit(".", 1)[0] if "." in self.name else self.name
+
+        # Convert to lowercase and replace non-alphanumeric characters with underscores
+        base_name = re.sub(r"[^a-zA-Z0-9_]", "_", base_name.lower())
+
+        # Remove consecutive underscores and strip leading/trailing underscores
+        base_name = re.sub(r"_+", "_", base_name).strip("_")
+
+        # Ensure it doesn't start with a number
+        if base_name and base_name[0].isdigit():
+            base_name = f"file_{base_name}"
+
+        return base_name if base_name else "unnamed_file"
 
     @property
     def llm_described_text(self) -> str:

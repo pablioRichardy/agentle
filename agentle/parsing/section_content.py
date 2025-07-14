@@ -150,22 +150,6 @@ class SectionContent(BaseModel):
         description="Items present in the page",
     )
 
-    def get_id(self) -> str:
-        """
-        Generate a unique identifier for this section.
-
-        Returns:
-            str: A unique identifier string in the format "page_{number}"
-
-        Example:
-            ```python
-            section = SectionContent(number=3, text="Section content")
-            section_id = section.get_id()
-            print(section_id)  # Output: "page_3"
-            ```
-        """
-        return f"page_{self.number}"
-
     def __add__(self, other: SectionContent) -> SectionContent:
         """
         Combine two section contents into a single section.
