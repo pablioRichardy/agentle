@@ -126,7 +126,7 @@ class UserMessage(BaseModel):
         if last_text_part_index >= 0:
             # Merge with the last text part
             last_text_part = new_parts[last_text_part_index]
-            merged_text_part = TextPart(text=last_text_part.text + other_text)
+            merged_text_part = TextPart(text=str(other_text) + str(last_text_part.text))
 
             # Replace the last text part with the merged one
             new_parts[last_text_part_index] = merged_text_part
