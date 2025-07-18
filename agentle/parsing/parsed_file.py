@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import re
+from typing import Any, Literal
 import uuid
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from functools import cached_property
 from itertools import chain
 
 from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
 
+from agentle.generations.providers.base.generation_provider import GenerationProvider
+from agentle.parsing.chunk import Chunk
 from agentle.parsing.section_content import SectionContent
 
 
@@ -95,6 +98,10 @@ class ParsedFile(BaseModel):
         description="Pages of the document",
     )
 
+    metadata: Mapping[str, Any] = Field(
+        default_factory=dict, description="Additional metadata of the document."
+    )
+
     @cached_property
     def id(self) -> str:
         # Sanitize name
@@ -106,26 +113,6 @@ class ParsedFile(BaseModel):
         content_uuid = uuid.uuid5(namespace, content_str)
 
         return f"{base_name}_{str(content_uuid)[:8]}"
-
-    def _sanitize_name(self) -> str:
-        """Extract name sanitization into reusable method."""
-        if not self.name:
-            return "unnamed_file"
-
-        # Remove file extension
-        base_name = self.name.rsplit(".", 1)[0] if "." in self.name else self.name
-
-        # Convert to lowercase and replace non-alphanumeric characters with underscores
-        base_name = re.sub(r"[^a-zA-Z0-9_]", "_", base_name.lower())
-
-        # Remove consecutive underscores and strip leading/trailing underscores
-        base_name = re.sub(r"_+", "_", base_name).strip("_")
-
-        # Ensure it doesn't start with a number
-        if base_name and base_name[0].isdigit():
-            base_name = f"file_{base_name}"
-
-        return base_name if base_name else "unnamed_file"
 
     @property
     def llm_described_text(self) -> str:
@@ -170,6 +157,28 @@ class ParsedFile(BaseModel):
         )
         return f"<file>\n\n**name:** {self.name} \n**sections:** {sections}\n\n</file>"
 
+    def chunkify(
+        self,
+        strategy: Literal[
+            "auto",
+            "semantic_chunking",
+            "recursive_character",
+        ],
+        generation_provider: GenerationProvider | None = None,
+    ) -> Sequence[Chunk]:
+        match strategy:
+            case "auto":
+                if generation_provider is None:
+                    raise ValueError(
+                        'Instance of GenerationProvider needs to be passed if strategy == "auto"'
+                    )
+            case "semantic_chunking":
+                ...
+            case _:
+                ...
+
+        return []
+
     def merge_all(self, others: Sequence[ParsedFile]) -> ParsedFile:
         """
         Merge this document with a sequence of other ParsedFile objects.
@@ -213,13 +222,26 @@ class ParsedFile(BaseModel):
         """
         from itertools import chain
 
+        # Merge all metadata dicts, with self.metadata taking precedence over others
+        merged_metadata: Mapping[str, Any] = {}
+        for other in others:
+            merged_metadata.update(other.metadata)
+
+        merged_metadata.update(self.metadata)
+
         return ParsedFile(
             name=self.name,
             sections=list(chain(self.sections, *[other.sections for other in others])),
+            metadata=merged_metadata,
         )
 
     @classmethod
-    def from_sections(cls, name: str, sections: Sequence[SectionContent]) -> ParsedFile:
+    def from_sections(
+        cls,
+        name: str,
+        sections: Sequence[SectionContent],
+        metadata: Mapping[str, Any] | None = None,
+    ) -> ParsedFile:
         """
         Create a ParsedFile from a name and a sequence of sections.
 
@@ -249,7 +271,7 @@ class ParsedFile(BaseModel):
             print(len(doc.sections))  # Output: 3
             ```
         """
-        return cls(name=name, sections=sections)
+        return cls(name=name, sections=sections, metadata=metadata or {})
 
     @classmethod
     def from_parsed_files(cls, files: Sequence[ParsedFile]) -> ParsedFile:
@@ -288,9 +310,18 @@ class ParsedFile(BaseModel):
             print(len(book.sections))  # Output: 2
             ```
         """
+        # Merge all sections
+        merged_sections = list(chain(*[file.sections for file in files]))
+
+        # Merge metadata from all files (later files override earlier ones on key conflict)
+        merged_metadata: Mapping[str, Any] = {}
+        for file in files:
+            merged_metadata.update(file.metadata)
+
         return cls(
             name="MergedFile",
-            sections=list(chain(*[file.sections for file in files])),
+            sections=merged_sections,
+            metadata=merged_metadata,
         )
 
     @property
@@ -327,3 +358,59 @@ class ParsedFile(BaseModel):
             ```
         """
         return "\n".join([sec.md or "" for sec in self.sections])
+
+    def _sanitize_name(self) -> str:
+        """Extract name sanitization into reusable method."""
+        if not self.name:
+            return "unnamed_file"
+
+        # Remove file extension
+        base_name = self.name.rsplit(".", 1)[0] if "." in self.name else self.name
+
+        # Convert to lowercase and replace non-alphanumeric characters with underscores
+        base_name = re.sub(r"[^a-zA-Z0-9_]", "_", base_name.lower())
+
+        # Remove consecutive underscores and strip leading/trailing underscores
+        base_name = re.sub(r"_+", "_", base_name).strip("_")
+
+        # Ensure it doesn't start with a number
+        if base_name and base_name[0].isdigit():
+            base_name = f"file_{base_name}"
+
+        return base_name if base_name else "unnamed_file"
+
+
+# strategy: Literal[
+#             # Intelligent Strategy Selection
+#             "auto",  # LLM-powered automatic strategy selection
+#             # Semantic & AI-Powered Approaches
+#             "semantic_chunking",  # Embedding-based semantic similarity
+#             "contextual",  # AI-powered contextual chunking (Anthropic-style)
+#             "late_chunking",  # Query-time dynamic chunking
+#             # Structure-Aware Strategies
+#             "recursive_character",  # Hierarchical separator-based (most common)
+#             "document_structure",  # Header/section-based chunking
+#             "hierarchical",  # Multi-level document structure
+#             # Content-Type Specific
+#             "code_aware",  # Syntax-preserving for code documents
+#             "markdown_aware",  # Markdown structure preservation
+#             "html_aware",  # HTML tag-based chunking
+#             # Basic Splitting Methods
+#             "fixed_size",  # Fixed character/token count
+#             "sentence_based",  # Split by sentence boundaries
+#             "paragraph_based",  # Split by paragraph boundaries
+#             "token_based",  # Split by token count
+#             # Advanced Techniques
+#             "sliding_window",  # Overlapping window approach
+#             "hybrid",  # Multiple strategy combination
+#             "adaptive",  # Content-complexity adaptive sizing
+#             # Domain-Specific
+#             "academic_paper",  # Research paper structure-aware
+#             "legal_document",  # Legal clause-aware chunking
+#             "business_report",  # Business document structure
+#             "technical_manual",  # Technical documentation optimized
+#             # Performance Optimized
+#             "fast_fixed",  # Optimized for speed
+#             "balanced",  # Speed-accuracy balance
+#             "high_quality",  # Accuracy-optimized regardless of speed
+#         ],

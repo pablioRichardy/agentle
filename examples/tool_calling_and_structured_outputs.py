@@ -8,8 +8,8 @@ structured data using a Pydantic model schema.
 from pydantic import BaseModel
 from typing import Any
 from agentle.agents.agent import Agent
-from agentle.generations.providers.google.google_genai_generation_provider import (
-    GoogleGenaiGenerationProvider,
+from agentle.generations.providers.google.google_generation_provider import (
+    GoogleGenerationProvider,
 )
 
 
@@ -70,8 +70,8 @@ class TravelRecommendation(BaseModel):
 # Create an agent with both tools and a structured output schema
 travel_agent = Agent(
     name="Travel Advisor",
-    generation_provider=GoogleGenaiGenerationProvider(),
-    model="gemini-2.0-flash",
+    generation_provider=GoogleGenerationProvider(),
+    model="gemini-2.5-flash",
     instructions="""You are a travel advisor that provides structured recommendations for city visits.
     Use the city data tool to get facts, then enrich the data with your knowledge to create a complete travel guide.
     Always include attractions from the city data when available. Estimate appropriate daily budgets and best times to visit.

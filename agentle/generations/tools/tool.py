@@ -536,5 +536,10 @@ class Tool[T_Output = Any](BaseModel):
             )
             raise
 
+    def set_callable_ref(
+        self, ref: Callable[..., T_Output] | Callable[..., Awaitable[T_Output]] | None
+    ) -> None:
+        self._callable_ref = ref
+
     def __str__(self) -> str:
         return self.text

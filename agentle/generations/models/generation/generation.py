@@ -22,7 +22,7 @@ import logging
 import uuid
 from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import Literal, overload
+from typing import Any, Literal, overload
 
 from rsb.decorators.entities import entity
 from rsb.models.base_model import BaseModel
@@ -94,6 +94,14 @@ class Generation[T](BaseModel):
             Usage(prompt_tokens=800, completion_tokens=200),
         ],
     )
+
+    def set_parsed_data(self, parsed_data: Any) -> None:
+        if len(self.choices) > 1:
+            raise ValueError(
+                "Choices list is > 1. Coudn't determine the parsed " + "model to set."
+            )
+
+        self.choices[0].message.parsed = parsed_data
 
     @property
     def parsed(self) -> T:
