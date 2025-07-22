@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import json
 from collections.abc import Callable
-from typing import Any, Literal, cast, List, Tuple, Dict, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Tuple, Union, cast
 
 from rsb.adapters.adapter import Adapter
 
-from agentle.agents.agent import Agent
 from agentle.agents.knowledge.static_knowledge import StaticKnowledge
 from agentle.generations.models.message_parts.file import FilePart
 from agentle.generations.models.message_parts.text import TextPart
@@ -13,13 +14,17 @@ from agentle.generations.models.message_parts.tool_execution_suggestion import (
 )
 from agentle.generations.models.messages.user_message import UserMessage
 
+if TYPE_CHECKING:
+    from agentle.agents.agent import Agent
+
+
 # Define a type for session-added knowledge items for clarity
 SessionKnowledgeItem = Dict[
     str, Any
 ]  # Keys: "type", "name", "content", "data_bytes", "mime_type"
 
 
-class AgentToStreamlit[T = None](Adapter[Agent[T], "Callable[[], None]"]):
+class AgentToStreamlit[T = None](Adapter["Agent[T]", "Callable[[], None]"]):
     title: str | None
     description: str | None
     initial_mode: Literal["dev", "presentation"]
@@ -34,7 +39,7 @@ class AgentToStreamlit[T = None](Adapter[Agent[T], "Callable[[], None]"]):
         self.description = description
         self.initial_mode = initial_mode
 
-    def adapt(self, _f: Agent[T]) -> Callable[[], None]:
+    def adapt(self, _f: "Agent[T]") -> Callable[[], None]:
         """
         Creates a Streamlit app that provides a chat interface to interact with the agent.
 
@@ -74,6 +79,7 @@ class AgentToStreamlit[T = None](Adapter[Agent[T], "Callable[[], None]"]):
             # Save this as app.py and run with: streamlit run app.py
             ```
         """
+
         agent = _f
         app_title = self.title or f"{agent.name} Agent"
         app_description = self.description or (

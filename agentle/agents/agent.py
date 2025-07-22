@@ -1252,14 +1252,63 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                     _logger.bind_optional(
                         lambda log: log.debug("Generating structured response")
                     )
+
+                    # --- IMPROVED CONTEXT BLOCK ---
+
+                    # 1. Get the text from the previous turn's tool-use prompt.
+                    # This contains the history of all tools called so far.
+                    called_tools_history_text = (
+                        called_tools_prompt.text
+                        if bool(called_tools_prompt.text)
+                        else "<no_tools_were_called_in_previous_iterations>"
+                    )
+
+                    available_tools_text = "\n".join(tool.text for tool in all_tools)
+
+                    # 2. Construct a clear, structured prompt for the final formatting task.
+                    reformatting_context_prompt = dedent(f"""
+                    <final_formatting_instructions>
+                        <objective>
+                        (critical) Your previous response was generated as plain text. Your ONLY task now is to analyze that text and the full context to format the final answer into the required structured JSON schema. DO NOT generate new information or call more tools.
+                        </objective>
+                        
+                        <source_text_to_format>
+                        <reasoning>This was your internal thought process and final answer text before formatting.</reasoning>
+                        <content>
+                            {tool_call_generation.text or "No text was generated in the previous step. Synthesize a response based on the tool history."}
+                        </content>
+                        </source_text_to_format>
+                        
+                        <full_context>
+                        <summary>This is the context you had in the previous step. Use it to ensure your final structured output is correct.</summary>
+                        
+                        <tool_execution_history>
+                            {called_tools_history_text}
+                        </tool_execution_history>
+                        
+                        <available_tools>
+                            {available_tools_text}
+                        </available_tools>
+                        </full_context>
+                    </final_formatting_instructions>
+                    """)
+
+                    # 3. Create the new message sequence for the final generation call.
+                    # We replace the previous turn's messy context with our clean, structured one.
+                    messages_for_final_generation = (
+                        MessageSequence(context.message_history)
+                        .append_before_last_message(reformatting_context_prompt)
+                        .elements
+                    )
+
                     generation = await generation_provider.generate_async(
                         model=self.resolved_model,
-                        messages=MessageSequence(context.message_history)
-                        .append_before_last_message(called_tools_prompt)
-                        .elements,
+                        messages=messages_for_final_generation,
                         response_schema=self.response_schema,
                         generation_config=self.agent_config.generation_config,
                     )
+                    # --- END OF IMPROVEMENT ---
+
                     _logger.bind_optional(
                         lambda log: log.debug("Final generation complete")
                     )

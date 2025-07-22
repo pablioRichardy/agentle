@@ -38,6 +38,10 @@ class UserMessage(BaseModel):
         description="The sequence of message parts that make up this user message.",
     )
 
+    @property
+    def text(self) -> str:
+        return "".join([str(p.text) for p in self.parts])
+
     @classmethod
     def create_named(
         cls,
