@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.6.22
+## v0.6.23
 
-- feat: better context when structured outputs and tools are passed to the Agent.
+- fix: agents "ui" module not found.
