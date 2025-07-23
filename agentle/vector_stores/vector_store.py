@@ -1,6 +1,5 @@
 import abc
-from collections.abc import Mapping, Sequence
-from typing import Any
+from collections.abc import MutableSequence, Sequence
 
 from rsb.coroutines.run_sync import run_sync
 
@@ -13,6 +12,7 @@ from agentle.parsing.chunk import Chunk
 from agentle.parsing.chunking.chunking_config import ChunkingConfig
 from agentle.parsing.chunking.chunking_strategy import ChunkingStrategy
 from agentle.parsing.parsed_file import ParsedFile
+from agentle.vector_stores.create_collection_config import CreateCollectionConfig
 from agentle.vector_stores.upserted_file import UpsertedFile
 
 
@@ -33,12 +33,37 @@ class VectorStore(abc.ABC):
         self.generation_provider = generation_provider
 
     async def find_related_content(
-        self, query: str | Sequence[Embedding] | Sequence[float], *, k: int = 10
-    ) -> Sequence[Chunk]: ...
+        self,
+        query: str | Embedding | Sequence[float],
+        *,
+        k: int = 10,
+        collection_name: str | None = None,
+    ) -> Sequence[Chunk]:
+        match query:
+            case str():
+                embedding = await self.embedding_provider.generate_embeddings_async(
+                    contents=query
+                )
+
+                return await self._find_related_content(
+                    query=embedding.embeddings.value,
+                    k=k,
+                    collection_name=collection_name,
+                )
+            case Embedding():
+                return await self._find_related_content(
+                    query=query.value, k=k, collection_name=collection_name
+                )
+            case Sequence():
+                return await self._find_related_content(
+                    query=query,
+                    k=k,
+                    collection_name=collection_name,
+                )
 
     @abc.abstractmethod
     async def _find_related_content(
-        self, query: Sequence[float], *, k: int = 10
+        self, query: Sequence[float], *, k: int = 10, collection_name: str | None = None
     ) -> Sequence[Chunk]: ...
 
     async def upsert(
@@ -47,14 +72,12 @@ class VectorStore(abc.ABC):
         *,
         timeout: float | None = None,
         collection_name: str | None = None,
-        points_metadatas: Sequence[Mapping[str, Any]] | None = None,
-    ) -> UpsertedFile:
+    ) -> None:
         return run_sync(
             self.upsert_async,
             points=points,
             timeout=timeout,
             collection_name=collection_name,
-            points_metadatas=points_metadatas,
         )
 
     @abc.abstractmethod
@@ -62,26 +85,20 @@ class VectorStore(abc.ABC):
         self,
         points: Embedding | Sequence[float],
         *,
-        timeout: float | None = None,
         collection_name: str | None = None,
-        points_metadatas: Sequence[Mapping[str, Any]] | None = None,
-    ) -> UpsertedFile:
+    ) -> None:
         if len(points) == 0:
-            return UpsertedFile(chunk_ids=[])
+            return None
 
         if isinstance(points, Sequence):
             return await self._upsert_async(
                 points=Embedding(value=points),
-                timeout=timeout,
                 collection_name=collection_name,
-                points_metadatas=points_metadatas,
             )
 
         return await self._upsert_async(
             points=points,
-            timeout=timeout,
             collection_name=collection_name,
-            points_metadatas=points_metadatas,
         )
 
     @abc.abstractmethod
@@ -89,10 +106,8 @@ class VectorStore(abc.ABC):
         self,
         points: Embedding,
         *,
-        timeout: float | None = None,
         collection_name: str | None = None,
-        points_metadatas: Sequence[Mapping[str, Any]] | None = None,
-    ) -> UpsertedFile: ...
+    ) -> None: ...
 
     def upsert_file(
         self,
@@ -131,15 +146,25 @@ class VectorStore(abc.ABC):
             for c in chunks
         ]
 
-        upserted_chunks = [
+        ids: MutableSequence[str] = []
+
+        for e in embed_contents:
             await self.upsert_async(
                 points=e.embeddings,
                 collection_name=collection_name,
-                points_metadatas=[c.metadata for c in chunks],
             )
-            for e in embed_contents
-        ]
 
-        return sum(upserted_chunks) or UpsertedFile(chunk_ids=[])
+            ids.append(e.embeddings.id)
 
-    def as_tool(self) -> Tool[Sequence[Chunk]]: ...  # TODO(arthur)
+        return UpsertedFile(chunk_ids=ids)
+
+    @abc.abstractmethod
+    async def create_collection_async(
+        self, collection_name: str, *, config: CreateCollectionConfig
+    ) -> None: ...
+
+    def as_search_tool(self) -> Tool[Sequence[Chunk]]:
+        async def search_async(query: str, *, top_k: int = 3) -> Sequence[Chunk]:
+            return await self.find_related_content(query=query, k=top_k)
+
+        return Tool.from_callable(search_async)

@@ -1,36 +1,45 @@
-from collections.abc import Awaitable, Callable
-from typing import Any, Optional
+from collections.abc import Awaitable, Callable, Mapping, MutableSequence
+from typing import TYPE_CHECKING, Any, Sequence, override
 
+from agentle.embeddings.models.embedding import Embedding
 from agentle.embeddings.providers.embedding_provider import EmbeddingProvider
 from agentle.generations.providers.base.generation_provider import GenerationProvider
+from agentle.parsing.chunk import Chunk
+from agentle.vector_stores.create_collection_config import CreateCollectionConfig
+from agentle.vector_stores.upserted_file import UpsertedFile
 from agentle.vector_stores.vector_store import VectorStore
+
+if TYPE_CHECKING:
+    from qdrant_client.async_qdrant_client import AsyncQdrantClient
 
 
 class QdrantVectorStore(VectorStore):
+    _client: AsyncQdrantClient
+
     def __init__(
         self,
         *,
         default_collection_name: str = "agentle",
         embedding_provider: EmbeddingProvider,
         generation_provider: GenerationProvider | None,
-        location: Optional[str] = None,
-        url: Optional[str] = None,
-        port: Optional[int] = 6333,
+        location: str | None = None,
+        url: str | None = None,
+        port: int | None = 6333,
         grpc_port: int = 6334,
         prefer_grpc: bool = False,
-        https: Optional[bool] = None,
-        api_key: Optional[str] = None,
-        prefix: Optional[str] = None,
-        timeout: Optional[int] = None,
-        host: Optional[str] = None,
-        path: Optional[str] = None,
+        https: bool | None = None,
+        api_key: str | None = None,
+        prefix: str | None = None,
+        timeout: int | None = None,
+        host: str | None = None,
+        path: str | None = None,
         force_disable_check_same_thread: bool = False,
-        grpc_options: Optional[dict[str, Any]] = None,
-        auth_token_provider: Optional[
-            Callable[[], str] | Callable[[], Awaitable[str]]
-        ] = None,
+        grpc_options: dict[str, Any] | None = None,
+        auth_token_provider: Callable[[], str]
+        | Callable[[], Awaitable[str]]
+        | None = None,
         cloud_inference: bool = False,
-        local_inference_batch_size: Optional[int] = None,
+        local_inference_batch_size: int | None = None,
         check_compatibility: bool = True,
         **kwargs: Any,
     ) -> None:
@@ -61,4 +70,93 @@ class QdrantVectorStore(VectorStore):
             local_inference_batch_size=local_inference_batch_size,
             check_compatibility=check_compatibility,
             **kwargs,
+        )
+
+    @override
+    async def _find_related_content(
+        self, query: Sequence[float], *, k: int = 10, collection_name: str | None = None
+    ) -> Sequence[Chunk]:
+        query_response = await self._client.query_points(
+            collection_name=collection_name or self.default_collection_name,
+            query=list(query),
+            # TODO(arthur): add more parameters.
+        )
+
+        chunks: MutableSequence[Chunk] = []
+
+        for scored_point in query_response.points:
+            payload = scored_point.payload
+            if payload is None:
+                raise RuntimeError(
+                    "Could not load Payload. Payload is needed "
+                    + "to decode the vector into text."
+                )
+            text = payload.get("text")
+            if text is None:
+                raise RuntimeError(
+                    "Error: could not load payload text. "
+                    + "Text is needed to get original "
+                    + "payload contents"
+                )
+
+            metadata: Mapping[str, Any] | None = payload.get("metadata")
+            if metadata is not None and not isinstance(metadata, dict):
+                raise ValueError(
+                    "Metadata is not an instance of Mapping and "
+                    + "it's not None. It must be a Mapping."
+                )
+
+            chunks.append(Chunk(text=text, metadata=metadata or {}))
+
+        return chunks
+
+    @override
+    async def create_collection_async(
+        self, collection_name: str, *, config: CreateCollectionConfig
+    ) -> None:
+        from qdrant_client.http.models.models import Distance, VectorParams
+
+        collection_exists = await self._client.collection_exists(
+            collection_name=collection_name
+        )
+
+        if collection_exists:
+            return None
+
+        result = await self._client.create_collection(
+            collection_name=collection_name,
+            vectors_config=VectorParams(
+                size=config["size"],
+                distance={
+                    "COSINE": Distance.COSINE,
+                    "EUCLID": Distance.EUCLID,
+                    "DOT": Distance.DOT,
+                    "MANHATTAN": Distance.MANHATTAN,
+                }[config["distance"]],
+            ),
+        )
+
+        if not result:
+            raise RuntimeError("Unable to create collection")
+
+    @override
+    async def _upsert_async(
+        self,
+        points: Embedding,
+        *,
+        collection_name: str | None = None,
+    ) -> None:
+        from qdrant_client.http.models.models import (
+            PointStruct,
+        )
+
+        await self._client.upsert(
+            collection_name=collection_name or self.default_collection_name,
+            points=[
+                PointStruct(
+                    id=points.id,
+                    vector=list(points.value),
+                    payload={"text": points.original_text, "metadata": points.metadata},
+                )
+            ],
         )

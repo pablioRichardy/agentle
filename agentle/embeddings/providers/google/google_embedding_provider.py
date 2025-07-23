@@ -98,4 +98,4 @@ if __name__ == "__main__":
     )
     embed_content = provider.generate_embeddings("oi tudo bem?")
     print(embed_content)
-    print(len(embed_content.embeddings.value))
+    print(len(embed_content.embeddings.value))  # 3072
