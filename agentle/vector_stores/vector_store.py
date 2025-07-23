@@ -129,9 +129,9 @@ class VectorStore(abc.ABC):
         file: ParsedFile,
         *,
         timeout: float | None = None,
-        chunking_strategy: ChunkingStrategy,
-        chunking_config: ChunkingConfig,
-        collection_name: str | None,
+        chunking_strategy: ChunkingStrategy = ChunkingStrategy.RECURSIVE_CHARACTER,
+        chunking_config: ChunkingConfig | None = None,
+        collection_name: str | None = None,
     ) -> Sequence[ChunkID]:
         return run_sync(
             self.upsert_file_async,
@@ -146,9 +146,9 @@ class VectorStore(abc.ABC):
         self,
         file: ParsedFile,
         *,
-        chunking_strategy: ChunkingStrategy,
-        chunking_config: ChunkingConfig,
-        collection_name: str | None,
+        chunking_strategy: ChunkingStrategy = ChunkingStrategy.RECURSIVE_CHARACTER,
+        chunking_config: ChunkingConfig | None = None,
+        collection_name: str | None = None,
     ) -> Sequence[ChunkID]:
         chunks: Sequence[Chunk] = await file.chunkify_async(
             strategy=chunking_strategy, config=chunking_config

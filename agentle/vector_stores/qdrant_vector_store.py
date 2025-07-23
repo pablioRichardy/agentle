@@ -198,6 +198,7 @@ if __name__ == "__main__":
     from agentle.embeddings.providers.google.google_embedding_provider import (
         GoogleEmbeddingProvider,
     )
+    from agentle.parsing.parsers.pdf import PDFFileParser
 
     qdrant = QdrantVectorStore(
         embedding_provider=GoogleEmbeddingProvider(vertexai=True)
@@ -206,3 +207,13 @@ if __name__ == "__main__":
     qdrant.create_collection(
         "test_collection", config={"size": 3072, "distance": "COSINE"}
     )
+
+    print(qdrant.list_collections())
+
+    pdf_parser = PDFFileParser()
+
+    parsed_file = pdf_parser.parse(
+        "/Users/arthurbrenno/Documents/Dev/Paragon/agentle/examples/curriculo.pdf"
+    )
+
+    qdrant.upsert_file(parsed_file, )

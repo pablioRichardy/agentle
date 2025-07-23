@@ -63,7 +63,7 @@ def visual_description_agent_default_factory(
     )
 
     agent = Agent(
-        model="gemini-2.0-pro-vision",
+        model="gemini-2.5-flash",
         instructions="You are a helpful assistant that deeply understands visual media.",
         generation_provider=provider or GoogleGenerationProvider(),
         response_schema=VisualMediaDescription,

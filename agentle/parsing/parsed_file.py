@@ -108,7 +108,7 @@ class ParsedFile(BaseModel):
     def split(self) -> Sequence[Chunk]: ...
 
     @cached_property
-    def id(self) -> str:
+    def unique_id(self) -> str:
         # Sanitize name
         base_name = self._sanitize_name()
 
@@ -268,6 +268,7 @@ class ParsedFile(BaseModel):
         for i, chunk_text in enumerate(current_chunks):
             if chunk_text.strip():  # Only create chunks with non-empty content
                 chunk_metadata = {
+                    "source_document_id": self.unique_id,
                     "source_document": self.name,
                     "chunk_index": i,
                     "chunk_size": len(chunk_text),
