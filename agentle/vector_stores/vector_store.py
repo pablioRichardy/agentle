@@ -12,8 +12,10 @@ from agentle.parsing.chunk import Chunk
 from agentle.parsing.chunking.chunking_config import ChunkingConfig
 from agentle.parsing.chunking.chunking_strategy import ChunkingStrategy
 from agentle.parsing.parsed_file import ParsedFile
+from agentle.vector_stores.collection import Collection
 from agentle.vector_stores.create_collection_config import CreateCollectionConfig
-from agentle.vector_stores.upserted_file import UpsertedFile
+
+type ChunkID = str
 
 
 class VectorStore(abc.ABC):
@@ -32,7 +34,21 @@ class VectorStore(abc.ABC):
         self.embedding_provider = embedding_provider
         self.generation_provider = generation_provider
 
-    async def find_related_content(
+    def find_related_content(
+        self,
+        query: str | Embedding | Sequence[float],
+        *,
+        k: int = 10,
+        collection_name: str | None = None,
+    ) -> Sequence[Chunk]:
+        return run_sync(
+            self.find_related_content_async,
+            query=query,
+            k=k,
+            collection_name=collection_name,
+        )
+
+    async def find_related_content_async(
         self,
         query: str | Embedding | Sequence[float],
         *,
@@ -45,28 +61,28 @@ class VectorStore(abc.ABC):
                     contents=query
                 )
 
-                return await self._find_related_content(
+                return await self._find_related_content_async(
                     query=embedding.embeddings.value,
                     k=k,
                     collection_name=collection_name,
                 )
             case Embedding():
-                return await self._find_related_content(
+                return await self._find_related_content_async(
                     query=query.value, k=k, collection_name=collection_name
                 )
             case Sequence():
-                return await self._find_related_content(
+                return await self._find_related_content_async(
                     query=query,
                     k=k,
                     collection_name=collection_name,
                 )
 
     @abc.abstractmethod
-    async def _find_related_content(
+    async def _find_related_content_async(
         self, query: Sequence[float], *, k: int = 10, collection_name: str | None = None
     ) -> Sequence[Chunk]: ...
 
-    async def upsert(
+    def upsert(
         self,
         points: Embedding | Sequence[float],
         *,
@@ -80,7 +96,6 @@ class VectorStore(abc.ABC):
             collection_name=collection_name,
         )
 
-    @abc.abstractmethod
     async def upsert_async(
         self,
         points: Embedding | Sequence[float],
@@ -117,7 +132,7 @@ class VectorStore(abc.ABC):
         chunking_strategy: ChunkingStrategy,
         chunking_config: ChunkingConfig,
         collection_name: str | None,
-    ) -> UpsertedFile:
+    ) -> Sequence[ChunkID]:
         return run_sync(
             self.upsert_file_async,
             file=file,
@@ -134,7 +149,7 @@ class VectorStore(abc.ABC):
         chunking_strategy: ChunkingStrategy,
         chunking_config: ChunkingConfig,
         collection_name: str | None,
-    ) -> UpsertedFile:
+    ) -> Sequence[ChunkID]:
         chunks: Sequence[Chunk] = await file.chunkify_async(
             strategy=chunking_strategy, config=chunking_config
         )
@@ -156,15 +171,34 @@ class VectorStore(abc.ABC):
 
             ids.append(e.embeddings.id)
 
-        return UpsertedFile(chunk_ids=ids)
+        return ids
+
+    def create_collection(
+        self, collection_name: str, *, config: CreateCollectionConfig
+    ) -> None:
+        return run_sync(
+            self.create_collection_async, collection_name=collection_name, config=config
+        )
 
     @abc.abstractmethod
     async def create_collection_async(
         self, collection_name: str, *, config: CreateCollectionConfig
     ) -> None: ...
 
+    def delete_collection(self, collection_name: str) -> None:
+        return run_sync(self.delete_collection_async, collection_name=collection_name)
+
+    @abc.abstractmethod
+    async def delete_collection_async(self, collection_name: str) -> None: ...
+
+    def list_collections(self) -> Sequence[Collection]:
+        return run_sync(self.list_collections_async)
+
+    @abc.abstractmethod
+    async def list_collections_async(self) -> Sequence[Collection]: ...
+
     def as_search_tool(self) -> Tool[Sequence[Chunk]]:
         async def search_async(query: str, *, top_k: int = 3) -> Sequence[Chunk]:
-            return await self.find_related_content(query=query, k=top_k)
+            return await self.find_related_content_async(query=query, k=top_k)
 
         return Tool.from_callable(search_async)

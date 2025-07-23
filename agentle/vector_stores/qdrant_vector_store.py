@@ -5,6 +5,7 @@ from agentle.embeddings.models.embedding import Embedding
 from agentle.embeddings.providers.embedding_provider import EmbeddingProvider
 from agentle.generations.providers.base.generation_provider import GenerationProvider
 from agentle.parsing.chunk import Chunk
+from agentle.vector_stores.collection import Collection
 from agentle.vector_stores.create_collection_config import CreateCollectionConfig
 from agentle.vector_stores.vector_store import VectorStore
 
@@ -20,7 +21,7 @@ class QdrantVectorStore(VectorStore):
         *,
         default_collection_name: str = "agentle",
         embedding_provider: EmbeddingProvider,
-        generation_provider: GenerationProvider | None,
+        generation_provider: GenerationProvider | None = None,
         location: str | None = None,
         url: str | None = None,
         port: int | None = 6333,
@@ -72,7 +73,7 @@ class QdrantVectorStore(VectorStore):
         )
 
     @override
-    async def _find_related_content(
+    async def _find_related_content_async(
         self, query: Sequence[float], *, k: int = 10, collection_name: str | None = None
     ) -> Sequence[Chunk]:
         query_response = await self._client.query_points(
@@ -139,6 +140,38 @@ class QdrantVectorStore(VectorStore):
             raise RuntimeError("Unable to create collection")
 
     @override
+    async def delete_collection_async(self, collection_name: str) -> None:
+        result = await self._client.delete_collection(collection_name=collection_name)
+        if not result:
+            raise ValueError(
+                "Unable to delete collection name from the database. Verify "
+                + "your Qdrant instance or collection name provided."
+            )
+
+        return
+
+    @override
+    async def list_collections_async(self) -> Sequence[Collection]:
+        from qdrant_client.conversions import common_types as types
+
+        collections_response = await self._client.get_collections()
+        collections: MutableSequence[Collection] = []
+
+        for qdrant_collection in collections_response.collections:
+            collection_info: types.CollectionInfo = await self._client.get_collection(
+                collection_name=qdrant_collection.name
+            )
+
+            collections.append(
+                Collection(
+                    name=qdrant_collection.name,
+                    indexed_vectors_count=collection_info.indexed_vectors_count,
+                )
+            )
+
+        return collections
+
+    @override
     async def _upsert_async(
         self,
         points: Embedding,
@@ -159,3 +192,17 @@ class QdrantVectorStore(VectorStore):
                 )
             ],
         )
+
+
+if __name__ == "__main__":
+    from agentle.embeddings.providers.google.google_embedding_provider import (
+        GoogleEmbeddingProvider,
+    )
+
+    qdrant = QdrantVectorStore(
+        embedding_provider=GoogleEmbeddingProvider(vertexai=True)
+    )
+
+    qdrant.create_collection(
+        "test_collection", config={"size": 3072, "distance": "COSINE"}
+    )
