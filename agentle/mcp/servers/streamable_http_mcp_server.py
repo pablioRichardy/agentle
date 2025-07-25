@@ -1,17 +1,17 @@
 """
-Streamable HTTP implementation of the Model Context Protocol (MCP) server client.
+Production-ready fixes for StreamableHTTPMCPServer
 
-This module provides an HTTP client implementation for interacting with MCP servers
-using the Streamable HTTP transport as defined in the MCP 2025-03-26 specification.
-It enables connection management, tool discovery, resource querying, and tool execution
-through a standardized MCP endpoint.
-
-The implementation follows the MCPServerProtocol interface and uses httpx for
-asynchronous HTTP communication.
+Key issues fixed:
+1. Same connection restoration bug as SSE
+2. Inefficient client creation for each request
+3. No connection pooling
+4. Better error handling and retry logic
+5. Resource management improvements
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -37,435 +37,391 @@ if TYPE_CHECKING:
 
 class StreamableHTTPMCPServer(MCPServerProtocol):
     """
-    Streamable HTTP implementation of the MCP (Model Context Protocol) server client.
+    Production-ready Streamable HTTP implementation of MCP server client.
 
-    This class provides a client implementation for interacting with remote MCP servers
-    over HTTP using the Streamable HTTP transport (MCP 2025-03-26 spec). It supports
-    both regular and streaming responses, session management, and handles connection
-    management, tool discovery, resource management, and tool execution.
-
-    Attributes:
-        server_name (str): A human-readable name for the server
-        server_url (AnyUrl): The base URL of the HTTP server
-        mcp_endpoint (str): The endpoint path for MCP requests (e.g., "/mcp")
-        headers (MutableMapping[str, str]): HTTP headers to include with each request
-        timeout_s (float): Request timeout in seconds
-        session_manager (SessionManager): Manager for storing session information
-
-    Usage:
-        server = StreamableHTTPMCPServer(server_name="Example MCP", server_url="http://example.com", mcp_endpoint="/mcp")
-        await server.connect()
-        tools = await server.list_tools()
-        result = await server.call_tool("tool_name", {"param": "value"})
-        await server.cleanup()
+    FIXED ISSUES:
+    - Connection restoration bug
+    - Inefficient client creation
+    - Better error handling
+    - Connection pooling
+    - Retry logic
     """
 
-    # Required configuration fields
+    # Configuration fields
     server_name: str = Field(..., description="Human-readable name for the MCP server")
     server_url: str = Field(..., description="Base URL for the HTTP MCP server")
     mcp_endpoint: str | Callable[..., str] = Field(
-        default="/mcp",
-        description="The endpoint path for MCP requests, relative to the server URL",
+        default="/mcp", description="The endpoint path for MCP requests"
+    )
+    headers: MutableMapping[str, str] = Field(
+        default_factory=dict, description="Custom HTTP headers"
+    )
+    timeout_s: float = Field(default=100.0, description="Request timeout in seconds")
+    session_manager: SessionManager = Field(
+        default_factory=InMemorySessionManager, description="Session manager"
     )
 
-    # Optional configuration fields
-    headers: MutableMapping[str, str] = Field(
-        default_factory=dict,
-        description="Custom HTTP headers to include with each request",
-    )
-    timeout_s: float = Field(
-        default=100.0, description="Timeout in seconds for HTTP requests"
-    )
-    session_manager: SessionManager = Field(
-        default_factory=InMemorySessionManager,
-        description="Session manager for storing session state",
+    # Production settings
+    max_retries: int = Field(default=3, description="Maximum retry attempts")
+    retry_delay_s: float = Field(default=1.0, description="Base retry delay")
+    connection_pool_limits: Dict[str, int] = Field(
+        default_factory=lambda: {
+            "max_keepalive_connections": 20,
+            "max_connections": 100,
+        },
+        description="Connection pool limits",
     )
 
     # Internal state
     _logger: logging.Logger = PrivateAttr(
-        default_factory=lambda: logging.getLogger(__name__),
+        default_factory=lambda: logging.getLogger(__name__)
     )
-    # Session state stored as primitives
+    _client: Optional[httpx.AsyncClient] = PrivateAttr(default=None)
     _session_id: Optional[str] = PrivateAttr(default=None)
     _last_event_id: Optional[str] = PrivateAttr(default=None)
     _jsonrpc_id_counter: int = PrivateAttr(default=1)
     _initialized: bool = PrivateAttr(default=False)
+    _connection_lock: asyncio.Lock = PrivateAttr(default_factory=asyncio.Lock)
 
     @property
     def name(self) -> str:
-        """
-        Get a readable name for the server.
-
-        Returns:
-            str: The human-readable server name
-        """
         return self.server_name
 
     @property
     def _server_key(self) -> str:
-        """
-        Get a unique key for this server for session tracking.
-
-        Returns:
-            str: A unique identifier for this server instance
-        """
         return f"{self.server_url}:{self.mcp_endpoint}"
 
-    async def _create_client(self) -> httpx.AsyncClient:
-        """
-        Create a new HTTP client for the current event loop.
+    def _is_connected(self) -> bool:
+        """Check if client is connected and valid."""
+        return (
+            self._client is not None
+            and not self._client.is_closed
+            and self._initialized
+        )
 
-        Returns:
-            httpx.AsyncClient: A new HTTP client instance
-        """
-        # Set up the HTTP client with proper headers for Streamable HTTP
+    async def _create_client(self) -> httpx.AsyncClient:
+        """Create a new HTTP client with connection pooling."""
         base_headers = {
             "Accept": "application/json, text/event-stream",
             "Cache-Control": "no-cache",
+            "User-Agent": "agentle-mcp-client/0.1.0",
         }
 
-        # Merge with user-provided headers
         all_headers = {**base_headers, **self.headers}
 
-        self._logger.debug(f"Creating new HTTP client with headers: {all_headers}")
+        # FIXED: Use connection pooling for production
+        limits = httpx.Limits(**self.connection_pool_limits)
 
-        # Create a fresh client bound to the current event loop
         return httpx.AsyncClient(
-            base_url=str(self.server_url), timeout=self.timeout_s, headers=all_headers
+            base_url=str(self.server_url),
+            timeout=httpx.Timeout(self.timeout_s),
+            headers=all_headers,
+            limits=limits,
+            follow_redirects=True,  # Handle redirects
         )
 
     async def connect_async(self) -> None:
-        """
-        Connect to the HTTP MCP server and initialize the MCP protocol.
+        """Connect with proper session restoration and validation."""
+        async with self._connection_lock:
+            if self._is_connected():
+                return
 
-        Establishes an HTTP client connection to the server and performs the
-        initialization handshake as defined in the MCP specification.
+            self._logger.info(f"Connecting to HTTP server: {self.server_url}")
 
-        Raises:
-            ConnectionError: If the connection to the server cannot be established
-        """
-        self._logger.info(f"Connecting to HTTP server: {self.server_url}")
+            # FIXED: Load session but don't skip connection establishment
+            server_key = self._server_key
+            session_data = await self.session_manager.get_session(server_key)
 
-        # Check if we have existing session information
-        server_key = self._server_key
-        session_data = await self.session_manager.get_session(server_key)
+            # Restore session data
+            if session_data is not None:
+                self._logger.debug(f"Found existing session for {server_key}")
+                self._session_id = session_data.get("session_id")
+                self._last_event_id = session_data.get("last_event_id")
+                self._jsonrpc_id_counter = session_data.get("jsonrpc_counter", 1)
 
-        if session_data is not None:
-            self._logger.debug(f"Found existing session for {server_key}")
-            self._session_id = session_data.get("session_id")
-            self._last_event_id = session_data.get("last_event_id")
-            self._jsonrpc_id_counter = session_data.get("jsonrpc_counter", 1)
-            self._initialized = True
-            return
+            # ALWAYS create new client connection
+            await self._establish_connection()
 
-        # Create a new client for this operation
-        client = await self._create_client()
-
-        # Initialize the MCP protocol
+    async def _establish_connection(self) -> None:
+        """Establish HTTP client and initialize protocol."""
         try:
-            # Send initialization request
-            initialize_request: MutableMapping[str, Any] = {
-                "jsonrpc": "2.0",
-                "id": str(self._jsonrpc_id_counter),
-                "method": "initialize",
-                "params": {
-                    "protocolVersion": "2024-11-05",  # Use an older version for better compatibility
-                    "clientInfo": {"name": "agentle-mcp-client", "version": "0.1.0"},
-                    "capabilities": {"resources": {}, "tools": {}, "prompts": {}},
-                },
-            }
-            self._jsonrpc_id_counter += 1
+            # Clean up existing client
+            if self._client and not self._client.is_closed:
+                await self._client.aclose()
 
-            # POST the initialize request to the MCP endpoint
-            response = await client.post(
-                self.mcp_endpoint()
-                if callable(self.mcp_endpoint)
-                else self.mcp_endpoint,
-                json=initialize_request,
-            )
+            # Create new client
+            self._client = await self._create_client()
 
-            self._logger.debug(
-                f"Initialization response status: {response.status_code}"
-            )
-            self._logger.debug(f"Initialization response headers: {response.headers}")
-            self._logger.debug(
-                f"Initialization response content: {response.text[:100]}..."
-            )
+            # Validate connection with health check
+            await self._health_check()
 
-            if response.status_code != 200:
-                self._logger.warning(
-                    f"Server responded with status {response.status_code}"
-                )
-                raise ConnectionError(
-                    f"Failed to initialize: HTTP {response.status_code}"
-                )
+            # Initialize protocol if not already done
+            if not self._initialized:
+                await self._initialize_protocol()
 
-            # Check the content type before parsing
-            content_type = response.headers.get("Content-Type", "")
-
-            if "text/event-stream" in content_type:
-                # Handle SSE stream response
-                self._logger.debug("Received SSE stream response during initialization")
-                # Process the stream to find the initialization response
-                async for event in self._parse_sse_stream(response):
-                    data = event["data"]
-                    # Check if this is the response to our initialization request
-                    if (
-                        isinstance(data, dict)
-                        and "id" in data
-                        and data["id"] == str(self._jsonrpc_id_counter - 1)
-                    ):
-                        if "error" in data:
-                            raise ConnectionError(
-                                f"Failed to initialize: {data['error']}"
-                            )
-                        init_result = data
-                        break
-                else:
-                    # If we didn't find a matching response
-                    raise ConnectionError(
-                        "Did not receive initialization response in SSE stream"
-                    )
-            elif "application/json" in content_type:
-                # Parse the JSON response
-                try:
-                    init_result = response.json()
-                    if "error" in init_result:
-                        raise ConnectionError(
-                            f"Failed to initialize: {init_result['error']}"
-                        )
-                except json.JSONDecodeError as e:
-                    self._logger.error(f"Failed to parse JSON response: {e}")
-                    raise ConnectionError(
-                        f"Failed to parse initialization response: {e}"
-                    )
-            else:
-                # Unexpected content type
-                self._logger.warning(f"Unexpected content type: {content_type}")
-                raise ConnectionError(
-                    f"Unexpected content type during initialization: {content_type}"
-                )
-
-            # Check for session ID in headers
-            session_id = response.headers.get("Mcp-Session-Id")
-            if session_id:
-                self._session_id = session_id
-                self._logger.debug(f"Session established with ID: {session_id}")
-
-            # Send initialized notification
-            headers: Dict[str, str] = {}
-            if self._session_id:
-                headers["Mcp-Session-Id"] = self._session_id
-
-            notification: Dict[str, Any] = {
-                "jsonrpc": "2.0",
-                "method": "initialized",
-                "params": {},
-            }
-            await client.post(
-                self.mcp_endpoint()
-                if callable(self.mcp_endpoint)
-                else self.mcp_endpoint,
-                json=notification,
-                headers=headers,
-            )
-
-            # Store session info using session manager
-            await self.session_manager.store_session(
-                server_key,
-                {
-                    "session_id": self._session_id,
-                    "last_event_id": self._last_event_id,
-                    "jsonrpc_counter": self._jsonrpc_id_counter,
-                },
-            )
-
+            await self._store_session_data()
             self._initialized = True
-            self._logger.info("MCP protocol initialized successfully")
+            self._logger.info("HTTP MCP connection established successfully")
 
         except Exception as e:
-            self._logger.error(f"Error connecting to server: {e}")
+            self._logger.error(f"Error establishing connection: {e}")
             self._initialized = False
+            await self._cleanup_client()
             raise ConnectionError(f"Could not connect to server {self.server_url}: {e}")
-        finally:
-            # Always close the client
-            await client.aclose()
 
-    async def cleanup_async(self) -> None:
-        """
-        Clean up the server connection.
+    async def _health_check(self) -> None:
+        """Perform a health check to validate connection."""
+        if not self._client:
+            raise ConnectionError("Client not initialized")
 
-        Closes the HTTP client connection if it exists. If a session ID was
-        established, attempts to terminate the session with a DELETE request.
+        try:
+            # Try a simple request to validate connectivity
+            response = await self._client.get("/health", timeout=5.0)
+            # Don't fail on 404 - server might not have health endpoint
+            if response.status_code >= 500:
+                raise ConnectionError(f"Server error: {response.status_code}")
+        except httpx.ConnectError as e:
+            raise ConnectionError(f"Cannot connect to server: {e}")
+        except httpx.TimeoutException as e:
+            raise ConnectionError(f"Connection timeout: {e}")
 
-        Returns:
-            None
-        """
-        self._logger.info(f"Closing connection with HTTP server: {self.server_url}")
+    async def _initialize_protocol(self) -> None:
+        """Initialize MCP protocol with retry logic."""
+        self._logger.info("Initializing MCP protocol")
 
-        # If we have a session ID, try to terminate the session
-        if self._session_id:
-            client = None
+        initialize_request: Dict[str, Any] = {
+            "jsonrpc": "2.0",
+            "id": str(self._jsonrpc_id_counter),
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2024-11-05",
+                "clientInfo": {"name": "agentle-mcp-client", "version": "0.1.0"},
+                "capabilities": {"resources": {}, "tools": {}, "prompts": {}},
+            },
+        }
+        self._jsonrpc_id_counter += 1
+
+        # FIXED: Retry initialization with exponential backoff
+        for attempt in range(self.max_retries):
             try:
-                client = await self._create_client()
-                headers = {"Mcp-Session-Id": self._session_id}
-                await client.delete(
-                    self.mcp_endpoint()
-                    if callable(self.mcp_endpoint)
-                    else self.mcp_endpoint,
-                    headers=headers,
-                )
-                self._logger.debug(f"Session terminated: {self._session_id}")
+                response = await self._send_request_internal(initialize_request)
 
-                # Remove from session manager
-                server_key = self._server_key
-                await self.session_manager.delete_session(server_key)
+                if "error" in response:
+                    raise ConnectionError(f"Failed to initialize: {response['error']}")
+
+                # Send initialized notification
+                notification: Dict[str, Any] = {
+                    "jsonrpc": "2.0",
+                    "method": "initialized",
+                    "params": {},
+                }
+                await self._send_notification_internal(notification)
+
+                self._logger.info("MCP protocol initialized successfully")
+                return
 
             except Exception as e:
-                self._logger.warning(f"Failed to terminate session: {e}")
-            finally:
-                # Always close the client
-                if client:
-                    await client.aclose()
+                if attempt == self.max_retries - 1:
+                    raise ConnectionError(
+                        f"Failed to initialize after {self.max_retries} attempts: {e}"
+                    )
 
-        # Close the session manager
-        await self.session_manager.close()
+                delay = self.retry_delay_s * (2**attempt)
+                self._logger.warning(
+                    f"Initialization attempt {attempt + 1} failed, retrying in {delay}s: {e}"
+                )
+                await asyncio.sleep(delay)
 
-        self._session_id = None
-        self._last_event_id = None
-        self._initialized = False
+    async def cleanup_async(self) -> None:
+        """Clean up resources with proper session termination."""
+        async with self._connection_lock:
+            self._logger.info(f"Cleaning up connection to: {self.server_url}")
 
-    async def list_tools_async(self) -> Sequence[Tool]:
-        """
-        List the tools available on the server.
+            # Terminate session if active
+            if self._session_id and self._client and not self._client.is_closed:
+                await self._terminate_session()
 
-        Returns:
-            Sequence[Tool]: A list of Tool objects available on the server
+            await self._cleanup_client()
+            await self.session_manager.close()
 
-        Raises:
-            ConnectionError: If the server is not connected
-            httpx.RequestError: If there's an error during the HTTP request
-        """
-        from mcp.types import Tool
+            self._session_id = None
+            self._last_event_id = None
+            self._initialized = False
 
-        response = await self._send_request("tools/list")
+    async def _cleanup_client(self) -> None:
+        """Clean up HTTP client resources."""
+        if self._client and not self._client.is_closed:
+            await self._client.aclose()
+        self._client = None
 
-        if "result" not in response:
-            raise ValueError("Invalid response format: missing 'result'")
+    async def _terminate_session(self) -> None:
+        """Terminate session with the server."""
+        if not self._session_id or not self._client:
+            return
 
-        if "tools" not in response["result"]:
-            raise ValueError("Invalid response format: missing 'tools' in result")
+        try:
+            headers: Dict[str, str] = {"Mcp-Session-Id": self._session_id}
+            endpoint = (
+                self.mcp_endpoint()
+                if callable(self.mcp_endpoint)
+                else self.mcp_endpoint
+            )
 
-        return [Tool.model_validate(tool) for tool in response["result"]["tools"]]
+            await self._client.delete(endpoint, headers=headers, timeout=5.0)
+            self._logger.debug(f"Session terminated: {self._session_id}")
 
-    async def list_resources_async(self) -> Sequence[Resource]:
-        """
-        List the resources available on the server.
+            # Remove from session manager
+            await self.session_manager.delete_session(self._server_key)
 
-        Returns:
-            Sequence[Resource]: A list of Resource objects available on the server
+        except Exception as e:
+            self._logger.warning(f"Failed to terminate session: {e}")
 
-        Raises:
-            ConnectionError: If the server is not connected
-            httpx.RequestError: If there's an error during the HTTP request
-        """
-        from mcp.types import Resource
+    async def _store_session_data(self) -> None:
+        """Store session data with error handling."""
+        try:
+            session_data = {
+                "session_id": self._session_id,
+                "last_event_id": self._last_event_id,
+                "jsonrpc_counter": self._jsonrpc_id_counter,
+            }
+            await self.session_manager.store_session(self._server_key, session_data)
+        except Exception as e:
+            self._logger.warning(f"Failed to store session data: {e}")
 
-        response = await self._send_request("resources/list")
+    async def _send_request_internal(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Internal request sending with proper error handling."""
+        if not self._client or self._client.is_closed:
+            raise ConnectionError("Client not connected")
 
-        if "result" not in response:
-            raise ValueError("Invalid response format: missing 'result'")
+        headers: Dict[str, str] = {"Content-Type": "application/json"}
+        if self._session_id:
+            headers["Mcp-Session-Id"] = self._session_id
 
-        if "resources" not in response["result"]:
-            raise ValueError("Invalid response format: missing 'resources' in result")
-
-        return [
-            Resource.model_validate(resource)
-            for resource in response["result"]["resources"]
-        ]
-
-    async def list_resource_contents_async(
-        self, uri: str
-    ) -> Sequence[TextResourceContents | BlobResourceContents]:
-        """
-        List contents of a specific resource.
-
-        Args:
-            uri (str): The URI of the resource to retrieve contents for
-
-        Returns:
-            Sequence[TextResourceContents | BlobResourceContents]: A list of resource contents
-
-        Raises:
-            ConnectionError: If the server is not connected
-            httpx.RequestError: If there's an error during the HTTP request
-        """
-        from mcp.types import BlobResourceContents, TextResourceContents
-
-        response = await self._send_request("resources/read", {"uri": uri})
-
-        if "result" not in response:
-            raise ValueError("Invalid response format: missing 'result'")
-
-        if "contents" not in response["result"]:
-            raise ValueError("Invalid response format: missing 'contents' in result")
-
-        return [
-            TextResourceContents.model_validate(content)
-            if content["type"] == "text"
-            else BlobResourceContents.model_validate(content)
-            for content in response["result"]["contents"]
-        ]
-
-    async def call_tool_async(
-        self, tool_name: str, arguments: MutableMapping[str, object] | None
-    ) -> CallToolResult:
-        """
-        Invoke a tool on the server.
-
-        Args:
-            tool_name (str): The name of the tool to call
-            arguments (MutableMapping[str, object] | None): The arguments to pass to the tool
-
-        Returns:
-            CallToolResult: The result of the tool invocation
-
-        Raises:
-            ConnectionError: If the server is not connected
-            httpx.RequestError: If there's an error during the HTTP request
-        """
-        from mcp.types import CallToolResult
-
-        response = await self._send_request(
-            "tools/call", {"name": tool_name, "arguments": arguments or {}}
+        endpoint = (
+            self.mcp_endpoint() if callable(self.mcp_endpoint) else self.mcp_endpoint
         )
 
-        if "result" not in response:
-            raise ValueError("Invalid response format: missing 'result'")
+        response = await self._client.post(endpoint, json=request, headers=headers)
 
-        return CallToolResult.model_validate(response["result"])
+        # Handle session ID from response
+        session_id = response.headers.get("Mcp-Session-Id")
+        if session_id and session_id != self._session_id:
+            self._session_id = session_id
+            await self._store_session_data()
+
+        # Handle different response types
+        if response.status_code == 404 and self._session_id:
+            # Session expired, reconnect
+            self._logger.warning("Session expired, reconnecting...")
+            self._session_id = None
+            self._initialized = False
+            await self.session_manager.delete_session(self._server_key)
+            raise ConnectionError("Session expired")
+
+        elif response.status_code != 200:
+            raise ConnectionError(f"HTTP {response.status_code}: {response.text}")
+
+        content_type = response.headers.get("Content-Type", "")
+
+        if "text/event-stream" in content_type:
+            # Handle SSE response
+            request_id = request.get("id")
+            async for event in self._parse_sse_stream(response):
+                data = event["data"]
+                if isinstance(data, dict) and data.get("id") == request_id:
+                    if "error" in data:
+                        raise ValueError(f"JSON-RPC error: {data['error']}")
+                    return data
+            raise ValueError("No matching response in SSE stream")
+
+        elif "application/json" in content_type:
+            # Handle JSON response
+            data = response.json()
+            if "error" in data:
+                raise ValueError(f"JSON-RPC error: {data['error']}")
+            return data
+
+        else:
+            raise ValueError(f"Unexpected content type: {content_type}")
+
+    async def _send_notification_internal(self, notification: Dict[str, Any]) -> None:
+        """Internal notification sending."""
+        if not self._client or self._client.is_closed:
+            raise ConnectionError("Client not connected")
+
+        headers: Dict[str, str] = {"Content-Type": "application/json"}
+        if self._session_id:
+            headers["Mcp-Session-Id"] = self._session_id
+
+        endpoint = (
+            self.mcp_endpoint() if callable(self.mcp_endpoint) else self.mcp_endpoint
+        )
+        await self._client.post(endpoint, json=notification, headers=headers)
+
+    async def _send_request(
+        self, method: str, params: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Send request with retry logic and connection management."""
+        # Ensure connection
+        if not self._is_connected():
+            await self.connect_async()
+
+        if not self._is_connected():
+            raise ConnectionError("Failed to establish connection")
+
+        request_id = str(self._jsonrpc_id_counter)
+        self._jsonrpc_id_counter += 1
+
+        request: Dict[str, Any] = {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "method": method,
+            "params": params or {},
+        }
+
+        # Retry logic with exponential backoff
+        last_exception = None
+        for attempt in range(self.max_retries):
+            try:
+                await self._store_session_data()
+                return await self._send_request_internal(request)
+
+            except ConnectionError as e:
+                last_exception = e
+                if "Session expired" in str(e):
+                    # Reconnect and retry
+                    await self.connect_async()
+                    continue
+                elif attempt == self.max_retries - 1:
+                    break
+
+                delay = self.retry_delay_s * (2**attempt)
+                self._logger.warning(
+                    f"Request attempt {attempt + 1} failed, retrying in {delay}s: {e}"
+                )
+                await asyncio.sleep(delay)
+
+            except Exception as e:
+                # Non-recoverable errors
+                self._logger.error(f"Request failed with non-recoverable error: {e}")
+                raise
+
+        raise last_exception or ConnectionError("Request failed after all retries")
 
     async def _parse_sse_stream(
         self, response: httpx.Response
-    ) -> AsyncIterator[MutableMapping[str, Any]]:
-        """
-        Parse an SSE stream from an HTTP response.
-
-        Args:
-            response (httpx.Response): The HTTP response with the SSE stream
-
-        Yields:
-            MutableMapping[str, Any]: Parsed SSE events as dictionaries
-        """
+    ) -> AsyncIterator[Dict[str, Any]]:
+        """Parse SSE stream with proper event handling."""
         event_data = ""
         event_id = None
         event_type = None
 
         async for line in response.aiter_lines():
-            line = line.rstrip("\n")
+            line = line.rstrip("\n\r")
+
             if not line:
-                # End of event, yield if we have data
                 if event_data:
+                    event_data = event_data.rstrip("\n")
                     try:
                         data = json.loads(event_data)
                         yield {
@@ -474,19 +430,11 @@ class StreamableHTTPMCPServer(MCPServerProtocol):
                             "data": data,
                         }
 
-                        # Track the last event ID for potential resumability
+                        # Update last event ID
                         if event_id:
                             self._last_event_id = event_id
+                            await self._store_session_data()
 
-                            # Update session data
-                            server_key = self._server_key
-                            session_data = (
-                                await self.session_manager.get_session(server_key) or {}
-                            )
-                            session_data["last_event_id"] = event_id
-                            await self.session_manager.store_session(
-                                server_key, session_data
-                            )
                     except json.JSONDecodeError:
                         yield {
                             "id": event_id,
@@ -494,172 +442,93 @@ class StreamableHTTPMCPServer(MCPServerProtocol):
                             "data": event_data,
                         }
 
-                    # Reset for next event
                     event_data = ""
                     event_id = None
                     event_type = None
                 continue
 
             if line.startswith(":"):
-                # Comment, ignore
                 continue
 
-            # Parse field:value format
             match = re.match(r"([^:]+)(?::(.*))?", line)
             if match:
                 field, value = match.groups()
                 value = value.lstrip() if value else ""
 
                 if field == "data":
-                    event_data += value + "\n"
+                    if event_data:
+                        event_data += "\n" + value
+                    else:
+                        event_data = value
                 elif field == "id":
                     event_id = value
                 elif field == "event":
                     event_type = value
 
-    async def _send_request(
-        self, method: str, params: Optional[MutableMapping[str, Any]] = None
-    ) -> MutableMapping[str, Any]:
-        """
-        Send a JSON-RPC request to the server.
-
-        Args:
-            method (str): The JSON-RPC method to call
-            params (MutableMapping[str, Any], optional): The parameters for the method
-
-        Returns:
-            MutableMapping[str, Any]: The JSON-RPC response
-
-        Raises:
-            ConnectionError: If the server is not connected
-            httpx.RequestError: If there's an error during the HTTP request
-        """
-        # Ensure we're connected first
-        if not self._initialized:
-            self._logger.debug("Server not initialized, connecting first")
-            await self.connect_async()
-
-        if not self._initialized:
-            raise ConnectionError("Failed to initialize connection")
-
-        # Create a new client for this request (bound to current event loop)
-        client = await self._create_client()
+    # MCP Protocol methods with proper error handling
+    async def list_tools_async(self) -> Sequence[Tool]:
+        """List tools with error handling."""
+        from mcp.types import Tool
 
         try:
-            # Create the JSON-RPC request
-            request_id = str(self._jsonrpc_id_counter)
-            self._jsonrpc_id_counter += 1
-
-            # Update the counter in session data
-            server_key = self._server_key
-            session_data = await self.session_manager.get_session(server_key) or {}
-            session_data["jsonrpc_counter"] = self._jsonrpc_id_counter
-            await self.session_manager.store_session(server_key, session_data)
-
-            request: MutableMapping[str, Any] = {
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "method": method,
-                "params": params or {},
-            }
-
-            # Prepare headers
-            headers: MutableMapping[str, str] = {}
-            if self._session_id:
-                headers["Mcp-Session-Id"] = self._session_id
-
-            # Send the request
-            response = await client.post(
-                self.mcp_endpoint()
-                if callable(self.mcp_endpoint)
-                else self.mcp_endpoint,
-                json=request,
-                headers=headers,
-            )
-
-            # Check for session ID in response
-            if "Mcp-Session-Id" in response.headers and not self._session_id:
-                self._session_id = response.headers["Mcp-Session-Id"]
-                self._logger.debug(f"Session established with ID: {self._session_id}")
-
-                # Update session ID in session data
-                server_key = self._server_key
-                session_data = await self.session_manager.get_session(server_key) or {}
-                session_data["session_id"] = self._session_id
-                await self.session_manager.store_session(server_key, session_data)
-
-            # Handle different response types
-            if response.status_code == 404 and self._session_id:
-                # Session expired, we need to reconnect
-                self._logger.warning("Session expired, reconnecting...")
-                self._session_id = None
-                self._initialized = False
-
-                # Clear session
-                await self.session_manager.delete_session(server_key)
-
-                # Reconnect and retry the request
-                await self.connect_async()  # Reconnect
-                return await self._send_request(method, params)  # Retry the request
-
-            elif response.status_code != 200:
-                raise ConnectionError(
-                    f"Server returned error: HTTP {response.status_code}"
-                )
-
-            content_type = response.headers.get("Content-Type", "")
-
-            if "text/event-stream" in content_type:
-                # This is an SSE stream
-                self._logger.debug("Received SSE stream response")
-
-                # Process the stream and find the response for our request
-                async for event in self._parse_sse_stream(response):
-                    data = event["data"]
-
-                    # Check if this is the response to our request
-                    if (
-                        isinstance(data, dict)
-                        and "id" in data
-                        and data["id"] == request_id
-                    ):
-                        if "error" in data:
-                            raise ValueError(f"JSON-RPC error: {data['error']}")
-                        # Create a new dictionary with explicit typing
-                        result: MutableMapping[str, Any] = {}
-                        for k, v in data.items():
-                            result[k] = v
-                        return result
-
-                raise ValueError("Did not receive response for request in SSE stream")
-
-            elif "application/json" in content_type:
-                # This is a direct JSON response
-                data_raw = response.json()
-
-                # Create a new dictionary with explicit typing
-                _data: MutableMapping[str, Any] = {}
-                for k, v in data_raw.items():
-                    _data[k] = v
-
-                if "error" in _data:
-                    raise ValueError(f"JSON-RPC error: {_data['error']}")
-
-                return _data
-
-            else:
-                raise ValueError(f"Unexpected content type: {content_type}")
-
-        except httpx.RequestError as e:
-            self._logger.error(f"HTTP request error: {e}")
-            raise
-        except ConnectionError:
-            # Re-raise connection errors
-            raise
+            response = await self._send_request("tools/list")
+            if "result" not in response or "tools" not in response["result"]:
+                raise ValueError("Invalid response format")
+            return [Tool.model_validate(tool) for tool in response["result"]["tools"]]
         except Exception as e:
-            # Handle other exceptions
-            self._logger.error(f"Error sending request: {e}")
-            raise ConnectionError(f"Error sending request: {e}")
-        finally:
-            # Always close the client
-            await client.aclose()
+            self._logger.error(f"Failed to list tools: {e}")
+            raise
+
+    async def list_resources_async(self) -> Sequence[Resource]:
+        """List resources with error handling."""
+        from mcp.types import Resource
+
+        try:
+            response = await self._send_request("resources/list")
+            if "result" not in response or "resources" not in response["result"]:
+                raise ValueError("Invalid response format")
+            return [
+                Resource.model_validate(resource)
+                for resource in response["result"]["resources"]
+            ]
+        except Exception as e:
+            self._logger.error(f"Failed to list resources: {e}")
+            raise
+
+    async def list_resource_contents_async(
+        self, uri: str
+    ) -> Sequence[TextResourceContents | BlobResourceContents]:
+        """List resource contents with error handling."""
+        from mcp.types import BlobResourceContents, TextResourceContents
+
+        try:
+            response = await self._send_request("resources/read", {"uri": uri})
+            if "result" not in response or "contents" not in response["result"]:
+                raise ValueError("Invalid response format")
+
+            return [
+                TextResourceContents.model_validate(content)
+                if content["type"] == "text"
+                else BlobResourceContents.model_validate(content)
+                for content in response["result"]["contents"]
+            ]
+        except Exception as e:
+            self._logger.error(f"Failed to read resource {uri}: {e}")
+            raise
+
+    async def call_tool_async(
+        self, tool_name: str, arguments: MutableMapping[str, object] | None
+    ) -> CallToolResult:
+        """Call tool with error handling."""
+        from mcp.types import CallToolResult
+
+        try:
+            response = await self._send_request(
+                "tools/call", {"name": tool_name, "arguments": arguments or {}}
+            )
+            if "result" not in response:
+                raise ValueError("Invalid response format")
+            return CallToolResult.model_validate(response["result"])
+        except Exception as e:
+            self._logger.error(f"Failed to call tool {tool_name}: {e}")
+            raise

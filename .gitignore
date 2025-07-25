@@ -108,3 +108,4 @@ service_account.json
 qdrant_data
 docker/storage
 docker/snapshots
+exemples/servers

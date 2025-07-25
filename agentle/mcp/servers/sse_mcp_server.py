@@ -6,7 +6,7 @@ Server-Sent Events (SSE). It enables connection management, tool discovery,
 resource querying, and tool execution through SSE for server-to-client streaming
 and HTTP POST for client-to-server communication.
 
-The implementation follows the MCPServerProtocol interface and uses httpx for
+The implementation follows the MCPServerProtocol interface and uses aiohttp for
 asynchronous HTTP communication with SSE support.
 """
 
@@ -19,7 +19,7 @@ import re
 from collections.abc import AsyncIterator, Callable, MutableMapping, Sequence
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
-import httpx
+import aiohttp
 from rsb.models.field import Field
 from rsb.models.private_attr import PrivateAttr
 
@@ -98,8 +98,8 @@ class SSEMCPServer(MCPServerProtocol):
     _logger: logging.Logger = PrivateAttr(
         default_factory=lambda: logging.getLogger(__name__),
     )
-    _client: Optional[httpx.AsyncClient] = PrivateAttr(default=None)
-    _sse_response: Optional[httpx.Response] = PrivateAttr(default=None)
+    _client: Optional[aiohttp.ClientSession] = PrivateAttr(default=None)
+    _sse_response: Optional[aiohttp.ClientResponse] = PrivateAttr(default=None)
     _sse_task: Optional[asyncio.Task[None]] = PrivateAttr(default=None)
     _pending_requests: MutableMapping[str, asyncio.Future[MutableMapping[str, Any]]] = (
         PrivateAttr(default_factory=dict)
@@ -129,12 +129,12 @@ class SSEMCPServer(MCPServerProtocol):
         """
         return f"{self.server_url}:{self.sse_endpoint}:{self.messages_endpoint}"
 
-    async def _create_client(self) -> httpx.AsyncClient:
+    async def _create_client(self) -> aiohttp.ClientSession:
         """
         Create a new HTTP client for the current event loop.
 
         Returns:
-            httpx.AsyncClient: A new HTTP client instance
+            aiohttp.ClientSession: A new HTTP client instance
         """
         # Set up the HTTP client with proper headers for SSE
         base_headers = {
@@ -149,8 +149,8 @@ class SSEMCPServer(MCPServerProtocol):
         self._logger.debug(f"Creating new HTTP client with headers: {all_headers}")
 
         # Create a fresh client bound to the current event loop
-        return httpx.AsyncClient(
-            base_url=str(self.server_url), timeout=self.timeout_s, headers=all_headers
+        return aiohttp.ClientSession(
+            headers=all_headers, timeout=aiohttp.ClientTimeout(total=self.timeout_s)
         )
 
     async def connect_async(self) -> None:
@@ -188,16 +188,22 @@ class SSEMCPServer(MCPServerProtocol):
 
             # Establish SSE connection
             self._logger.debug(f"Establishing SSE connection to {self.sse_endpoint}")
-            self._sse_response = await self._client.get(
+
+            url = (
                 self.sse_endpoint()
                 if callable(self.sse_endpoint)
-                else self.sse_endpoint,
+                else self.sse_endpoint
+            )
+
+            full_url = f"{self.server_url}{url}"
+            self._sse_response = await self._client.get(
+                full_url,
                 headers=sse_headers,
             )
 
-            if self._sse_response.status_code != 200:
+            if self._sse_response.status != 200:
                 raise ConnectionError(
-                    f"Failed to establish SSE connection: HTTP {self._sse_response.status_code}"
+                    f"Failed to establish SSE connection: HTTP {self._sse_response.status}"
                 )
 
             # Check for session ID in response headers
@@ -252,19 +258,26 @@ class SSEMCPServer(MCPServerProtocol):
             try:
                 temp_client = await self._create_client()
                 headers = {"Mcp-Session-Id": self._session_id}
-                await temp_client.delete(
+                url = (
                     self.messages_endpoint()
                     if callable(self.messages_endpoint)
-                    else self.messages_endpoint,
-                    headers=headers,
+                    else self.messages_endpoint
                 )
-                self._logger.debug(f"Session terminated: {self._session_id}")
+                full_url = f"{self.server_url}{url}"
+
+                async with temp_client.delete(
+                    full_url,
+                    headers=headers,
+                ) as response:
+                    self._logger.debug(
+                        f"Session terminated: {self._session_id} with status {response.status}"
+                    )
 
                 # Remove from session manager
                 server_key = self._server_key
                 await self.session_manager.delete_session(server_key)
 
-                await temp_client.aclose()
+                await temp_client.close()
             except Exception as e:
                 self._logger.warning(f"Failed to terminate session: {e}")
 
@@ -290,12 +303,12 @@ class SSEMCPServer(MCPServerProtocol):
 
         # Close the SSE response
         if self._sse_response is not None:
-            await self._sse_response.aclose()
+            self._sse_response.close()
             self._sse_response = None
 
         # Close the HTTP client
         if self._client is not None:
-            await self._client.aclose()
+            await self._client.close()
             self._client = None
 
         # Cancel any pending requests
@@ -380,13 +393,13 @@ class SSEMCPServer(MCPServerProtocol):
             # Don't re-raise to avoid crashing the connection
 
     async def _parse_sse_stream(
-        self, response: httpx.Response
+        self, response: aiohttp.ClientResponse
     ) -> AsyncIterator[MutableMapping[str, Any]]:
         """
         Parse an SSE stream from an HTTP response.
 
         Args:
-            response (httpx.Response): The HTTP response with the SSE stream
+            response (aiohttp.ClientResponse): The HTTP response with the SSE stream
 
         Yields:
             MutableMapping[str, Any]: Parsed SSE events as dictionaries
@@ -395,8 +408,8 @@ class SSEMCPServer(MCPServerProtocol):
         event_id = None
         event_type = None
 
-        async for line in response.aiter_lines():
-            line = line.rstrip("\n")
+        async for line_bytes in response.content:
+            line = line_bytes.decode("utf-8").rstrip("\n")
             if not line:
                 # End of event, yield if we have data
                 if event_data:
@@ -494,13 +507,22 @@ class SSEMCPServer(MCPServerProtocol):
                 headers["Mcp-Session-Id"] = self._session_id
 
             # Send the request via POST
-            await self._client.post(
+            url = (
                 self.messages_endpoint()
                 if callable(self.messages_endpoint)
-                else self.messages_endpoint,
+                else self.messages_endpoint
+            )
+            full_url = f"{self.server_url}{url}"
+
+            async with self._client.post(
+                full_url,
                 json=request,
                 headers=headers,
-            )
+            ) as response:
+                if response.status >= 400:
+                    raise ConnectionError(
+                        f"HTTP error: {response.status} - {await response.text()}"
+                    )
 
             # Wait for the response with timeout
             return await asyncio.wait_for(response_future, timeout=self.timeout_s)
@@ -533,13 +555,22 @@ class SSEMCPServer(MCPServerProtocol):
             headers["Mcp-Session-Id"] = self._session_id
 
         # Send the notification via POST
-        await self._client.post(
+        url = (
             self.messages_endpoint()
             if callable(self.messages_endpoint)
-            else self.messages_endpoint,
+            else self.messages_endpoint
+        )
+        full_url = f"{self.server_url}{url}"
+
+        async with self._client.post(
+            full_url,
             json=notification,
             headers=headers,
-        )
+        ) as response:
+            if response.status >= 400:
+                raise ConnectionError(
+                    f"HTTP error: {response.status} - {await response.text()}"
+                )
 
     async def _send_request(
         self, method: str, params: Optional[MutableMapping[str, Any]] = None

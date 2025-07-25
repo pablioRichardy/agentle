@@ -12,10 +12,7 @@ import logging
 import sys
 
 from agentle.agents.agent import Agent
-from agentle.generations.providers.google.google_generation_provider import (
-    GoogleGenerationProvider,
-)
-from agentle.mcp.servers.streamable_http_mcp_server import StreamableHTTPMCPServer
+from agentle.mcp.servers.sse_mcp_server import SSEMCPServer
 
 # Configure logging to show debug messages
 logging.basicConfig(
@@ -24,16 +21,14 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 
-http_server = StreamableHTTPMCPServer(
-    server_name="Everything MCP",
+http_server = SSEMCPServer(
+    server_name="Everything MCP server",
     server_url="http://localhost:3001",
+    messages_endpoint="/message",
 )
 
 # Create agent with MCP servers
 agent = Agent(
-    name="MCP-Augmented Assistant",
-    generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.5-flash",
     instructions="You are a helpful assistant with access to external tools",
     mcp_servers=[http_server],
 )
@@ -49,5 +44,4 @@ with agent.start_mcp_servers():
     # Example query
     math_response = agent.run("What is 2+2?")
 
-    t = math_response
-    print(math_response)
+    print(math_response.pretty_formatted())
