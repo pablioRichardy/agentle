@@ -2,33 +2,32 @@
 # cd openmemory
 # docker compose up -d
 
+import logging
+import os
+
 from agentle.agents.agent import Agent
+from agentle.agents.conversations.local_conversation_store import LocalConversationStore
+from agentle.generations.models.message_parts.text import TextPart
 from agentle.generations.models.messages.assistant_message import AssistantMessage
 from agentle.generations.models.messages.user_message import UserMessage
-from agentle.generations.models.message_parts.text import TextPart
-from agentle.generations.providers.google.google_generation_provider import (
-    GoogleGenerationProvider,
-)
-from agentle.mcp.servers.sse_mcp_server import SSEMCPServer
+from agentle.mcp.servers.stdio_mcp_server import StdioMCPServer
 
-# Not working yet
-open_memory_server = SSEMCPServer(
-    server_name="OpenMemoryMCP",
-    server_url="http://localhost:8765",
-    sse_endpoint="/mcp/agentle/sse/example_user",
-    messages_endpoint="/mcp/messages",
-    timeout_s=10.0,
+logging.basicConfig(level=logging.DEBUG)
+
+open_memory_server = StdioMCPServer(
+    server_name="Open Memory",
+    command="npx -y openmemory",
+    server_env={
+        "OPENMEMORY_API_KEY": os.getenv("OPENMEMORY_API_KEY") or "",
+        "CLIENT_NAME": os.getenv("CLIENT_NAME") or "",
+    },
 )
 
-agent = Agent(
-    name="OpenMemoryAgent",
-    description="An agent that uses OpenMemory to answer questions.",
-    generation_provider=GoogleGenerationProvider(),
-    mcp_servers=[open_memory_server],
-)
+conversation_store = LocalConversationStore()
+
+agent = Agent(mcp_servers=[open_memory_server], conversation_store=conversation_store)
 
 print("🤖 OpenMemory Agent started! Type 'quit' to exit.")
-print("Make sure OpenMemory is running on http://localhost:59610")
 print("-" * 50)
 
 with agent.start_mcp_servers():
@@ -49,7 +48,7 @@ with agent.start_mcp_servers():
 
             # Run the agent
             print("🤔 Agent is thinking...")
-            result = agent.run(user_message)
+            result = agent.run(user_message, chat_id="example")
 
             # Get the text response
             response_text = result.text
