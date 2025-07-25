@@ -13,7 +13,7 @@ from agentle.generations.providers.google.google_generation_provider import Goog
 # Create and run an agent
 agent = Agent(
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a helpful assistant."
 )
 

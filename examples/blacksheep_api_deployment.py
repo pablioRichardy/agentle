@@ -76,7 +76,7 @@ def create_code_assistant() -> Agent:
         name="Code Assistant",
         description="An AI assistant specialized in helping with programming tasks",
         generation_provider=GoogleGenerationProvider(),
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="""You are a helpful programming assistant that can:
         - Answer questions about programming languages and concepts
         - Help debug code and explain programming concepts
@@ -103,7 +103,7 @@ def create_development_team() -> AgentTeam:
         name="Backend Developer",
         description="Specialized in server-side development, APIs, and databases",
         generation_provider=provider,
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="""You are a backend development expert focused on:
         - Server-side architecture and design patterns
         - RESTful API development and best practices
@@ -128,7 +128,7 @@ def create_development_team() -> AgentTeam:
         name="Frontend Developer",
         description="Specialized in user interfaces and client-side development",
         generation_provider=provider,
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="""You are a frontend development expert focused on:
         - Modern JavaScript frameworks (React, Vue, Angular)
         - Responsive design and CSS best practices
@@ -153,7 +153,7 @@ def create_development_team() -> AgentTeam:
         name="DevOps Engineer",
         description="Specialized in deployment, infrastructure, and automation",
         generation_provider=provider,
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="""You are a DevOps expert focused on:
         - CI/CD pipeline design and implementation
         - Container orchestration with Docker and Kubernetes
@@ -172,7 +172,7 @@ def create_development_team() -> AgentTeam:
     return AgentTeam(
         agents=[backend_agent, frontend_agent, devops_agent],
         orchestrator_provider=provider,
-        orchestrator_model="gemini-2.0-flash",
+        orchestrator_model="gemini-2.5-flash",
     )
 
 
@@ -190,7 +190,7 @@ def create_content_pipeline() -> AgentPipeline:
     research_agent = Agent(
         name="Research Specialist",
         generation_provider=provider,
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="""You are a research specialist focused on gathering accurate information.
         Your role is to:
         - Research topics thoroughly using available knowledge
@@ -204,7 +204,7 @@ def create_content_pipeline() -> AgentPipeline:
     content_writer = Agent(
         name="Content Writer",
         generation_provider=provider,
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="""You are a skilled content writer who creates engaging content.
         Your role is to:
         - Transform research into compelling, readable content
@@ -218,7 +218,7 @@ def create_content_pipeline() -> AgentPipeline:
     editor_agent = Agent(
         name="Content Editor",
         generation_provider=provider,
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="""You are a meticulous editor focused on quality and clarity.
         Your role is to:
         - Review content for grammar, spelling, and style
@@ -288,7 +288,7 @@ def create_financial_agent() -> Agent:
         name="Financial Assistant",
         description="AI assistant for financial operations with human oversight",
         generation_provider=GoogleGenerationProvider(),
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="""You are a financial assistant that helps with banking operations.
         
         You can:
@@ -380,7 +380,7 @@ def create_weather_agent() -> Agent[WeatherForecast]:
         name="Weather Forecaster",
         description="AI weather assistant that provides structured forecasts",
         generation_provider=GoogleGenerationProvider(),
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="""You are a weather forecasting assistant that provides accurate, structured weather information.
         
         Use the weather data tool to get current conditions and forecasts.

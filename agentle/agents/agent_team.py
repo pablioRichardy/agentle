@@ -29,7 +29,7 @@ research_agent = Agent(
     name="Research Agent",
     description="Specialized in finding information and data on various topics",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a research agent focused on gathering accurate information.",
 )
 
@@ -37,7 +37,7 @@ coding_agent = Agent(
     name="Coding Agent",
     description="Specialized in writing and debugging code in various languages",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a coding expert that writes clean, efficient code.",
 )
 
@@ -45,7 +45,7 @@ writing_agent = Agent(
     name="Writing Agent",
     description="Specialized in creating clear and engaging written content",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a writing expert that creates compelling content.",
 )
 
@@ -53,7 +53,7 @@ writing_agent = Agent(
 team = AgentTeam(
     agents=[research_agent, coding_agent, writing_agent],
     orchestrator_provider=provider,
-    orchestrator_model="gemini-2.0-flash",
+    orchestrator_model="gemini-2.5-flash",
     team_config=AgentConfig(maxIterations=10)
 )
 
@@ -151,7 +151,7 @@ class AgentTeam(BaseModel):
             name="Math Agent",
             description="Expert in solving mathematical problems",
             generation_provider=provider,
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             instructions="You are a mathematics expert."
         )
 
@@ -159,14 +159,14 @@ class AgentTeam(BaseModel):
             name="Language Agent",
             description="Expert in language translation and linguistics",
             generation_provider=provider,
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             instructions="You are a language and translation expert."
         )
 
         team = AgentTeam(
             agents=[math_agent, language_agent],
             orchestrator_provider=provider,
-            orchestrator_model="gemini-2.0-flash"
+            orchestrator_model="gemini-2.5-flash"
         )
 
         # Run the team on a task
@@ -179,7 +179,7 @@ class AgentTeam(BaseModel):
         custom_team = AgentTeam(
             agents=[agent1, agent2, agent3],
             orchestrator_provider=provider,
-            orchestrator_model="gemini-2.0-flash",
+            orchestrator_model="gemini-2.5-flash",
             team_config=AgentConfig(
                 maxIterations=15,  # Allow more iterations than default
                 maxToolCalls=20    # Allow more tool calls if agents use tools
@@ -461,7 +461,7 @@ Current input:
             team = AgentTeam(
                 agents=[research_agent, writing_agent, code_agent],
                 orchestrator_provider=provider,
-                orchestrator_model="gemini-2.0-flash"
+                orchestrator_model="gemini-2.5-flash"
             )
 
             # Simple string input
@@ -508,7 +508,7 @@ Current input:
                 team = AgentTeam(
                     agents=[agent1, agent2, agent3],
                     orchestrator_provider=provider,
-                    orchestrator_model="gemini-2.0-flash"
+                    orchestrator_model="gemini-2.5-flash"
                 )
 
                 result = await team.run_async("Perform this complex multi-step task")
@@ -724,7 +724,7 @@ Current input:
             basic_team = AgentTeam(
                 agents=[agent1, agent2],
                 orchestrator_provider=provider,
-                orchestrator_model="gemini-2.0-flash"
+                orchestrator_model="gemini-2.5-flash"
             )
 
             # Add another agent

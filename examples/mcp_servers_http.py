@@ -33,7 +33,7 @@ http_server = StreamableHTTPMCPServer(
 agent = Agent(
     name="MCP-Augmented Assistant",
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a helpful assistant with access to external tools",
     mcp_servers=[http_server],
 )

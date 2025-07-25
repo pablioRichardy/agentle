@@ -27,7 +27,7 @@ async def main():
     agent_with_memory_cache = Agent(
         name="Research Assistant with Memory Cache",
         generation_provider=GoogleGenerationProvider(),
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="You are a research assistant that analyzes documents.",
         static_knowledge=[
             # Cache for 1 hour
@@ -70,7 +70,7 @@ async def main():
         agent_with_redis_cache = Agent(
             name="Research Assistant with Redis Cache",
             generation_provider=GoogleGenerationProvider(),
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             instructions="You are a research assistant that analyzes documents.",
             static_knowledge=[
                 # Cache for 30 minutes
@@ -107,7 +107,7 @@ async def main():
     agent_no_cache = Agent(
         name="Research Assistant without Cache",
         generation_provider=GoogleGenerationProvider(),
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="You are a research assistant that analyzes documents.",
         static_knowledge=[
             # No caching (cache=None is default)

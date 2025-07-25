@@ -52,7 +52,7 @@ data_agent = Agent(
     """,
     tools=[search_web_tool],
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="""
     You are a web search agent that searches the web for the given query using DuckDuckGo.
     """,
@@ -67,7 +67,7 @@ data_verification_agent = Agent(
     """,
     tools=[get_product_information_tool],
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="...",
     debug=True,
 )
@@ -78,7 +78,7 @@ analysis_agent = Agent(
     Returns a comprehensive analysis.
     """,
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="...",
     debug=True,
 )
@@ -86,7 +86,7 @@ analysis_agent = Agent(
 team = AgentTeam(
     agents=[data_agent, data_verification_agent, analysis_agent],
     orchestrator_provider=GoogleGenerationProvider(),
-    orchestrator_model="gemini-2.0-flash",
+    orchestrator_model="gemini-2.5-flash",
     team_config=AgentConfig(maxIterations=5, maxToolCalls=20),
 )
 

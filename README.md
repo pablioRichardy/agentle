@@ -36,7 +36,7 @@
 agent = Agent(
     name="Assistant",
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a helpful assistant."
 )
 
@@ -76,7 +76,7 @@ from agentle.generations.providers.google.google_generation_provider import Goog
 agent = Agent(
     name="Quick Start Agent",
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a helpful assistant who provides concise information."
 )
 
@@ -113,7 +113,7 @@ memory_cache = InMemoryDocumentCacheStore(cleanup_interval=300)
 agent = Agent(
     name="Research Assistant",
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You analyze documents efficiently with caching.",
     static_knowledge=[
         StaticKnowledge(content="large_report.pdf", cache=3600),  # Cache for 1 hour
@@ -132,7 +132,7 @@ redis_cache = RedisCacheStore(
 production_agent = Agent(
     name="Production Assistant",
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You handle high-volume document processing.",
     static_knowledge=[
         StaticKnowledge(content="enterprise_docs.pdf", cache=86400),  # Cache for 1 day
@@ -186,7 +186,7 @@ def get_weather(location: str) -> str:
 weather_agent = Agent(
     name="Weather Assistant",
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a weather forecasting assistant.",
     # Add domain knowledge
     static_knowledge=[
@@ -221,7 +221,7 @@ provider = GoogleGenerationProvider()
 research_agent = Agent(
     name="Research Agent",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="""You are a research agent focused on gathering information.
     Be thorough and prioritize accuracy over speculation."""
 )
@@ -229,7 +229,7 @@ research_agent = Agent(
 analysis_agent = Agent(
     name="Analysis Agent",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="""You are an analysis agent that identifies patterns.
     Highlight meaningful relationships and insights from the data."""
 )
@@ -237,7 +237,7 @@ analysis_agent = Agent(
 summary_agent = Agent(
     name="Summary Agent",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="""You are a summary agent that creates concise summaries.
     Present key findings in a logical order with accessible language."""
 )
@@ -271,7 +271,7 @@ research_agent = Agent(
     name="Research Agent",
     description="Specialized in finding accurate information on various topics",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a research agent focused on gathering accurate information.",
     skills=[
         AgentSkill(name="search", description="Find information on any topic"),
@@ -283,7 +283,7 @@ coding_agent = Agent(
     name="Coding Agent",
     description="Specialized in writing and debugging code",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a coding expert focused on writing clean, efficient code.",
     skills=[
         AgentSkill(name="code-generation", description="Write code in various languages"),
@@ -295,7 +295,7 @@ coding_agent = Agent(
 team = AgentTeam(
     agents=[research_agent, coding_agent],
     orchestrator_provider=provider,
-    orchestrator_model="gemini-2.0-flash",
+    orchestrator_model="gemini-2.5-flash",
 )
 
 # Run the team with different queries
@@ -351,7 +351,7 @@ agent = Agent(
     name="MCP-Augmented Assistant",
     description="An assistant that can access external tools via MCP",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a helpful assistant with access to external tools.",
     mcp_servers=[stdio_server, sse_server_dev],
 )
@@ -380,7 +380,7 @@ travel_agent = Agent(
     name="Travel Guide",
     description="A helpful travel guide that answers questions about destinations.",
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="""You are a knowledgeable travel guide who helps users plan trips.""",
 )
 
@@ -415,7 +415,7 @@ code_assistant = Agent(
     name="Code Assistant",
     description="An AI assistant specialized in helping with programming tasks.",
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="""You are a helpful programming assistant.
     You can answer questions about programming languages, help debug code,
     explain programming concepts, and provide code examples.""",
@@ -454,7 +454,7 @@ research_agent = Agent(
     name="Research Agent",
     description="Specialized in finding and analyzing information",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a research expert focused on gathering accurate information.",
 )
 
@@ -462,7 +462,7 @@ coding_agent = Agent(
     name="Coding Agent", 
     description="Specialized in writing and debugging code",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a coding expert that writes clean, efficient code.",
 )
 
@@ -470,7 +470,7 @@ writing_agent = Agent(
     name="Writing Agent",
     description="Specialized in creating clear and engaging content",
     generation_provider=provider,
-    model="gemini-2.0-flash", 
+    model="gemini-2.5-flash", 
     instructions="You are a writing expert that creates compelling content.",
 )
 
@@ -478,7 +478,7 @@ writing_agent = Agent(
 team = AgentTeam(
     agents=[research_agent, coding_agent, writing_agent],
     orchestrator_provider=provider,
-    orchestrator_model="gemini-2.0-flash"
+    orchestrator_model="gemini-2.5-flash"
 )
 
 # Deploy the team as an API
@@ -511,21 +511,21 @@ provider = GoogleGenerationProvider()
 data_processor = Agent(
     name="Data Processor",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You process and clean raw data, handling missing values and formatting.",
 )
 
 analyzer = Agent(
     name="Data Analyzer", 
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You perform statistical analysis and identify patterns in processed data.",
 )
 
 reporter = Agent(
     name="Report Generator",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You create comprehensive reports with insights and visualizations.",
 )
 
@@ -573,7 +573,7 @@ agent_with_hitl = Agent(
     name="Financial Agent",
     tools=[sensitive_operation],
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You handle financial operations with human oversight.",
 )
 
@@ -613,7 +613,7 @@ tracing_client = LangfuseObservabilityClient()
 agent = Agent(
     name="Traceable Agent",
     generation_provider=GoogleGenerationProvider(tracing_client=tracing_client),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a helpful assistant.",
     # Tracing is automatically enabled
 )
@@ -679,7 +679,7 @@ from agentle.generations.providers.google.google_generation_provider import Goog
 agent = Agent(
     name="My WhatsApp Bot",
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a helpful assistant."
 )
 
@@ -801,7 +801,7 @@ def book_appointment(date: str, time: str) -> str:
 agent = Agent(
     name="Assistant Bot",
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="""You are a helpful assistant that can:
     - Provide weather information
     - Book appointments
@@ -1237,7 +1237,7 @@ def create_ticket(issue: str, priority: str = "medium") -> str:
 support_agent = Agent(
     name="Support Hero",
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are an empathetic customer support specialist.",
     tools=[search_knowledge_base, create_ticket],
     static_knowledge=["support_policies.pdf", "faq.md"]
@@ -1260,21 +1260,21 @@ provider = GoogleGenerationProvider()
 data_cleaner = Agent(
     name="Data Cleaner",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You clean and preprocess data, handling missing values and outliers."
 )
 
 statistician = Agent(
     name="Statistician",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You perform statistical analysis and identify significant patterns."
 )
 
 visualizer = Agent(
     name="Visualizer",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You create clear descriptions of data visualizations and insights."
 )
 
@@ -1430,7 +1430,7 @@ email_tool = Tool.from_callable(
 financial_agent = Agent(
     name="Financial Assistant",
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="""You are a financial assistant that can transfer funds and send notifications.
     Always confirm the details before executing any financial operations.""",
     tools=[transfer_tool, email_tool]
@@ -1655,7 +1655,7 @@ async def create_financial_agent(user_id: str) -> Agent:
     return Agent(
         name="Financial Agent",
         generation_provider=GoogleGenerationProvider(),
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="You are a financial assistant that requires human approval for all transactions.",
         tools=[transfer_tool]
     )
@@ -1726,7 +1726,7 @@ secure_tool = Tool.from_callable(
 agent = Agent(
     name="Secure Agent",
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You handle sensitive operations with human oversight.",
     tools=[secure_tool]
 )
@@ -1808,7 +1808,7 @@ prod_manager = SuspensionManager(redis_store)
 agent = Agent(
     name="Production Financial Agent",
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You handle sensitive financial operations.",
     tools=[wire_transfer_tool, audit_tool],
     suspension_manager=prod_manager
@@ -1918,7 +1918,7 @@ legal_agent = Agent(name="Legal Agent", tools=[report_generation_tool], ...)
 team = AgentTeam(
     agents=[risk_agent, governance_agent, legal_agent],
     orchestrator_provider=GoogleGenerationProvider(),
-    orchestrator_model="gemini-2.0-flash"
+    orchestrator_model="gemini-2.5-flash"
 )
 
 # Team execution with dynamic agent selection
@@ -2036,7 +2036,7 @@ import numpy as np
 # Create a basic agent
 agent = Agent(
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a versatile assistant that can analyze different types of data."
 )
 
@@ -2148,7 +2148,7 @@ from agentle.generations.providers.google.google_generation_provider import Goog
 
 # Set up agent and A2A interface
 provider = GoogleGenerationProvider(api_key=os.environ.get("GOOGLE_API_KEY"))
-agent = Agent(name="Example Agent", generation_provider=provider, model="gemini-2.0-flash")
+agent = Agent(name="Example Agent", generation_provider=provider, model="gemini-2.5-flash")
 a2a = A2AInterface(agent=agent)
 
 # Send task to agent
@@ -2206,7 +2206,7 @@ class TravelRecommendation(BaseModel):
 travel_agent = Agent(
     name="Travel Advisor",
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="""You are a travel advisor that provides structured recommendations for city visits.""",
     tools=[get_city_data],
     response_schema=TravelRecommendation,
@@ -2263,7 +2263,7 @@ from agentle.agents.knowledge.static_knowledge import StaticKnowledge
 agent = Agent(
     name="Document Expert",
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You analyze documents with precision.",
     static_knowledge=[
         StaticKnowledge(content="contracts/agreement.pdf", cache="infinite")
@@ -2292,7 +2292,7 @@ in_memory_cache = InMemoryDocumentCacheStore(
 agent_with_memory_cache = Agent(
     name="Research Assistant",
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a research assistant that analyzes documents.",
     static_knowledge=[
         StaticKnowledge(content="research_paper.pdf", cache=3600),  # Cache for 1 hour
@@ -2312,7 +2312,7 @@ redis_cache = RedisCacheStore(
 agent_with_redis_cache = Agent(
     name="Production Assistant",
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a production assistant with distributed caching.",
     static_knowledge=[
         StaticKnowledge(content="large_document.pdf", cache=7200),  # Cache for 2 hours
@@ -2326,7 +2326,7 @@ agent_with_redis_cache = Agent(
 agent_no_cache = Agent(
     name="Simple Assistant",
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a simple assistant without caching.",
     static_knowledge=[
         "Raw text knowledge",  # No caching for raw text

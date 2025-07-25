@@ -76,7 +76,7 @@ class FileParser(DocumentParser):
         from agentle.generations.models.structured_outputs_store.audio_description import AudioDescription
 
         custom_audio_agent = Agent(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             instructions="Transcribe technical terminology with high accuracy",
             response_schema=AudioDescription
         )
@@ -122,7 +122,7 @@ class FileParser(DocumentParser):
     )
 
     legal_audio_agent = Agent(
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="Transcribe legal terminology with high accuracy",
         response_schema=AudioDescription
     )

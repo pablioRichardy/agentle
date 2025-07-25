@@ -22,7 +22,7 @@ from agentle.generations.providers.google.google_generation_provider import Goog
 # Create an agent with conservative tool call limits
 agent = Agent(
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a research assistant that can answer questions.",
     config=AgentConfig(maxToolCalls=5),  # Limit to 5 tool calls
 )

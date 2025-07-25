@@ -9,12 +9,15 @@ agentle.agents.agent
    .. autosummary::
    
       Field
+      alru_cache
       asynccontextmanager
       cast
       contextmanager
+      dedent
       file_parser_default_factory
       get_default_suspension_manager
       is_module_available
+      override
       run_sync
    
    .. rubric:: Classes
@@ -26,6 +29,7 @@ agentle.agents.agent
       AgentConfigDict
       AgentRunOutput
       AgentSkill
+      AgentToStreamlit
       Any
       AssistantMessage
       AsyncGenerator
@@ -37,6 +41,7 @@ agentle.agents.agent
       Capabilities
       ConfigDict
       Context
+      ConversationStore
       DeveloperMessage
       DocumentCacheStore
       DocumentParser
@@ -44,6 +49,7 @@ agentle.agents.agent
       Generation
       GenerationProvider
       Generator
+      GoogleGenerationProvider
       InMemoryDocumentCacheStore
       MCPServerProtocol
       Mapping
@@ -66,6 +72,7 @@ agentle.agents.agent
       ToolExecutionSuggestion
       TraceParams
       UserMessage
+      VectorStore
    
    .. rubric:: Exceptions
 

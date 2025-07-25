@@ -277,7 +277,7 @@ def observe[F: Callable[..., Any]](
                         mid in model_name
                         for mid in [
                             "gemini-1.5-flash",
-                            "gemini-2.0-flash",
+                            "gemini-2.5-flash",
                             "claude-3-haiku",
                             "gpt-3.5",
                         ]

@@ -1,6 +1,8 @@
 import abc
 from collections.abc import MutableSequence, Sequence
+import logging
 from textwrap import dedent
+from typing import Literal
 
 from rsb.coroutines.run_sync import run_sync
 
@@ -20,6 +22,8 @@ from agentle.vector_stores.filters.filter import Filter
 from agentle.vector_stores.filters.match_value import MatchValue
 
 type ChunkID = str
+
+logger = logging.getLogger(__name__)
 
 
 class VectorStore(abc.ABC):
@@ -196,7 +200,7 @@ class VectorStore(abc.ABC):
         chunking_strategy: ChunkingStrategy = ChunkingStrategy.RECURSIVE_CHARACTER,
         chunking_config: ChunkingConfig | None = None,
         collection_name: str | None = None,
-        override_if_exists: bool = False,
+        exists_behavior: Literal["override", "error", "ignore"] = "error",
     ) -> Sequence[ChunkID]:
         return run_sync(
             self.upsert_file_async,
@@ -205,7 +209,7 @@ class VectorStore(abc.ABC):
             chunking_strategy=chunking_strategy,
             chunking_config=chunking_config,
             collection_name=collection_name,
-            override_if_exists=override_if_exists,
+            exists_behavior=exists_behavior,
         )
 
     async def upsert_file_async(
@@ -215,7 +219,7 @@ class VectorStore(abc.ABC):
         chunking_strategy: ChunkingStrategy = ChunkingStrategy.RECURSIVE_CHARACTER,
         chunking_config: ChunkingConfig | None = None,
         collection_name: str | None = None,
-        override_if_exists: bool = False,
+        exists_behavior: Literal["override", "error", "ignore"] = "error",
     ) -> Sequence[ChunkID]:
         # Check if file was already ingested in the database.
         possible_file_chunks = self.find_related_content(
@@ -230,16 +234,22 @@ class VectorStore(abc.ABC):
         file_exists = len(possible_file_chunks) > 0
 
         if file_exists:
-            if not override_if_exists:
-                raise FileExistsError(
-                    "The provided file already exists in the database"
-                )
-            else:
-                delete_ids = [p.id for p in possible_file_chunks]
-                await self.delete_vectors_async(
-                    collection_name=collection_name or self.default_collection_name,
-                    ids=delete_ids,
-                )
+            match exists_behavior:
+                case "error":
+                    logger.debug("File exists. Raising error.")
+                    raise FileExistsError(
+                        "The provided file already exists in the database"
+                    )
+                case "override":
+                    logger.debug("Overriding existing file in Vector Store.")
+                    delete_ids = [p.id for p in possible_file_chunks]
+                    await self.delete_vectors_async(
+                        collection_name=collection_name or self.default_collection_name,
+                        ids=delete_ids,
+                    )
+                case "ignore":
+                    logger.debug("Ignoring existing file in Vector Store.")
+                    return [c.id for c in possible_file_chunks]
 
         chunks: Sequence[Chunk] = await file.chunkify_async(
             strategy=chunking_strategy, config=chunking_config
@@ -292,7 +302,18 @@ class VectorStore(abc.ABC):
         async def retrieval_augmented_generation_search(
             query: str, *, top_k: int = 5
         ) -> str:
-            """Searches a vector database for text chunks relevant to a query.
+            related_chunks = await self.find_related_content_async(query=query, k=top_k)
+            chunk_descriptions = [chunk.describe() for chunk in related_chunks]
+            return dedent(f"""\
+            <RelatedChunks>
+            {"\n\n".join(chunk_descriptions)}
+            </RelatedChunks>
+            """)
+
+        tool = Tool.from_callable(
+            retrieval_augmented_generation_search,
+            description=dedent("""\
+            Searches a vector database for text chunks relevant to a query.
 
             This tool is essential for answering questions or finding information
             contained within a specific, indexed knowledge base. Use it when a user's
@@ -339,17 +360,13 @@ class VectorStore(abc.ABC):
                   Example Response: "I searched the documents but couldn't find a
                   specific answer regarding the 'Q3 innovation fund.' You might
                   try rephrasing the query, perhaps with a project name included."
-            """
-            related_chunks = await self.find_related_content_async(query=query, k=top_k)
-            chunk_descriptions = [chunk.describe() for chunk in related_chunks]
-            return dedent(f"""\
-            <RelatedChunks>
-            {"\n\n".join(chunk_descriptions)}
-            </RelatedChunks>
             """)
-
-        tool = Tool.from_callable(
-            retrieval_augmented_generation_search,
-            description=self.detailed_agent_description,
+            + dedent(f"""\
+                      <VectorStoreCustomDescription>
+                      {self.detailed_agent_description}
+                      </VectorStoreCustomDescription>
+                      """)
+            if self.detailed_agent_description
+            else "",
         )
         return tool

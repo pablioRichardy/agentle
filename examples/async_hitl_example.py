@@ -99,7 +99,7 @@ async def create_financial_agent() -> Agent:
     return Agent(
         name="Async Financial Assistant",
         generation_provider=GoogleGenaiGenerationProvider(),
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="""You are a financial assistant that can:
         1. Execute wire transfers (requires approval for amounts > $1000)
         2. Send marketing emails (requires approval for > 100 recipients)

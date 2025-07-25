@@ -17,7 +17,7 @@ tracing_client = LangfuseObservabilityClient()
 agent = Agent(
     name="Simple Text Agent",
     generation_provider=GoogleGenaiGenerationProvider(tracing_client=tracing_client),
-    model="gemini-2.0-flash",  # Use an appropriate model
+    model="gemini-2.5-flash",  # Use an appropriate model
     instructions="You are a helpful assistant who provides concise, accurate information.",
 )
 

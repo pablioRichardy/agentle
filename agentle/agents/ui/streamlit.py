@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from agentle.agents.agent import Agent
 
 
-# Define a type for session-added knowledge items for clarity 
+# Define a type for session-added knowledge items for clarity
 SessionKnowledgeItem = Dict[
     str, Any
 ]  # Keys: "type", "name", "content", "data_bytes", "mime_type"
@@ -69,7 +69,7 @@ class AgentToStreamlit[T = None](Adapter["Agent[T]", "Callable[[], None]"]):
             # Create an agent
             agent = Agent(
                 generation_provider=GoogleGenaiGenerationProvider(),
-                model="gemini-2.0-flash",
+                model="gemini-2.5-flash",
                 instructions="You are a helpful assistant."
             )
 

@@ -24,7 +24,7 @@ def audio_description_agent_default_factory(
     transcribe speech, identify sounds, and provide descriptions of audio content.
 
     The agent is configured with:
-    - Model: gemini-2.0-flash
+    - Model: gemini-2.5-flash
     - Provider: GoogleGenaiGenerationProvider
     - Response schema: AudioDescription
 

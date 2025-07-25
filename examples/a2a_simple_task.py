@@ -18,7 +18,7 @@ from agentle.generations.providers.google.google_genai_generation_provider impor
 
 provider = GoogleGenaiGenerationProvider(api_key=os.environ.get("GOOGLE_API_KEY"))
 agent = Agent(
-    name="Example Agent", generation_provider=provider, model="gemini-2.0-flash"
+    name="Example Agent", generation_provider=provider, model="gemini-2.5-flash"
 )
 a2a = A2AInterface(agent=agent)
 

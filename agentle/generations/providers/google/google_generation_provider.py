@@ -290,17 +290,17 @@ class GoogleGenerationProvider(GenerationProvider):
     ) -> str:
         mapping: Mapping[ModelKind, str] = {
             # Stable models
-            "category_nano": "gemini-2.0-flash-lite",
-            "category_mini": "gemini-2.0-flash",
-            "category_standard": "gemini-2.0-flash",
+            "category_nano": "gemini-2.5-flash-lite",
+            "category_mini": "gemini-2.5-flash",
+            "category_standard": "gemini-2.5-flash",
             "category_pro": "gemini-2.5-pro",
             "category_flagship": "gemini-2.5-pro",
             "category_reasoning": "gemini-2.5-pro",
             "category_vision": "gemini-2.5-pro-vision",
             "category_coding": "gemini-2.5-pro",
-            "category_instruct": "gemini-2.0-flash",
+            "category_instruct": "gemini-2.5-flash",
             # Experimental models
-            "category_nano_experimental": "gemini-2.0-flash-lite",  # no distinct experimental found
+            "category_nano_experimental": "gemini-2.5-flash-lite",  # no distinct experimental found
             "category_mini_experimental": "gemini-2.5-flash-preview-05-20",  # real preview model
             "category_standard_experimental": "gemini-2.5-flash-preview-05-20",  # fallback
             "category_pro_experimental": "gemini-2.5-pro",  # fallback
@@ -337,8 +337,8 @@ class GoogleGenerationProvider(GenerationProvider):
             "gemini-2.5-flash": 0.15,
             "gemini-2.5-flash-preview-05-20": 0.15,  # Assuming same as standard 2.5 Flash
             # Gemini 2.0 Flash family
-            "gemini-2.0-flash": 0.15,
-            "gemini-2.0-flash-lite": 0.075,
+            "gemini-2.5-flash": 0.15,
+            "gemini-2.5-flash-lite": 0.075,
         }
 
         price_info = model_to_price_per_million.get(model)
@@ -392,8 +392,8 @@ class GoogleGenerationProvider(GenerationProvider):
             "gemini-2.5-flash": 0.60,  # Standard text output (3.50 for thinking/reasoning)
             "gemini-2.5-flash-preview-05-20": 0.60,  # Assuming same as standard 2.5 Flash
             # Gemini 2.0 Flash family
-            "gemini-2.0-flash": 0.60,
-            "gemini-2.0-flash-lite": 0.30,
+            "gemini-2.5-flash": 0.60,
+            "gemini-2.5-flash-lite": 0.30,
         }
 
         price_info = model_to_price_per_million.get(model)

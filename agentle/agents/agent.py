@@ -13,7 +13,7 @@ from agentle.agents.agent import Agent
 
 weather_agent = Agent(
     generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You are a weather agent that can answer questions about the weather.",
     tools=[get_weather],
 )
@@ -185,7 +185,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         # Create a weather agent
         weather_agent = Agent(
             generation_provider=GoogleGenerationProvider(),
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             instructions="You are a weather agent that can answer questions about the weather.",
             tools=[get_weather],
         )

@@ -20,7 +20,7 @@ code_assistant = Agent(
     name="Async Code Assistant",
     description="An AI assistant specialized in helping with programming tasks asynchronously.",
     generation_provider=GoogleGenaiGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="""You are a helpful programming assistant.
     You can answer questions about programming languages, help debug code,
     explain programming concepts, and provide code examples.

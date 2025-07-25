@@ -119,7 +119,7 @@ async def create_financial_pipeline() -> AgentPipeline:
     data_agent = Agent(
         name="Data Collection Agent",
         generation_provider=GoogleGenaiGenerationProvider(),
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="""You are a data collection specialist. Your job is to gather the necessary 
         financial data for analysis. Use the data_access_tool to retrieve information from various databases.""",
         tools=[Tool.from_callable(data_access_tool)],
@@ -130,7 +130,7 @@ async def create_financial_pipeline() -> AgentPipeline:
     analysis_agent = Agent(
         name="Financial Analysis Agent",
         generation_provider=GoogleGenaiGenerationProvider(),
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="""You are a financial analyst. Analyze the data provided and perform 
         comprehensive financial analysis using the financial_analysis_tool.""",
         tools=[Tool.from_callable(financial_analysis_tool)],
@@ -141,7 +141,7 @@ async def create_financial_pipeline() -> AgentPipeline:
     reporting_agent = Agent(
         name="Report Generation Agent",
         generation_provider=GoogleGenaiGenerationProvider(),
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="""You are a report specialist. Create comprehensive reports and distribute 
         them to appropriate stakeholders using the report_generation_tool.""",
         tools=[Tool.from_callable(report_generation_tool)],
@@ -163,7 +163,7 @@ async def create_compliance_team() -> AgentTeam:
         name="Risk Assessment Agent",
         description="Specialized in assessing financial and operational risks",
         generation_provider=provider,
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="You assess risks and perform due diligence using financial analysis tools.",
         tools=[Tool.from_callable(financial_analysis_tool)],
         suspension_manager=suspension_manager,
@@ -174,7 +174,7 @@ async def create_compliance_team() -> AgentTeam:
         name="Data Governance Agent",
         description="Specialized in data access and privacy compliance",
         generation_provider=provider,
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="You handle data access requests and ensure compliance with data governance policies.",
         tools=[Tool.from_callable(data_access_tool)],
         suspension_manager=suspension_manager,
@@ -185,7 +185,7 @@ async def create_compliance_team() -> AgentTeam:
         name="Legal Compliance Agent",
         description="Specialized in legal review and regulatory compliance",
         generation_provider=provider,
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="You handle legal reviews and ensure regulatory compliance for reports and disclosures.",
         tools=[Tool.from_callable(report_generation_tool)],
         suspension_manager=suspension_manager,
@@ -194,7 +194,7 @@ async def create_compliance_team() -> AgentTeam:
     return AgentTeam(
         agents=[risk_agent, governance_agent, legal_agent],
         orchestrator_provider=provider,
-        orchestrator_model="gemini-2.0-flash",
+        orchestrator_model="gemini-2.5-flash",
     )
 
 
@@ -343,7 +343,7 @@ async def demonstrate_nested_scenario():
     prep_agent = Agent(
         name="Data Preparation Agent",
         generation_provider=provider,
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="You prepare data for complex analysis workflows.",
         suspension_manager=suspension_manager,
     )
@@ -355,7 +355,7 @@ async def demonstrate_nested_scenario():
     final_agent = Agent(
         name="Final Report Agent",
         generation_provider=provider,
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="You create final comprehensive reports.",
         tools=[Tool.from_callable(report_generation_tool)],
         suspension_manager=suspension_manager,

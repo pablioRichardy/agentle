@@ -107,7 +107,7 @@ async def main():
     agent = Agent(
         name="Financial Assistant",
         generation_provider=GoogleGenaiGenerationProvider(),
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="""You are a financial assistant. Some operations require human approval:
         - Money transfers: REQUIRE approval
         - Email sending: REQUIRE approval  

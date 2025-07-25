@@ -60,7 +60,7 @@ agent = Agent(
     name="MCP-Augmented Assistant",
     description="An assistant that can access files and weather information via MCP servers",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="""You are a helpful assistant with access to external tools
     through MCP servers. You can access files from the filesystem and
     get weather information for locations.""",

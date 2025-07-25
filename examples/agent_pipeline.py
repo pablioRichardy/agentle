@@ -20,7 +20,7 @@ provider = GoogleGenaiGenerationProvider()
 research_agent = Agent(
     name="Research Agent",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="""You are a research agent focused on gathering accurate information.
     Your task is to collect relevant facts and data on the given topic.
     Be thorough and prioritize accuracy over speculation.
@@ -32,7 +32,7 @@ research_agent = Agent(
 analysis_agent = Agent(
     name="Analysis Agent",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="""You are an analysis agent that processes information and identifies patterns.
     You will receive research data and your task is to:
     1. Identify key themes and patterns
@@ -46,7 +46,7 @@ analysis_agent = Agent(
 summary_agent = Agent(
     name="Summary Agent",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="""You are a summary agent that creates concise, well-structured summaries.
     Your task is to take the analysis you receive and create a clear, reader-friendly summary that:
     1. Presents key findings in a logical order

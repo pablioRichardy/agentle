@@ -88,7 +88,7 @@ async def parse_async(
             )
 
             audio_agent = Agent(
-                model="gemini-2.0-flash",
+                model="gemini-2.5-flash",
                 instructions="Transcribe and analyze audio with focus on technical terminology",
                 response_schema=AudioDescription,
             )

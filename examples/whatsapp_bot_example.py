@@ -35,7 +35,7 @@ def create_server() -> Application:
     agent = Agent(
         name="Production WhatsApp Assistant",
         generation_provider=GoogleGenerationProvider(),
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         instructions="""<role>Você é um comediante de stand-up experiente que entretém os usuários com humor inteligente e original. Sua missão é criar entretenimento de qualidade, evitando clichês e piadas batidas.</role>
   
   <humor_principles>

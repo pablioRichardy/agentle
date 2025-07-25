@@ -47,7 +47,7 @@ class QdrantVectorStore(VectorStore):
         cloud_inference: bool = False,
         local_inference_batch_size: int | None = None,
         check_compatibility: bool = True,
-        **kwargs: Any,
+        detailed_agent_description: str | None = None,
     ) -> None:
         from qdrant_client.async_qdrant_client import AsyncQdrantClient
 
@@ -55,6 +55,7 @@ class QdrantVectorStore(VectorStore):
             default_collection_name=default_collection_name,
             embedding_provider=embedding_provider,
             generation_provider=generation_provider,
+            detailed_agent_description=detailed_agent_description,
         )
 
         self._client = AsyncQdrantClient(
@@ -75,7 +76,6 @@ class QdrantVectorStore(VectorStore):
             cloud_inference=cloud_inference,
             local_inference_batch_size=local_inference_batch_size,
             check_compatibility=check_compatibility,
-            **kwargs,
         )
 
     @override
@@ -312,12 +312,6 @@ if __name__ == "__main__":
         )
     )
 
-    chunks = qdrant.find_related_content(
-        "money savings", collection_name="test_collection"
-    )
-
-    print(chunks)
-
     # qdrant.delete_collection("test_collection")
 
     qdrant.create_collection(
@@ -338,7 +332,7 @@ if __name__ == "__main__":
     parsed_file = pdf_parser.parse(str(file))
 
     chunk_ids = qdrant.upsert_file(
-        parsed_file, collection_name="test_collection", override_if_exists=True
+        parsed_file, collection_name="test_collection", exists_behavior="ignore"
     )
 
     print(chunk_ids)

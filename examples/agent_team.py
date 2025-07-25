@@ -25,7 +25,7 @@ research_agent = Agent(
     name="Research Agent",
     description="Specialized in finding accurate information and data on various topics",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="""You are a research agent focused on gathering accurate information.
     Your task is to find and present factual information from reliable sources.
     Always prioritize accuracy over speculation. Cite sources when possible.
@@ -41,7 +41,7 @@ coding_agent = Agent(
     name="Coding Agent",
     description="Specialized in writing and debugging code in multiple programming languages",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="""You are a coding expert focused on writing clean, efficient code.
     You can create code in various languages, debug existing code, and explain
     code functionality. Always provide well-commented solutions.
@@ -59,7 +59,7 @@ writing_agent = Agent(
     name="Writing Agent",
     description="Specialized in creating clear, engaging written content in various styles",
     generation_provider=provider,
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="""You are a writing expert focused on creating high-quality content.
     You can write in various styles and formats, from technical documentation
     to creative content. Always focus on clarity and engagement.
@@ -74,7 +74,7 @@ writing_agent = Agent(
 team = AgentTeam(
     agents=[research_agent, coding_agent, writing_agent],
     orchestrator_provider=provider,
-    orchestrator_model="gemini-2.0-flash",
+    orchestrator_model="gemini-2.5-flash",
     team_config=AgentConfig(maxIterations=10),
 )
 

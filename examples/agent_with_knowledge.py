@@ -7,7 +7,7 @@ from agentle.generations.providers.google.google_genai_generation_provider impor
 agent = Agent(
     name="Research Assistant",
     generation_provider=GoogleGenaiGenerationProvider(),
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     instructions="You help analysing websites.",
     # Array of string-based knowledge sources (no caching)
     static_knowledge=[
