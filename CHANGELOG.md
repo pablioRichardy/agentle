@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.7.3
+- chore: making bot and session manager classes more human readable
+
 ## v0.7.2
 - refactor: changing Agent id to str to allow more flexibility
 
