@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.7.1
+- feat: adding serialization and deserialization to the Agent class.
+
 ## v0.7.0
 
 - feat: new `VectorStore` class that represents a single vector store. It can be easily integrated with an Agent of the `Agent` class.

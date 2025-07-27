@@ -109,5 +109,5 @@ agent = Agent(
 
 encoded: str = agent.serialize()
 print(len(encoded))
-decoded_agent: Agent[Any] = Agent.desserialize(encoded)
+decoded_agent: Agent[Any] = Agent.deserialize(encoded)
 pprint.pprint(agent)

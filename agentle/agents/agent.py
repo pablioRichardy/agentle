@@ -26,6 +26,7 @@ output = weather_agent.run("Hello. What is the weather in Tokyo?")
 # type: ignore[reportGeneralTypeIssues]
 
 from __future__ import annotations
+import jsonpickle
 
 import datetime
 import importlib.util
@@ -425,14 +426,10 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         )
 
     def serialize(self) -> str:
-        import jsonpickle
-
         return cast(str, jsonpickle.encode(self))
 
     @classmethod
-    def desserialize(cls, encoded: str) -> Agent[Any]:
-        import jsonpickle
-
+    def deserialize(cls, encoded: str) -> Agent[Any]:
         return cast(Agent[Any], jsonpickle.decode(encoded))
 
     @alru_cache(maxsize=128, typed=True)
