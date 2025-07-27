@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.7.4
+- fix: making WhatsAppProvider an ABC, instead of protocol. To allow it to be used whitin BaseModels.
+
 ## v0.7.3
 - chore: making bot and session manager classes more human readable
 

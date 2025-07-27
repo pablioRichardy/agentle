@@ -2,8 +2,8 @@
 Base interface for WhatsApp providers.
 """
 
+import abc
 from abc import abstractmethod
-from typing import Protocol
 
 from agentle.agents.whatsapp.models.downloaded_media import DownloadedMedia
 from agentle.agents.whatsapp.models.whatsapp_contact import WhatsAppContact
@@ -15,7 +15,7 @@ from agentle.agents.whatsapp.models.whatsapp_webhook_payload import (
 )
 
 
-class WhatsAppProvider(Protocol):
+class WhatsAppProvider(abc.ABC):
     """
     Abstract base class for WhatsApp API providers.
 
