@@ -6,11 +6,14 @@ from collections.abc import Callable, Mapping, MutableMapping, Sequence
 from typing import Any
 
 from rsb.models.base_model import BaseModel
+from rsb.models.config_dict import ConfigDict
+from rsb.models.field import Field
+from rsb.models.private_attr import PrivateAttr
 
 from agentle.sessions.session_store import SessionStore
 
 
-class SessionManager[T_Session: BaseModel]:
+class SessionManager[T_Session: BaseModel](BaseModel):
     """
     Session manager that provides a high-level interface for session operations.
 
@@ -20,33 +23,19 @@ class SessionManager[T_Session: BaseModel]:
     """
 
     session_store: SessionStore[T_Session]
-    default_ttl_seconds: int | None
-    enable_events: bool
-    _event_handlers: MutableMapping[str, list[Callable[..., Any]]]
+    default_ttl_seconds: int | None = Field(default=3600)
+    enable_events: bool = Field(default=False)
 
-    def __init__(
-        self,
-        session_store: SessionStore[T_Session],
-        default_ttl_seconds: int | None = 3600,
-        enable_events: bool = False,
-    ):
-        """
-        Initialize the session manager.
-
-        Args:
-            session_store: The underlying session store implementation
-            default_ttl_seconds: Default TTL for sessions
-            enable_events: Whether to enable session events (created, updated, deleted)
-        """
-        self.session_store = session_store
-        self.default_ttl_seconds = default_ttl_seconds
-        self.enable_events = enable_events
-        self._event_handlers: MutableMapping[str, list[Callable[..., Any]]] = {
+    _event_handlers: MutableMapping[str, list[Callable[..., Any]]] = PrivateAttr(
+        default_factory=lambda: {
             "session_created": [],
             "session_updated": [],
             "session_deleted": [],
             "session_expired": [],
         }
+    )
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     async def get_session(
         self,
