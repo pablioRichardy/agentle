@@ -34,6 +34,7 @@ from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
 
 from agentle.agents.context import Context
+from agentle.agents.performance_metrics import PerformanceMetrics
 from agentle.generations.models.generation.generation import Generation
 from agentle.generations.tools.tool_execution_result import ToolExecutionResult
 
@@ -144,6 +145,8 @@ class AgentRunOutput[T_StructuredOutput](BaseModel):
     """
     A token that can be used to resume suspended execution.
     """
+
+    performance_metrics: PerformanceMetrics | None = Field(default=None)
 
     @property
     def tool_execution_results(self) -> Sequence[ToolExecutionResult]:

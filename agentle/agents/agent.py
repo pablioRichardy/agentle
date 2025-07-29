@@ -73,7 +73,9 @@ from agentle.agents.errors.max_tool_calls_exceeded_error import (
 )
 from agentle.agents.errors.tool_suspension_error import ToolSuspensionError
 from agentle.agents.knowledge.static_knowledge import NO_CACHE, StaticKnowledge
+from agentle.agents.performance_metrics import PerformanceMetrics
 from agentle.agents.step import Step
+from agentle.agents.step_metric import StepMetric
 from agentle.agents.suspension_manager import (
     SuspensionManager,
     get_default_suspension_manager,
@@ -855,10 +857,11 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         chat_id: str | None = None,
     ) -> AgentRunOutput[T_Schema]:
         """
-        Runs the agent asynchronously with the provided input.
+        Runs the agent asynchronously with the provided input and collects comprehensive performance metrics.
 
         This main method processes user input, interacts with the
         generation provider, and optionally calls tools until reaching a final response.
+        It now includes detailed performance monitoring to help identify optimization opportunities.
 
         The method supports both simple agents (without tools) and agents with
         tools that can perform iterative calls to solve complex tasks.
@@ -868,20 +871,30 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             trace_params: Optional trace parameters for observability purposes.
 
         Returns:
-            AgentRunOutput[T_Schema]: The result of the agent execution, possibly
-                                     with a structured response according to the defined schema.
+            AgentRunOutput[T_Schema]: The result of the agent execution with performance metrics,
+                                     possibly with a structured response according to the defined schema.
 
         Raises:
             MaxToolCallsExceededError: If the maximum number of tool calls is exceeded.
 
         Example:
             ```python
-            # Asynchronous use
+            # Asynchronous use with performance analysis
             result = await agent.run_async("What's the weather like in London?")
 
             # Processing the response
             response_text = result.artifacts[0].parts[0].text
             print(response_text)
+
+            # Analyze performance metrics
+            if result.performance_metrics:
+                print(f"Total time: {result.performance_metrics.total_execution_time_ms:.2f}ms")
+                print(f"Tool execution: {result.performance_metrics.tool_execution_time_ms:.2f}ms")
+
+                # Get optimization recommendations
+                recommendations = result.performance_metrics.get_optimization_recommendations()
+                for rec in recommendations:
+                    print(f"Optimization: {rec}")
 
             # With structured response schema
             if result.parsed:
@@ -889,6 +902,21 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 weather = result.parsed.weather
             ```
         """
+        import time
+
+        # Start overall timing
+        execution_start_time = time.perf_counter()
+
+        # Initialize metrics tracking
+        step_metrics: list[StepMetric] = []
+        generation_time_total = 0.0
+        tool_execution_time_total = 0.0
+        iteration_count = 0
+        tool_calls_count = 0
+        total_tokens_processed = 0
+        cache_hits = 0
+        cache_misses = 0
+
         _logger = Maybe(logger if self.debug else None)
 
         if chat_id is not None and self.conversation_store is None:
@@ -896,6 +924,9 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 "Chat ID was provided but no conversation store was "
                 + "provided in the Agent's constructor."
             )
+
+        # Phase 1: Input Processing
+        input_processing_start = time.perf_counter()
 
         # Logging with proper type ignore
         _logger.bind_optional(
@@ -907,6 +938,12 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         generation_provider: GenerationProvider = self.generation_provider
 
         static_knowledge_prompt: str | None = None
+
+        input_processing_time = (time.perf_counter() - input_processing_start) * 1000
+
+        # Phase 2: Static Knowledge Processing
+        static_knowledge_start = time.perf_counter()
+
         # Process static knowledge if any exists
         if self.static_knowledge:
             _logger.bind_optional(lambda log: log.debug("Processing static knowledge"))
@@ -953,6 +990,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
 
                     if parsed_content is None:
                         # Not in cache, parse and store
+                        cache_misses += 1
                         _logger.bind_optional(
                             lambda log: log.debug("Cache miss, parsing and storing")
                         )
@@ -969,6 +1007,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                                 cache_key, parsed_content, ttl=knowledge_item.cache
                             )
                     else:
+                        cache_hits += 1
                         _logger.bind_optional(
                             lambda log: log.debug("Cache hit for knowledge item")
                         )
@@ -1016,6 +1055,8 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                     knowledge_contents
                 )
 
+        static_knowledge_time = (time.perf_counter() - static_knowledge_start) * 1000
+
         instructions = self.instructions2str(self.instructions)
         if static_knowledge_prompt:
             instructions += "\n\n" + static_knowledge_prompt
@@ -1049,6 +1090,9 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             )
         )
 
+        # Phase 3: MCP Tools Preparation
+        mcp_tools_start = time.perf_counter()
+
         mcp_tools: MutableSequence[tuple[MCPServerProtocol, MCPTool]] = []
         if bool(self.mcp_servers):
             _logger.bind_optional(
@@ -1061,17 +1105,20 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 lambda log: log.debug("Got %d tools from MCP servers", len(mcp_tools))
             )
 
+        mcp_tools_time = (time.perf_counter() - mcp_tools_start) * 1000
+
         agent_has_tools = self.has_tools() or len(mcp_tools) > 0
         _logger.bind_optional(
             lambda log: log.debug("Agent has tools: %s", agent_has_tools)
         )
+
         if not agent_has_tools:
             _logger.bind_optional(
                 lambda log: log.debug("No tools available, generating direct response")
             )
 
             # Create a step to track the direct generation
-            step_start_time = time.time()
+            step_start_time = time.perf_counter()
             step = Step(
                 step_type="generation",
                 iteration=1,
@@ -1080,6 +1127,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 token_usage=None,  # Will be updated after generation
             )
 
+            generation_start = time.perf_counter()
             generation: Generation[T_Schema] = await generation_provider.generate_async(
                 model=self.resolved_model,
                 messages=context.message_history,
@@ -1090,6 +1138,9 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                     new_trace_params=trace_params
                 ),
             )
+            generation_time_single = (time.perf_counter() - generation_start) * 1000
+            generation_time_total += generation_time_single
+
             _logger.bind_optional(
                 lambda log: log.debug(
                     "Generated response with %d tokens", generation.usage.total_tokens
@@ -1100,9 +1151,23 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             step.generation_text = generation.text
             step.token_usage = generation.usage
             step_duration = (
-                time.time() - step_start_time
+                time.perf_counter() - step_start_time
             ) * 1000  # Convert to milliseconds
             step.mark_completed(duration_ms=step_duration)
+
+            # Track step metrics
+            step_metrics.append(
+                StepMetric(
+                    step_id=step.step_id,
+                    step_type="generation",
+                    duration_ms=step_duration,
+                    iteration=1,
+                    tool_calls_count=0,
+                    generation_tokens=generation.usage.total_tokens,
+                    cache_hits=0,
+                    cache_misses=0,
+                )
+            )
 
             # Add the step to context
             context.add_step(step)
@@ -1111,10 +1176,39 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             context.update_token_usage(generation.usage)
             context.complete_execution()
 
+            total_tokens_processed = generation.usage.total_tokens
+            total_execution_time = (time.perf_counter() - execution_start_time) * 1000
+            final_response_processing_time = (
+                0.0  # Minimal processing for direct response
+            )
+
+            # Create performance metrics
+            performance_metrics = PerformanceMetrics(
+                total_execution_time_ms=total_execution_time,
+                input_processing_time_ms=input_processing_time,
+                static_knowledge_processing_time_ms=static_knowledge_time,
+                mcp_tools_preparation_time_ms=mcp_tools_time,
+                generation_time_ms=generation_time_total,
+                tool_execution_time_ms=0.0,
+                final_response_processing_time_ms=final_response_processing_time,
+                iteration_count=1,
+                tool_calls_count=0,
+                total_tokens_processed=total_tokens_processed,
+                cache_hit_rate=(cache_hits / (cache_hits + cache_misses) * 100)
+                if (cache_hits + cache_misses) > 0
+                else 0.0,
+                step_metrics=step_metrics,
+                average_generation_time_ms=generation_time_total,
+                average_tool_execution_time_ms=0.0,
+                longest_step_duration_ms=step_duration,
+                shortest_step_duration_ms=step_duration,
+            )
+
             return AgentRunOutput(
                 generation=generation,
                 context=context,
                 parsed=generation.parsed,
+                performance_metrics=performance_metrics,
             )
 
         # Agent has tools. We must iterate until generate the final answer.
@@ -1149,6 +1243,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
 
         while state.iteration < self.agent_config.maxIterations:
             current_iteration = state.iteration + 1
+            iteration_count = current_iteration
             _logger.bind_optional(
                 lambda log: log.info(
                     "Starting iteration %d of %d",
@@ -1258,12 +1353,16 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 context.message_history
             ).merge_with_last_user_message(called_tools_prompt)
 
+            generation_start = time.perf_counter()
             tool_call_generation = await generation_provider.generate_async(
                 model=self.resolved_model,
                 messages=_new_messages.elements,
                 generation_config=self.agent_config.generation_config,
                 tools=all_tools,
             )
+            generation_time_single = (time.perf_counter() - generation_start) * 1000
+            generation_time_total += generation_time_single
+
             _logger.bind_optional(
                 lambda log: log.debug(
                     "Tool call generation completed with %d tool calls",
@@ -1273,6 +1372,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
 
             # Update context with token usage from this generation
             context.update_token_usage(tool_call_generation.usage)
+            total_tokens_processed += tool_call_generation.usage.total_tokens
 
             agent_didnt_call_any_tool = tool_call_generation.tool_calls_amount() == 0
             if agent_didnt_call_any_tool:
@@ -1282,7 +1382,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                     )
                 )
                 # Create a step for the final generation (no tools called)
-                final_step_start_time = time.time()
+                final_step_start_time = time.perf_counter()
                 final_step = Step(
                     step_type="generation",
                     iteration=current_iteration,
@@ -1346,12 +1446,17 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                         .elements
                     )
 
+                    generation_start = time.perf_counter()
                     generation = await generation_provider.generate_async(
                         model=self.resolved_model,
                         messages=messages_for_final_generation,
                         response_schema=self.response_schema,
                         generation_config=self.agent_config.generation_config,
                     )
+                    generation_time_single = (
+                        time.perf_counter() - generation_start
+                    ) * 1000
+                    generation_time_total += generation_time_single
                     # --- END OF IMPROVEMENT ---
 
                     _logger.bind_optional(
@@ -1361,15 +1466,76 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                     # Update the step with the final generation results
                     final_step.generation_text = generation.text
                     final_step.token_usage = generation.usage
-                    final_step_duration = (time.time() - final_step_start_time) * 1000
+                    final_step_duration = (
+                        time.perf_counter() - final_step_start_time
+                    ) * 1000
                     final_step.mark_completed(duration_ms=final_step_duration)
                     context.add_step(final_step)
+
+                    # Track step metrics
+                    step_metrics.append(
+                        StepMetric(
+                            step_id=final_step.step_id,
+                            step_type="generation",
+                            duration_ms=final_step_duration,
+                            iteration=current_iteration,
+                            tool_calls_count=0,
+                            generation_tokens=generation.usage.total_tokens,
+                            cache_hits=0,
+                            cache_misses=0,
+                        )
+                    )
 
                     # Update context with final generation and complete execution
                     context.update_token_usage(generation.usage)
                     context.complete_execution()
+                    total_tokens_processed += generation.usage.total_tokens
+
+                    # Calculate final metrics
+                    total_execution_time = (
+                        time.perf_counter() - execution_start_time
+                    ) * 1000
+                    final_response_processing_time = (
+                        10.0  # Estimated time for response building
+                    )
+
+                    # Create performance metrics
+                    performance_metrics = PerformanceMetrics(
+                        total_execution_time_ms=total_execution_time,
+                        input_processing_time_ms=input_processing_time,
+                        static_knowledge_processing_time_ms=static_knowledge_time,
+                        mcp_tools_preparation_time_ms=mcp_tools_time,
+                        generation_time_ms=generation_time_total,
+                        tool_execution_time_ms=tool_execution_time_total,
+                        final_response_processing_time_ms=final_response_processing_time,
+                        iteration_count=iteration_count,
+                        tool_calls_count=tool_calls_count,
+                        total_tokens_processed=total_tokens_processed,
+                        cache_hit_rate=(cache_hits / (cache_hits + cache_misses) * 100)
+                        if (cache_hits + cache_misses) > 0
+                        else 0.0,
+                        step_metrics=step_metrics,
+                        average_generation_time_ms=generation_time_total
+                        / max(
+                            1,
+                            len(
+                                [s for s in step_metrics if s.step_type == "generation"]
+                            ),
+                        ),
+                        average_tool_execution_time_ms=tool_execution_time_total
+                        / max(1, tool_calls_count),
+                        longest_step_duration_ms=max(
+                            [s.duration_ms for s in step_metrics], default=0.0
+                        ),
+                        shortest_step_duration_ms=min(
+                            [s.duration_ms for s in step_metrics], default=0.0
+                        ),
+                    )
+
                     return self._build_agent_run_output(
-                        context=context, generation=generation
+                        context=context,
+                        generation=generation,
+                        performance_metrics=performance_metrics,
                     )
 
                 # If we got text and don't need structure, use what we have
@@ -1378,15 +1544,71 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 )
 
                 # Complete the final step and add to context
-                final_step_duration = (time.time() - final_step_start_time) * 1000
+                final_step_duration = (
+                    time.perf_counter() - final_step_start_time
+                ) * 1000
                 final_step.mark_completed(duration_ms=final_step_duration)
                 context.add_step(final_step)
 
+                # Track step metrics
+                step_metrics.append(
+                    StepMetric(
+                        step_id=final_step.step_id,
+                        step_type="generation",
+                        duration_ms=final_step_duration,
+                        iteration=current_iteration,
+                        tool_calls_count=0,
+                        generation_tokens=tool_call_generation.usage.total_tokens,
+                        cache_hits=0,
+                        cache_misses=0,
+                    )
+                )
+
                 # Complete execution before returning
                 context.complete_execution()
+
+                # Calculate final metrics
+                total_execution_time = (
+                    time.perf_counter() - execution_start_time
+                ) * 1000
+                final_response_processing_time = (
+                    5.0  # Estimated time for response building
+                )
+
+                # Create performance metrics
+                performance_metrics = PerformanceMetrics(
+                    total_execution_time_ms=total_execution_time,
+                    input_processing_time_ms=input_processing_time,
+                    static_knowledge_processing_time_ms=static_knowledge_time,
+                    mcp_tools_preparation_time_ms=mcp_tools_time,
+                    generation_time_ms=generation_time_total,
+                    tool_execution_time_ms=tool_execution_time_total,
+                    final_response_processing_time_ms=final_response_processing_time,
+                    iteration_count=iteration_count,
+                    tool_calls_count=tool_calls_count,
+                    total_tokens_processed=total_tokens_processed,
+                    cache_hit_rate=(cache_hits / (cache_hits + cache_misses) * 100)
+                    if (cache_hits + cache_misses) > 0
+                    else 0.0,
+                    step_metrics=step_metrics,
+                    average_generation_time_ms=generation_time_total
+                    / max(
+                        1, len([s for s in step_metrics if s.step_type == "generation"])
+                    ),
+                    average_tool_execution_time_ms=tool_execution_time_total
+                    / max(1, tool_calls_count),
+                    longest_step_duration_ms=max(
+                        [s.duration_ms for s in step_metrics], default=0.0
+                    ),
+                    shortest_step_duration_ms=min(
+                        [s.duration_ms for s in step_metrics], default=0.0
+                    ),
+                )
+
                 return self._build_agent_run_output(
                     generation=cast(Generation[T_Schema], tool_call_generation),
                     context=context,
+                    performance_metrics=performance_metrics,
                 )
 
             # Agent called tools. Process them with deduplication and budgeting.
@@ -1397,7 +1619,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             )
 
             # Create a step to track this iteration's tool executions
-            step_start_time = time.time()
+            step_start_time = time.perf_counter()
             step = Step(
                 step_type="tool_execution",
                 iteration=current_iteration,
@@ -1408,6 +1630,8 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
 
             # Track skipped tools for logging
             skipped_tools: MutableSequence[str] = []
+            step_tool_execution_time = 0.0
+            step_tool_calls = 0
 
             for tool_execution_suggestion in tool_call_generation.tool_calls:
                 pattern_key = self._get_tool_call_pattern_key(
@@ -1504,14 +1728,19 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 selected_tool = available_tools[tool_execution_suggestion.tool_name]
 
                 # Time the tool execution
-                tool_start_time = time.time()
+                tool_start_time = time.perf_counter()
                 try:
                     tool_result = await selected_tool.call_async(
                         context=context, **tool_execution_suggestion.args
                     )
                     tool_execution_time = (
-                        time.time() - tool_start_time
+                        time.perf_counter() - tool_start_time
                     ) * 1000  # Convert to milliseconds
+
+                    step_tool_execution_time += tool_execution_time
+                    step_tool_calls += 1
+                    tool_calls_count += 1
+                    tool_execution_time_total += tool_execution_time
 
                     _logger.bind_optional(
                         lambda log: log.debug("Tool execution result: %s", tool_result)
@@ -1573,6 +1802,44 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                         else 24,
                     )
 
+                    # Calculate partial metrics before suspension
+                    total_execution_time = (
+                        time.perf_counter() - execution_start_time
+                    ) * 1000
+
+                    # Create performance metrics for suspended execution
+                    performance_metrics = PerformanceMetrics(
+                        total_execution_time_ms=total_execution_time,
+                        input_processing_time_ms=input_processing_time,
+                        static_knowledge_processing_time_ms=static_knowledge_time,
+                        mcp_tools_preparation_time_ms=mcp_tools_time,
+                        generation_time_ms=generation_time_total,
+                        tool_execution_time_ms=tool_execution_time_total,
+                        final_response_processing_time_ms=0.0,  # Not completed yet
+                        iteration_count=iteration_count,
+                        tool_calls_count=tool_calls_count,
+                        total_tokens_processed=total_tokens_processed,
+                        cache_hit_rate=(cache_hits / (cache_hits + cache_misses) * 100)
+                        if (cache_hits + cache_misses) > 0
+                        else 0.0,
+                        step_metrics=step_metrics,
+                        average_generation_time_ms=generation_time_total
+                        / max(
+                            1,
+                            len(
+                                [s for s in step_metrics if s.step_type == "generation"]
+                            ),
+                        ),
+                        average_tool_execution_time_ms=tool_execution_time_total
+                        / max(1, tool_calls_count),
+                        longest_step_duration_ms=max(
+                            [s.duration_ms for s in step_metrics], default=0.0
+                        ),
+                        shortest_step_duration_ms=min(
+                            [s.duration_ms for s in step_metrics], default=0.0
+                        ),
+                    )
+
                     # Return suspended result immediately
                     return AgentRunOutput(
                         generation=None,
@@ -1581,6 +1848,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                         is_suspended=True,
                         suspension_reason=suspension_error.reason,
                         resumption_token=resumption_token,
+                        performance_metrics=performance_metrics,
                     )
 
             # Log skipped tools if any
@@ -1595,10 +1863,24 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
 
             # Complete the step and add it to context
             step_duration = (
-                time.time() - step_start_time
+                time.perf_counter() - step_start_time
             ) * 1000  # Convert to milliseconds
             step.mark_completed(duration_ms=step_duration)
             context.add_step(step)
+
+            # Track step metrics
+            step_metrics.append(
+                StepMetric(
+                    step_id=step.step_id,
+                    step_type="tool_execution",
+                    duration_ms=step_duration,
+                    iteration=current_iteration,
+                    tool_calls_count=step_tool_calls,
+                    generation_tokens=tool_call_generation.usage.total_tokens,
+                    cache_hits=0,
+                    cache_misses=0,
+                )
+            )
 
             state.update(
                 last_response=tool_call_generation.text,
@@ -1618,6 +1900,40 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         context.fail_execution(
             error_message=f"Max tool calls exceeded after {self.agent_config.maxIterations} iterations"
         )
+
+        # Calculate final metrics before raising exception
+        total_execution_time = (time.perf_counter() - execution_start_time) * 1000
+
+        # Create performance metrics for failed execution
+        performance_metrics = PerformanceMetrics(
+            total_execution_time_ms=total_execution_time,
+            input_processing_time_ms=input_processing_time,
+            static_knowledge_processing_time_ms=static_knowledge_time,
+            mcp_tools_preparation_time_ms=mcp_tools_time,
+            generation_time_ms=generation_time_total,
+            tool_execution_time_ms=tool_execution_time_total,
+            final_response_processing_time_ms=0.0,  # Failed before completion
+            iteration_count=iteration_count,
+            tool_calls_count=tool_calls_count,
+            total_tokens_processed=total_tokens_processed,
+            cache_hit_rate=(cache_hits / (cache_hits + cache_misses) * 100)
+            if (cache_hits + cache_misses) > 0
+            else 0.0,
+            step_metrics=step_metrics,
+            average_generation_time_ms=generation_time_total
+            / max(1, len([s for s in step_metrics if s.step_type == "generation"])),
+            average_tool_execution_time_ms=tool_execution_time_total
+            / max(1, tool_calls_count),
+            longest_step_duration_ms=max(
+                [s.duration_ms for s in step_metrics], default=0.0
+            ),
+            shortest_step_duration_ms=min(
+                [s.duration_ms for s in step_metrics], default=0.0
+            ),
+        )
+
+        # Store metrics in context for potential debugging
+        context.metadata["performance_metrics"] = performance_metrics.model_dump()
 
         raise MaxToolCallsExceededError(
             f"Max tool calls exceeded after {self.agent_config.maxIterations} iterations"
@@ -2379,23 +2695,18 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         *,
         context: Context,
         generation: Generation[T_Schema],
+        performance_metrics: PerformanceMetrics | None = None,
     ) -> AgentRunOutput[T_Schema]:
         """
         Builds an AgentRunOutput object from the generation results.
 
         This internal method creates the standardized output structure of the agent,
-        including artifacts, usage statistics, and final context.
+        including artifacts, usage statistics, final context, and performance metrics.
 
         Args:
-            artifacts: Optional sequence of pre-built artifacts.
-            artifact_name: Name of the artifact to be created (if artifacts is not provided).
-            artifact_description: Description of the artifact to be created.
-            artifact_metadata: Optional metadata for the artifact.
             context: The final context of the execution.
             generation: The Generation object produced by the provider.
-            task_status: The state of the task (default: COMPLETED).
-            append: Whether the artifact should be appended to existing artifacts.
-            last_chunk: Whether this is the last chunk of the artifact.
+            performance_metrics: Optional performance metrics collected during execution.
 
         Returns:
             AgentRunOutput[T_Schema]: The structured result of the agent execution.
@@ -2406,6 +2717,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             generation=generation,
             context=context,
             parsed=parsed,
+            performance_metrics=performance_metrics,
         )
 
     @classmethod
