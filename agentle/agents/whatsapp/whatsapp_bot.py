@@ -99,6 +99,7 @@ class WhatsAppBot(BaseModel):
     async def start_async(self) -> None:
         """Start the WhatsApp bot."""
         await self.provider.initialize()
+        # CRITICAL FIX: Set _running to True BEFORE starting message processing
         self._running = True
         logger.info("WhatsApp bot started with message batching enabled")
 
@@ -959,6 +960,10 @@ class WhatsAppBot(BaseModel):
                     status=500,
                 )
 
+        @app.on_start
+        async def _() -> None:
+            await self.start_async()
+
         return app
 
     def add_webhook_handler(self, handler: Callable[..., Any]) -> None:
@@ -1246,6 +1251,13 @@ class WhatsAppBot(BaseModel):
     async def _handle_message_upsert(self, payload: WhatsAppWebhookPayload) -> None:
         """Handle new message event."""
         logger.debug("[MESSAGE_UPSERT] Processing message upsert event")
+
+        # CRITICAL FIX: Ensure bot is running before processing messages
+        if not self._running:
+            logger.warning(
+                "[MESSAGE_UPSERT] Bot is not running, skipping message processing"
+            )
+            return
 
         # Check if this is Evolution API format
         if payload.event == "messages.upsert" and payload.data:

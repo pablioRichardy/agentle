@@ -62,6 +62,7 @@ def create_server() -> Application:
         max_message_length=4000,
         welcome_message="Teste",
         error_message="Desculpe pelo inconveniente. Por favor, tente novamente mais tarde ou contate o suporte.",
+        
     )
 
     # Create WhatsApp bot

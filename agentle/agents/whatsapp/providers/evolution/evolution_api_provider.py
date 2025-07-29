@@ -618,8 +618,7 @@ class EvolutionAPIProvider(WhatsAppProvider):
 
             for instance_data in instances:
                 if isinstance(instance_data, dict):
-                    instance_info = instance_data.get("instance", {})
-                    instance_name = instance_info.get("instanceName")
+                    instance_name = instance_data.get("name")
 
                     if instance_name:
                         available_instances.append(instance_name)
@@ -632,11 +631,11 @@ class EvolutionAPIProvider(WhatsAppProvider):
                             )
 
                             # Log additional instance details if available
-                            if "connectionStatus" in instance_info:
+                            if "connectionStatus" in instance_data:
                                 logger.info(
-                                    f"Instance connection status: {instance_info['connectionStatus']}"
+                                    f"Instance connection status: {instance_data['connectionStatus']}"
                                 )
-                            if "profilePictureUrl" in instance_info:
+                            if "profilePictureUrl" in instance_data:
                                 logger.debug("Instance has profile picture configured")
 
             if not instance_found:
