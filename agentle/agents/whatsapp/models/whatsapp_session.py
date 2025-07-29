@@ -1,7 +1,8 @@
 from collections.abc import MutableMapping, MutableSequence
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 import logging
+import uuid
 
 from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class WhatsAppSession(BaseModel):
-    """WhatsApp conversation session with message batching and spam protection."""
+    """WhatsApp conversation session with improved message batching and spam protection."""
 
     session_id: str
     phone_number: str
@@ -31,10 +32,10 @@ class WhatsAppSession(BaseModel):
     pending_messages: MutableSequence[dict[str, Any]] = Field(
         default_factory=list, description="Queue of messages waiting to be batched"
     )
-    last_batch_started_at: datetime | None = Field(
+    batch_started_at: datetime | None = Field(
         default=None, description="When the current message batch processing started"
     )
-    batch_processing_timeout_at: datetime | None = Field(
+    batch_timeout_at: datetime | None = Field(
         default=None, description="When to force process the current batch"
     )
 
@@ -55,16 +56,27 @@ class WhatsAppSession(BaseModel):
         default=None, description="When rate limiting expires"
     )
 
+    # Enhanced state management
+    processing_token: str | None = Field(
+        default=None, description="Unique token for the current processing session"
+    )
+    last_state_change: datetime = Field(
+        default_factory=datetime.now, description="Last time session state changed"
+    )
+
     def add_pending_message(self, message_data: dict[str, Any]) -> None:
-        """Add a message to the pending queue."""
+        """Add a message to the pending queue with improved logging."""
         logger.debug(
             f"[SESSION] Adding pending message for {self.phone_number}. "
             + f"Queue size before: {len(self.pending_messages)}"
         )
 
         self.pending_messages.append(message_data)
-        # CRITICAL FIX: Don't update last_activity here to avoid resetting the batch timer
-        # Only update when we're not in a batching process
+        # Update last activity only if we're not in the middle of batch processing
+        # This prevents race conditions with the batch timer
+        if not self.is_processing:
+            self.last_activity = datetime.now()
+            self.last_state_change = datetime.now()
 
         logger.info(
             f"[SESSION] Added pending message to {self.phone_number}. "
@@ -73,13 +85,14 @@ class WhatsAppSession(BaseModel):
         )
 
     def clear_pending_messages(self) -> MutableSequence[dict[str, Any]]:
-        """Clear and return all pending messages."""
+        """Clear and return all pending messages with improved state management."""
         messages = list(self.pending_messages)
         logger.info(
             f"[SESSION] Clearing {len(messages)} pending messages for {self.phone_number}"
         )
 
         self.pending_messages.clear()
+        self.last_state_change = datetime.now()
 
         logger.debug(
             f"[SESSION] Cleared pending messages for {self.phone_number}. "
@@ -92,7 +105,7 @@ class WhatsAppSession(BaseModel):
         self, max_messages_per_minute: int, cooldown_seconds: int
     ) -> bool:
         """
-        Update rate limiting state and return True if message should be processed.
+        Update rate limiting state with improved reliability.
 
         Args:
             max_messages_per_minute: Maximum allowed messages per minute
@@ -122,6 +135,7 @@ class WhatsAppSession(BaseModel):
             self.rate_limit_until = None
             self.messages_in_current_minute = 0
             self.current_minute_start = None
+            self.last_state_change = now
 
         # If currently rate limited, deny
         if self.is_rate_limited:
@@ -143,6 +157,7 @@ class WhatsAppSession(BaseModel):
 
         # Increment message count
         self.messages_in_current_minute += 1
+        self.last_message_at = now
         logger.debug(
             f"[RATE_LIMIT] Message count for {self.phone_number}: "
             + f"{self.messages_in_current_minute}/{max_messages_per_minute}"
@@ -155,12 +170,10 @@ class WhatsAppSession(BaseModel):
                 + f"Messages: {self.messages_in_current_minute}/{max_messages_per_minute}"
             )
             self.is_rate_limited = True
-            from datetime import timedelta
-
             self.rate_limit_until = now + timedelta(seconds=cooldown_seconds)
+            self.last_state_change = now
             return False
 
-        self.last_message_at = now
         logger.debug(f"[RATE_LIMIT] Message allowed for {self.phone_number}")
         return True
 
@@ -188,22 +201,22 @@ class WhatsAppSession(BaseModel):
         logger.debug(
             f"[BATCH_DECISION] Checking batch processing conditions for {self.phone_number}: "
             + f"pending_messages={len(self.pending_messages)}, "
-            + f"batch_timeout_at={self.batch_processing_timeout_at}, "
-            + f"last_activity={self.last_activity}, "
+            + f"batch_timeout_at={self.batch_timeout_at}, "
+            + f"batch_started_at={self.batch_started_at}, "
             + f"batch_delay_seconds={batch_delay_seconds}, "
             + f"max_wait_seconds={max_wait_seconds}"
         )
 
         # Force processing if max wait time exceeded
-        if self.batch_processing_timeout_at and now >= self.batch_processing_timeout_at:
+        if self.batch_timeout_at and now >= self.batch_timeout_at:
             logger.info(
                 f"[BATCH_DECISION] Max wait time exceeded for {self.phone_number}, forcing processing"
             )
             return True
 
-        # CRITICAL FIX: Use batch start time instead of last activity for delay calculation
-        if self.last_batch_started_at:
-            time_since_batch_start = (now - self.last_batch_started_at).total_seconds()
+        # Use batch start time for delay calculation
+        if self.batch_started_at:
+            time_since_batch_start = (now - self.batch_started_at).total_seconds()
             should_process = time_since_batch_start >= batch_delay_seconds
 
             logger.debug(
@@ -213,64 +226,148 @@ class WhatsAppSession(BaseModel):
 
             return should_process
 
-        # Fallback to last activity if batch start time is not available
-        if self.last_activity:
-            time_since_last = (now - self.last_activity).total_seconds()
-            should_process = time_since_last >= batch_delay_seconds
-
-            logger.debug(
-                f"[BATCH_DECISION] Time since last activity for {self.phone_number}: "
-                + f"{time_since_last:.2f}s (threshold: {batch_delay_seconds}s) -> {should_process}"
-            )
-
-            return should_process
-
-        logger.debug(
-            f"[BATCH_DECISION] No timing reference available for {self.phone_number}"
+        # This should not happen if start_batch_processing was called correctly
+        logger.warning(
+            f"[BATCH_DECISION] No batch start time available for {self.phone_number}"
         )
         return False
 
-    def start_batch_processing(self, max_wait_seconds: float) -> None:
-        """Start batch processing with timeout."""
-        from datetime import timedelta
-
+    def start_batch_processing(self, max_wait_seconds: float) -> str:
+        """
+        Start batch processing with improved state management.
+        
+        Args:
+            max_wait_seconds: Maximum seconds to wait before forcing processing
+            
+        Returns:
+            Processing token for this batch
+        """
         now = datetime.now()
+        processing_token = str(uuid.uuid4())
 
         logger.info(
             f"[BATCH_START] Starting batch processing for {self.phone_number} "
-            + f"with max_wait_seconds={max_wait_seconds}"
+            + f"with max_wait_seconds={max_wait_seconds}, token={processing_token}"
         )
 
-        # CRITICAL FIX: Set processing state first
+        # Set processing state
         was_processing = self.is_processing
         self.is_processing = True
-        self.last_batch_started_at = now
+        self.batch_started_at = now
+        self.processing_token = processing_token
+        self.last_state_change = now
 
-        # CRITICAL FIX: Use timedelta for proper datetime arithmetic
-        # The previous code had a bug where it could create invalid datetime objects
-        self.batch_processing_timeout_at = now + timedelta(seconds=max_wait_seconds)
+        # Set timeout
+        self.batch_timeout_at = now + timedelta(seconds=max_wait_seconds)
 
         logger.info(
             f"[BATCH_START] CRITICAL STATE CHANGE for {self.phone_number}: "
             + f"was_processing={was_processing} -> is_processing={self.is_processing}, "
-            + f"started_at={self.last_batch_started_at}, "
-            + f"timeout_at={self.batch_processing_timeout_at}, "
-            + f"pending_messages={len(self.pending_messages)}"
+            + f"started_at={self.batch_started_at}, "
+            + f"timeout_at={self.batch_timeout_at}, "
+            + f"pending_messages={len(self.pending_messages)}, "
+            + f"token={processing_token}"
         )
+        
+        return processing_token
 
-    def finish_batch_processing(self) -> None:
-        """Finish batch processing and reset state."""
+    def finish_batch_processing(self, processing_token: str | None = None) -> bool:
+        """
+        Finish batch processing with token validation.
+        
+        Args:
+            processing_token: Token from start_batch_processing
+            
+        Returns:
+            True if processing was finished, False if token mismatch
+        """
         logger.info(
             f"[BATCH_FINISH] Finishing batch processing for {self.phone_number}. "
-            + f"Was processing: {self.is_processing}"
+            + f"Was processing: {self.is_processing}, token: {processing_token}"
         )
 
+        # Validate token if provided
+        if processing_token is not None and self.processing_token != processing_token:
+            logger.warning(
+                f"[BATCH_FINISH] Token mismatch for {self.phone_number}: "
+                + f"expected={self.processing_token}, got={processing_token}"
+            )
+            return False
+
         self.is_processing = False
-        self.last_batch_started_at = None
-        self.batch_processing_timeout_at = None
+        self.batch_started_at = None
+        self.batch_timeout_at = None
+        self.processing_token = None
+        self.last_activity = datetime.now()
+        self.last_state_change = datetime.now()
 
         logger.debug(
             f"[BATCH_FINISH] Batch processing finished for {self.phone_number}: "
             + f"is_processing={self.is_processing}, "
             + f"pending_messages={len(self.pending_messages)}"
         )
+        
+        return True
+
+    def is_batch_expired(self, max_wait_seconds: float) -> bool:
+        """
+        Check if the current batch has expired and should be force-processed.
+        
+        Args:
+            max_wait_seconds: Maximum seconds to wait
+            
+        Returns:
+            True if batch has expired
+        """
+        if not self.is_processing or not self.batch_started_at:
+            return False
+            
+        now = datetime.now()
+        time_since_start = (now - self.batch_started_at).total_seconds()
+        
+        return time_since_start >= max_wait_seconds
+
+    def get_batch_age_seconds(self) -> float:
+        """Get the age of the current batch in seconds."""
+        if not self.batch_started_at:
+            return 0.0
+        
+        return (datetime.now() - self.batch_started_at).total_seconds()
+
+    def reset_session(self) -> None:
+        """Reset session to initial state."""
+        logger.info(f"[SESSION_RESET] Resetting session for {self.phone_number}")
+        
+        self.is_processing = False
+        self.pending_messages.clear()
+        self.batch_started_at = None
+        self.batch_timeout_at = None
+        self.processing_token = None
+        
+        # Reset rate limiting
+        self.is_rate_limited = False
+        self.rate_limit_until = None
+        self.messages_in_current_minute = 0
+        self.current_minute_start = None
+        
+        # Update timestamps
+        self.last_activity = datetime.now()
+        self.last_state_change = datetime.now()
+
+    def get_state_summary(self) -> dict[str, Any]:
+        """Get a summary of the session state for debugging."""
+        return {
+            "session_id": self.session_id,
+            "phone_number": self.phone_number,
+            "is_processing": self.is_processing,
+            "pending_messages_count": len(self.pending_messages),
+            "batch_started_at": self.batch_started_at.isoformat() if self.batch_started_at else None,
+            "batch_timeout_at": self.batch_timeout_at.isoformat() if self.batch_timeout_at else None,
+            "processing_token": self.processing_token,
+            "is_rate_limited": self.is_rate_limited,
+            "rate_limit_until": self.rate_limit_until.isoformat() if self.rate_limit_until else None,
+            "messages_in_current_minute": self.messages_in_current_minute,
+            "last_activity": self.last_activity.isoformat(),
+            "last_state_change": self.last_state_change.isoformat(),
+            "message_count": self.message_count,
+        }
