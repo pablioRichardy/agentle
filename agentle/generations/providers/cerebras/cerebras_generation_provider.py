@@ -17,6 +17,7 @@ This implementation transforms Agentle's unified message format into Cerebras's
 request format and adapts responses back into Agentle's Generation objects,
 providing a consistent experience regardless of the AI provider being used.
 """
+from __future__ import annotations
 
 import asyncio
 import logging
@@ -63,6 +64,7 @@ if TYPE_CHECKING:
         MessageSystemMessageRequestTyped,
         MessageUserMessageRequestTyped,
     )
+
     from agentle.generations.tracing.otel_client import OtelClient
 
 
