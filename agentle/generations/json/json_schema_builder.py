@@ -193,11 +193,11 @@ class JsonSchemaBuilder:
 
         # Assemble the final schema structure
         final_schema: Dict[str, Any] = {}
-
+        
         # Only add $schema if not in clean_output mode
         if not self.clean_output:
             final_schema["$schema"] = self.schema_draft_uri
-
+            
         final_schema.update(
             root_schema_content
         )  # Directly use the result (inline or $ref)
@@ -273,7 +273,7 @@ class JsonSchemaBuilder:
                 dereferenced_schema = resolve_refs(dereferenced_schema)
 
                 # Atualiza o esquema final
-                final_schema: dict[str, Any] = dereferenced_schema
+                final_schema = dereferenced_schema
 
                 # Mantém as definições para compatibilidade com testes, mas resolve referências dentro delas
                 if self._definitions_key in final_schema:
@@ -295,17 +295,7 @@ class JsonSchemaBuilder:
 
         # Additional cleaning for providers that don't accept certain keys
         if self.clean_output:
-            # Remove any other metadata keys that might cause issues
-            keys_to_remove = []
-            for key in final_schema.keys():
-                # Remove keys that start with $ except for $ref and $defs/definitions
-                if key.startswith("$") and key not in ("$ref", "$defs"):
-                    keys_to_remove.append(key)
-                # Some providers might not like 'definitions' even if they accept the content
-                # This is handled by use_defs_instead_of_definitions parameter
-
-            for key in keys_to_remove:
-                final_schema.pop(key, None)  # type: ignore
+            final_schema = self._clean_schema_for_strict_providers(final_schema)
 
         return final_schema
 
@@ -2319,3 +2309,54 @@ class JsonSchemaBuilder:
     def _is_json_primitive(self, value: Any) -> bool:
         """Check if a value is a JSON primitive (string, number, boolean, null)."""
         return isinstance(value, (str, int, float, bool, type(None)))
+
+    def _clean_schema_for_strict_providers(self, schema: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Aggressively clean schema to only keep keys that strict providers like Cerebras accept.
+        
+        Based on Cerebras documentation, they only support:
+        - type, properties, required, additionalProperties
+        - $ref, $defs (for references)  
+        - Basic constraints: enum, anyOf, const, items, etc.
+        
+        They do NOT support: title, description, examples, and other metadata keys.
+        """
+        # Keys that Cerebras explicitly supports
+        ALLOWED_OBJECT_KEYS = {
+            "type", "properties", "required", "additionalProperties",
+            "$ref", "$defs", "definitions"  # References
+        }
+        
+        ALLOWED_PROPERTY_KEYS = {
+            "type", "enum", "const", "anyOf", "oneOf", "allOf",
+            "items", "minItems", "maxItems", "minLength", "maxLength",
+            "minimum", "maximum", "format", "$ref"
+        }
+        
+        def clean_schema_recursive(obj: Any) -> Any:
+            if isinstance(obj, dict):
+                cleaned = {}
+                
+                # Determine which keys are allowed based on context
+                if "type" in obj and obj["type"] == "object":
+                    allowed_keys = ALLOWED_OBJECT_KEYS
+                else:
+                    allowed_keys = ALLOWED_PROPERTY_KEYS
+                
+                # Only keep allowed keys
+                for key, value in obj.items():
+                    if key in allowed_keys:
+                        cleaned[key] = clean_schema_recursive(value)
+                
+                # Special handling for additionalProperties - Cerebras requires it to be false for objects
+                if "type" in cleaned and cleaned["type"] == "object" and "properties" in cleaned:
+                    if "additionalProperties" not in cleaned:
+                        cleaned["additionalProperties"] = False
+                
+                return cleaned
+            elif isinstance(obj, list):
+                return [clean_schema_recursive(item) for item in obj]
+            else:
+                return obj
+        
+        return clean_schema_recursive(schema)
