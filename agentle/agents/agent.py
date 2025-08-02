@@ -102,6 +102,7 @@ from agentle.generations.providers.types.model_kind import ModelKind
 from agentle.generations.tools.tool import Tool
 
 # from agentle.generations.tracing.langfuse import LangfuseObservabilityClient
+from agentle.generations.tools.tool_execution_result import ToolExecutionResult
 from agentle.mcp.servers.mcp_server_protocol import MCPServerProtocol
 from agentle.parsing.cache.document_cache_store import DocumentCacheStore
 from agentle.parsing.cache.in_memory_document_cache_store import (
@@ -1255,7 +1256,9 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             called_tools_prompt: UserMessage = UserMessage(parts=[TextPart(text="")])
             if called_tools:
                 # Build a comprehensive prompt with anti-repetition instructions
-                called_tools_prompt_parts: MutableSequence[TextPart | FilePart] = []
+                called_tools_prompt_parts: MutableSequence[
+                    TextPart | FilePart | ToolExecutionResult
+                ] = []
 
                 # Add strong header with warnings
                 redundancy_warnings: MutableSequence[str] = []
@@ -1302,13 +1305,14 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
 
                 called_tools_prompt_parts.append(TextPart(text=header_text))
 
-                # Add the actual tool results with clear formatting
+                # Add the actual tool results as ToolExecutionResult objects
                 called_tools_prompt_parts.append(
                     TextPart(text="\n<completed_tool_executions>")
                 )
 
                 for idx, (suggestion, result) in enumerate(called_tools.values(), 1):
                     if isinstance(result, FilePart):
+                        # For file results, still use the existing approach but also add ToolExecutionResult
                         called_tools_prompt_parts.extend(
                             [
                                 TextPart(
@@ -1321,20 +1325,16 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                                 TextPart(text="[End of file]\n"),
                             ]
                         )
-                        continue
 
-                    # Truncate very long results but keep them meaningful
-                    result_str = str(result)
-
-                    called_tools_prompt_parts.append(
-                        TextPart(
-                            text=f"\n[Execution #{idx}]\n"
-                            + f"Tool: {suggestion.tool_name}\n"
-                            + f"Args: {json.dumps(suggestion.args, indent=2)}\n"
-                            + f"Result: {result_str}\n"
-                            + "Status: (success) COMPLETED - DO NOT CALL AGAIN WITH SAME ARGS\n"
-                        )
+                    # Add ToolExecutionResult for proper Google API compliance
+                    tool_execution_result = ToolExecutionResult(
+                        suggestion=suggestion,
+                        result=result,
+                        execution_time_ms=None,  # You can add timing if tracked
+                        success=True,  # Set based on actual execution status
+                        error_message=None,  # Set if there were execution errors
                     )
+                    called_tools_prompt_parts.append(tool_execution_result)
 
                 called_tools_prompt_parts.append(
                     TextPart(text="</completed_tool_executions>")
