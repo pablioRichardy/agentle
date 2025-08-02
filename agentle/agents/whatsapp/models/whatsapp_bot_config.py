@@ -1,8 +1,5 @@
-from __future__ import annotations
-
 from collections.abc import Mapping
 from typing import Any
-
 from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
 
@@ -119,6 +116,8 @@ class WhatsAppBotConfig(BaseModel):
     def with_overrides(
         self,
         *,
+        # Base configuration to start from
+        base_config: "WhatsAppBotConfig | None" = None,
         # Core Bot Behavior
         typing_indicator: bool | None = None,
         typing_duration: int | None = None,
@@ -146,27 +145,50 @@ class WhatsAppBotConfig(BaseModel):
         retry_failed_messages: bool | None = None,
         max_retry_attempts: int | None = None,
         retry_delay_seconds: float | None = None,
-    ) -> WhatsAppBotConfig:
+    ) -> "WhatsAppBotConfig":
         """
         Create a new configuration instance with specified parameters overridden.
 
         Args:
-            All parameters are optional and correspond to the configuration fields.
-            Only non-None parameters will override the current configuration.
+            base_config: Optional base configuration to start from. If provided,
+                        values from this config will be used instead of the current instance.
+            All other parameters are optional and correspond to the configuration fields.
+            Only non-None parameters will override the base configuration.
 
         Returns:
             New WhatsAppBotConfig instance with overridden parameters.
 
-        Example:
+        Examples:
+            >>> # Override individual parameters from current config
             >>> base_config = WhatsAppBotConfig.production()
             >>> debug_config = base_config.with_overrides(
             ...     debug_mode=True,
             ...     typing_duration=1,
             ...     welcome_message="Debug mode enabled!"
             ... )
+
+            >>> # Start from a different config and override parameters
+            >>> prod_config = WhatsAppBotConfig.production()
+            >>> dev_config = WhatsAppBotConfig.development()
+            >>> hybrid_config = prod_config.with_overrides(
+            ...     base_config=dev_config,
+            ...     spam_protection_enabled=True,
+            ...     max_messages_per_minute=50
+            ... )
+
+            >>> # Combine two configs
+            >>> cs_config = WhatsAppBotConfig.customer_service()
+            >>> hv_config = WhatsAppBotConfig.high_volume()
+            >>> combined = cs_config.with_overrides(
+            ...     base_config=hv_config,
+            ...     welcome_message="Welcome to our high-volume support!"
+            ... )
         """
-        # Get current configuration as dict
-        current_config = self.model_dump()
+        # Determine starting configuration
+        if base_config is not None:
+            current_config = base_config.model_dump()
+        else:
+            current_config = self.model_dump()
 
         # Build overrides dict, only including non-None values
         overrides: Mapping[str, Any] = {}

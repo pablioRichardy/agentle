@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.7.12
+- feat: add WhatsAppBotConfig as valid parameter as well to `with_overrides` method in `WhatsAppBotConfig` class.
+
 ## v0.7.11
 fix(google): resolve function calling 400 error by using ToolExecutionResult
 
