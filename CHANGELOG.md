@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.7.13
+- feat: new `Endpoints` and `APIs` integration. Will be documented later.
+
 ## v0.7.12
 - feat: add WhatsAppBotConfig as valid parameter as well to `with_overrides` method in `WhatsAppBotConfig` class.
 
