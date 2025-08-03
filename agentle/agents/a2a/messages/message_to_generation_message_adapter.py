@@ -83,4 +83,5 @@ class MessageToGenerationMessageAdapter(
         role = roles[_f.role]
         if role == "user":
             return UserMessage(parts=parts)
+
         return AssistantMessage(parts=parts)

@@ -4,8 +4,8 @@ Module defining the AssistantMessage class representing messages from assistants
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Literal, cast
+from collections.abc import MutableSequence, Sequence
+from typing import Any, Literal, cast
 
 from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
@@ -15,6 +15,7 @@ from agentle.generations.models.message_parts.text import TextPart
 from agentle.generations.models.message_parts.tool_execution_suggestion import (
     ToolExecutionSuggestion,
 )
+from agentle.generations.tools.tool import Tool
 from agentle.generations.tools.tool_execution_result import ToolExecutionResult
 
 
@@ -31,8 +32,8 @@ class AssistantMessage(BaseModel):
         description="Discriminator field to identify this as an assistant message. Always set to 'assistant'.",
     )
 
-    parts: Sequence[
-        TextPart | FilePart | ToolExecutionSuggestion | ToolExecutionResult
+    parts: MutableSequence[
+        TextPart | FilePart | ToolExecutionSuggestion | ToolExecutionResult | Tool[Any]
     ] = Field(
         description="The sequence of message parts that make up this assistant message.",
     )

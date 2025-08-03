@@ -41,6 +41,7 @@ from agentle.generations.models.messages.message import Message
 from agentle.generations.models.messages.user_message import UserMessage
 from agentle.generations.providers.types.model_kind import ModelKind
 from agentle.generations.tools.tool import Tool
+from agentle.generations.tools.tool_execution_result import ToolExecutionResult
 from agentle.prompts.models.prompt import Prompt
 
 type WithoutStructuredOutput = None
@@ -118,7 +119,16 @@ class GenerationProvider(abc.ABC):
 
     def generate_by_prompt[T = WithoutStructuredOutput](
         self,
-        prompt: str | Prompt | Part | Sequence[Part],
+        prompt: str
+        | Prompt
+        | Part
+        | MutableSequence[
+            TextPart
+            | FilePart
+            | Tool[Any]
+            | ToolExecutionSuggestion
+            | ToolExecutionResult
+        ],
         *,
         model: str | ModelKind | None = None,
         developer_prompt: str | Prompt | None = None,
@@ -165,7 +175,16 @@ class GenerationProvider(abc.ABC):
 
     async def generate_by_prompt_async[T = WithoutStructuredOutput](
         self,
-        prompt: str | Prompt | Part | Sequence[Part],
+        prompt: str
+        | Prompt
+        | Part
+        | MutableSequence[
+            TextPart
+            | FilePart
+            | Tool[Any]
+            | ToolExecutionSuggestion
+            | ToolExecutionResult
+        ],
         *,
         model: str | ModelKind | None = None,
         developer_prompt: str | Prompt | None = None,
@@ -191,16 +210,47 @@ class GenerationProvider(abc.ABC):
             Generation[T]: An Agentle Generation object containing the model's response,
                 potentially with structured output if a response_schema was provided.
         """
-        user_message_parts: Sequence[Part]
+        user_message_parts: MutableSequence[
+            TextPart
+            | FilePart
+            | Tool[Any]
+            | ToolExecutionSuggestion
+            | ToolExecutionResult
+        ]
         match prompt:
             case str():
-                user_message_parts = cast(Sequence[Part], [TextPart(text=prompt)])
+                user_message_parts = cast(
+                    MutableSequence[
+                        TextPart
+                        | FilePart
+                        | Tool[Any]
+                        | ToolExecutionSuggestion
+                        | ToolExecutionResult
+                    ],
+                    [TextPart(text=prompt)],
+                )
             case Prompt():
                 user_message_parts = cast(
-                    Sequence[Part], [TextPart(text=prompt.content)]
+                    MutableSequence[
+                        TextPart
+                        | FilePart
+                        | Tool[Any]
+                        | ToolExecutionSuggestion
+                        | ToolExecutionResult
+                    ],
+                    [TextPart(text=prompt.content)],
                 )
             case TextPart() | FilePart() | Tool() | ToolExecutionSuggestion():
-                user_message_parts = cast(Sequence[Part], [prompt])
+                user_message_parts = cast(
+                    MutableSequence[
+                        TextPart
+                        | FilePart
+                        | Tool[Any]
+                        | ToolExecutionSuggestion
+                        | ToolExecutionResult
+                    ],
+                    [prompt],
+                )
             case _:
                 user_message_parts = prompt
 

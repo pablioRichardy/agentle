@@ -4,7 +4,7 @@ Module defining the UserMessage class representing messages from users.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import MutableSequence, Sequence
 from typing import Any, Literal
 
 from rsb.models.base_model import BaseModel
@@ -32,11 +32,53 @@ class UserMessage(BaseModel):
         description="Discriminator field to identify this as a user message. Always set to 'user'.",
     )
 
-    parts: Sequence[
+    parts: MutableSequence[
         TextPart | FilePart | Tool[Any] | ToolExecutionSuggestion | ToolExecutionResult
     ] = Field(
         description="The sequence of message parts that make up this user message.",
     )
+
+    def insert_at_beggining(
+        self,
+        parts: TextPart
+        | FilePart
+        | Tool[Any]
+        | ToolExecutionSuggestion
+        | ToolExecutionResult
+        | Sequence[
+            TextPart
+            | FilePart
+            | Tool[Any]
+            | ToolExecutionSuggestion
+            | ToolExecutionResult
+        ],
+    ) -> None:
+        if isinstance(parts, Sequence):
+            for part in parts:
+                self.parts.insert(0, part)
+            return
+
+        self.parts.insert(0, parts)
+
+    def insert_at_end(
+        self,
+        parts: TextPart
+        | FilePart
+        | Tool[Any]
+        | ToolExecutionSuggestion
+        | ToolExecutionResult
+        | Sequence[
+            TextPart
+            | FilePart
+            | Tool[Any]
+            | ToolExecutionSuggestion
+            | ToolExecutionResult
+        ],
+    ) -> None:
+        if isinstance(parts, Sequence):
+            self.parts.extend(parts)
+            return
+        self.parts.append(parts)
 
     @property
     def text(self) -> str:
@@ -45,7 +87,7 @@ class UserMessage(BaseModel):
     @classmethod
     def create_named(
         cls,
-        parts: Sequence[
+        parts: MutableSequence[
             TextPart
             | FilePart
             | Tool[Any]
@@ -157,3 +199,7 @@ class UserMessage(BaseModel):
         combined_parts = list(self.parts) + list(other.parts)
 
         return UserMessage(role="user", parts=combined_parts)
+
+
+if __name__ == "__main__":
+    m = UserMessage(parts=[TextPart(text="hello")])

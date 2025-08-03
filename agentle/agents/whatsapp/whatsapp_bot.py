@@ -34,7 +34,12 @@ from agentle.agents.whatsapp.models.whatsapp_webhook_payload import (
 from agentle.agents.whatsapp.providers.base.whatsapp_provider import WhatsAppProvider
 from agentle.generations.models.message_parts.file import FilePart
 from agentle.generations.models.message_parts.text import TextPart
+from agentle.generations.models.message_parts.tool_execution_suggestion import (
+    ToolExecutionSuggestion,
+)
 from agentle.generations.models.messages.user_message import UserMessage
+from agentle.generations.tools.tool import Tool
+from agentle.generations.tools.tool_execution_result import ToolExecutionResult
 from agentle.sessions.in_memory_session_store import InMemorySessionStore
 from agentle.sessions.session_manager import SessionManager
 
@@ -747,7 +752,13 @@ class WhatsAppBot(BaseModel):
             f"[BATCH_CONVERSION] Converting batch of {len(message_batch)} messages to agent input"
         )
 
-        parts: MutableSequence[TextPart | FilePart] = []
+        parts: MutableSequence[
+            TextPart
+            | FilePart
+            | Tool[Any]
+            | ToolExecutionSuggestion
+            | ToolExecutionResult
+        ] = []
 
         # Add batch header if multiple messages
         if len(message_batch) > 1:
@@ -1007,7 +1018,13 @@ class WhatsAppBot(BaseModel):
             f"[SINGLE_CONVERSION] Converting single message to agent input for {message.from_number}"
         )
 
-        parts: MutableSequence[TextPart | FilePart] = []
+        parts: MutableSequence[
+            TextPart
+            | FilePart
+            | Tool[Any]
+            | ToolExecutionSuggestion
+            | ToolExecutionResult
+        ] = []
 
         # Handle text messages
         if isinstance(message, WhatsAppTextMessage):

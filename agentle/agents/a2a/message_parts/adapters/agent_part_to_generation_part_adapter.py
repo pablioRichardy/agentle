@@ -7,6 +7,7 @@ generation system's message parts.
 """
 
 import base64
+from typing import Any
 
 from rsb.adapters.adapter import Adapter
 
@@ -16,12 +17,21 @@ from agentle.agents.a2a.message_parts.data_part import DataPart
 
 from agentle.generations.models.message_parts.text import TextPart as GenerationTextPart
 from agentle.generations.models.message_parts.file import FilePart as GenerationFilePart
+from agentle.generations.models.message_parts.tool_execution_suggestion import (
+    ToolExecutionSuggestion,
+)
+from agentle.generations.tools.tool import Tool
+from agentle.generations.tools.tool_execution_result import ToolExecutionResult
 
 
 class AgentPartToGenerationPartAdapter(
     Adapter[
         TextPart | FilePart | DataPart,
-        GenerationTextPart | GenerationFilePart,
+        GenerationTextPart
+        | GenerationFilePart
+        | Tool[Any]
+        | ToolExecutionSuggestion
+        | ToolExecutionResult,
     ]
 ):
     """
@@ -49,7 +59,13 @@ class AgentPartToGenerationPartAdapter(
     def adapt(
         self,
         _f: TextPart | FilePart | DataPart,
-    ) -> GenerationTextPart | GenerationFilePart:
+    ) -> (
+        GenerationTextPart
+        | GenerationFilePart
+        | Tool[Any]
+        | ToolExecutionSuggestion
+        | ToolExecutionResult
+    ):
         """
         Adapts an A2A message part to a Generation message part.
 

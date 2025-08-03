@@ -1298,7 +1298,11 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             if called_tools:
                 # Build a comprehensive prompt with anti-repetition instructions
                 called_tools_prompt_parts: MutableSequence[
-                    TextPart | FilePart | ToolExecutionResult
+                    TextPart
+                    | FilePart
+                    | Tool[Any]
+                    | ToolExecutionSuggestion
+                    | ToolExecutionResult
                 ] = []
 
                 # Add strong header with warnings
@@ -2861,12 +2865,24 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         elif isinstance(input, (TextPart, FilePart, Tool)):
             # Handle single message parts
             return Context(
-                message_history=[
-                    developer_message,
-                    UserMessage(
-                        parts=cast(Sequence[TextPart | FilePart | Tool], [input])
-                    ),
-                ]
+                message_history=cast(
+                    MutableSequence[DeveloperMessage | UserMessage | AssistantMessage],
+                    [
+                        developer_message,
+                        UserMessage(
+                            parts=cast(
+                                MutableSequence[
+                                    TextPart
+                                    | FilePart
+                                    | Tool[Any]
+                                    | ToolExecutionSuggestion
+                                    | ToolExecutionResult
+                                ],
+                                [input],
+                            )
+                        ),
+                    ],
+                )
             )
 
         # Sequence handling: Check for Message sequences or Part sequences

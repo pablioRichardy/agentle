@@ -13,6 +13,8 @@ from agentle.generations.models.message_parts.tool_execution_suggestion import (
     ToolExecutionSuggestion,
 )
 from agentle.generations.models.messages.user_message import UserMessage
+from agentle.generations.tools.tool import Tool
+from agentle.generations.tools.tool_execution_result import ToolExecutionResult
 
 if TYPE_CHECKING:
     from agentle.agents.agent import Agent
@@ -841,9 +843,13 @@ class AgentToStreamlit[T = None](Adapter["Agent[T]", "Callable[[], None]"]):
 
                 # Agent Processing
                 with st.spinner("🤖 Agent is thinking..."):
-                    agent_input_parts: List[Union[TextPart, FilePart]] = [
-                        TextPart(text=user_prompt)
-                    ]
+                    agent_input_parts: List[
+                        TextPart
+                        | FilePart
+                        | Tool[Any]
+                        | ToolExecutionSuggestion
+                        | ToolExecutionResult
+                    ] = [TextPart(text=user_prompt)]
 
                     files_to_process_agent = new_user_message_metadata.get("files")
                     if isinstance(files_to_process_agent, list):

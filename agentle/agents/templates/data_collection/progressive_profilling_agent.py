@@ -23,11 +23,16 @@ from agentle.agents.context import Context
 from agentle.agents.templates.data_collection.collected_data import CollectedData
 from agentle.agents.templates.data_collection.field_spec import FieldSpec
 from agentle.generations.models.message_parts.file import FilePart
+from agentle.generations.models.message_parts.tool_execution_suggestion import (
+    ToolExecutionSuggestion,
+)
 from agentle.generations.models.messages.assistant_message import AssistantMessage
 from agentle.generations.models.messages.developer_message import DeveloperMessage
 from agentle.generations.providers.base.generation_provider import GenerationProvider
 from agentle.generations.models.messages.user_message import UserMessage
 from agentle.generations.models.message_parts.text import TextPart
+from agentle.generations.tools.tool import Tool
+from agentle.generations.tools.tool_execution_result import ToolExecutionResult
 
 if TYPE_CHECKING:
     from agentle.agents.agent_input import AgentInput
@@ -246,10 +251,30 @@ class ProgressiveProfilingAgent(BaseModel):
                 return [state_message] + list(input)
 
             # Check if it's a sequence of parts (TextPart, FilePart, etc.)
-            elif isinstance(first_item, (TextPart, FilePart)):
+            elif isinstance(
+                first_item,
+                (
+                    TextPart,
+                    FilePart,
+                    Tool,
+                    ToolExecutionSuggestion,
+                    ToolExecutionResult,
+                ),
+            ):
                 # Create a UserMessage with state part and input parts
                 state_part = TextPart(text=state_context)
-                li = list(cast(Sequence[TextPart | FilePart], input))
+                li = list(
+                    cast(
+                        Sequence[
+                            TextPart
+                            | FilePart
+                            | Tool[Any]
+                            | ToolExecutionSuggestion
+                            | ToolExecutionResult
+                        ],
+                        input,
+                    )
+                )
                 return UserMessage(parts=[state_part] + li)
 
         # Check if input is a single message
