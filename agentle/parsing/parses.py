@@ -1,8 +1,8 @@
 from __future__ import annotations
 from collections.abc import Callable, MutableMapping
 from typing import TYPE_CHECKING
+from typing_extensions import deprecated
 
-from deprecated.classic import deprecated
 
 from agentle.parsing.parsers.audio import AudioFileParser
 from agentle.parsing.parsers.compressed import CompressedFileParser
@@ -81,7 +81,7 @@ subclass that can parse that file type.
 """
 
 
-@deprecated(action="ignore", reason="We use a predefined dict directly.")  # type: ignore
+@deprecated("We use a predefined dict directly.")  # type: ignore
 def parses[ParserT: DocumentParser](
     *extensions: str,
 ) -> Callable[[type[ParserT]], type[ParserT]]:
