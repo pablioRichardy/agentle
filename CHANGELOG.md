@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.7.14
+- fix: removig deprecated module
+
 ## v0.7.13
 - feat: new `Endpoints` and `APIs` integration. Will be documented later.
 
