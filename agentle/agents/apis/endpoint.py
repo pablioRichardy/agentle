@@ -81,6 +81,7 @@ agent = Agent(
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import MutableMapping, Sequence
 from typing import Any, Literal
@@ -291,49 +292,93 @@ class Endpoint(BaseModel):
             if "Content-Type" not in headers:
                 headers["Content-Type"] = "application/json"
 
-        # Make request with retries
+        # Use a single session for all retry attempts to avoid cleanup issues
         last_exception = None
 
-        for attempt in range(self.request_config.max_retries + 1):
-            try:
-                logger.debug(
-                    f"Making {self.method} request to {url} (attempt {attempt + 1})"
-                )
+        # Create connector with proper cleanup settings
+        connector = aiohttp.TCPConnector(
+            limit=10,  # Limit concurrent connections
+            limit_per_host=5,
+            ttl_dns_cache=300,
+            use_dns_cache=True,
+        )
 
-                async with aiohttp.ClientSession() as session:
-                    async with session.request(
-                        method=self.method.value, url=url, **request_kwargs
-                    ) as response:
-                        # Check for HTTP errors
-                        if response.status >= 400:
-                            error_text = await response.text()
-                            raise aiohttp.ClientResponseError(
-                                request_info=response.request_info,
-                                history=response.history,
-                                status=response.status,
-                                message=f"HTTP {response.status}: {error_text}",
+        try:
+            async with aiohttp.ClientSession(
+                connector=connector,
+                timeout=aiohttp.ClientTimeout(
+                    total=self.request_config.timeout * 2
+                ),  # Overall timeout
+            ) as session:
+                for attempt in range(self.request_config.max_retries + 1):
+                    try:
+                        logger.debug(
+                            f"Making {self.method} request to {url} (attempt {attempt + 1})"
+                        )
+
+                        async with session.request(
+                            method=self.method.value, url=url, **request_kwargs
+                        ) as response:
+                            # Check for HTTP errors
+                            if response.status >= 400:
+                                error_text = await response.text()
+                                raise aiohttp.ClientResponseError(
+                                    request_info=response.request_info,
+                                    history=response.history,
+                                    status=response.status,
+                                    message=f"HTTP {response.status}: {error_text}",
+                                )
+
+                            # Parse response based on format
+                            if self.response_format == "json":
+                                return await response.json()
+                            elif self.response_format == "text":
+                                return await response.text()
+                            elif self.response_format == "bytes":
+                                return await response.read()
+                            else:
+                                return await response.text()
+
+                    except asyncio.CancelledError:
+                        # Handle cancellation gracefully
+                        logger.debug(f"Request to {url} was cancelled")
+                        raise
+                    except Exception as e:
+                        last_exception = e
+                        logger.warning(
+                            f"Request attempt {attempt + 1} failed: {str(e)}"
+                        )
+
+                        if attempt < self.request_config.max_retries:
+                            # Use exponential backoff with jitter
+                            delay = self.request_config.retry_delay * (2**attempt)
+                            jitter = (
+                                delay
+                                * 0.1
+                                * (0.5 - asyncio.get_event_loop().time() % 1)
                             )
+                            total_delay = min(delay + jitter, 60.0)  # Cap at 60 seconds
 
-                        # Parse response based on format
-                        if self.response_format == "json":
-                            return await response.json()
-                        elif self.response_format == "text":
-                            return await response.text()
-                        elif self.response_format == "bytes":
-                            return await response.read()
+                            try:
+                                await asyncio.sleep(total_delay)
+                            except asyncio.CancelledError:
+                                logger.debug("Sleep interrupted by cancellation")
+                                raise
                         else:
-                            return await response.text()
+                            break
 
-            except Exception as e:
-                last_exception = e
-                logger.warning(f"Request attempt {attempt + 1} failed: {str(e)}")
-
-                if attempt < self.request_config.max_retries:
-                    import asyncio
-
-                    await asyncio.sleep(self.request_config.retry_delay)
-                else:
-                    break
+        except asyncio.CancelledError:
+            logger.debug(f"HTTP session cancelled during request to {url}")
+            raise
+        except Exception as e:
+            logger.error(f"Error with HTTP session for {url}: {str(e)}")
+            if last_exception:
+                raise last_exception
+            raise
+        finally:
+            # Ensure connector is properly closed
+            if not connector.closed:
+                await connector.close()
 
         # If we get here, all attempts failed
         if last_exception:

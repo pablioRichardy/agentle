@@ -71,4 +71,4 @@ response = facts_agent.run(
     "Tell me an interesting cat fact and information about popular cat breeds"
 )
 
-print(f"Cat Facts Response: {response.safe_generation.text[:500]}...\n")
+print(f"Cat Facts Response: {response.pretty_formatted()}")

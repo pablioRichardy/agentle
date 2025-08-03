@@ -916,7 +916,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
 
         Returns:
             AgentRunOutput[T_Schema]: The result of the agent execution with performance metrics,
-                                     possibly with a structured response according to the defined schema.
+                                    possibly with a structured response according to the defined schema.
 
         Raises:
             MaxToolCallsExceededError: If the maximum number of tool calls is exceeded.
@@ -1294,114 +1294,60 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 )
             )
 
-            called_tools_prompt: UserMessage = UserMessage(parts=[TextPart(text="")])
+            # Clone message history to avoid modifying the original context
+            message_history = list(context.message_history)
+
+            # Add tool execution results directly to the last user message if any exist
             if called_tools:
-                # Build a comprehensive prompt with anti-repetition instructions
-                called_tools_prompt_parts: MutableSequence[
-                    TextPart
-                    | FilePart
-                    | Tool[Any]
-                    | ToolExecutionSuggestion
-                    | ToolExecutionResult
-                ] = []
-
-                # Add strong header with warnings
-                redundancy_warnings: MutableSequence[str] = []
-                for pattern, count in tool_call_patterns.items():
-                    if count > 1:
-                        tool_name, args = pattern.split(":", 1)
-                        redundancy_warnings.append(
-                            f"(warning) REDUNDANT: '{tool_name}' called {count} times with args: {args}"
-                        )
-
-                header_text = dedent(f"""\
-                    <previous_tool_calls>
-                    <critical_rules>
-                    (danger) NEVER call the same tool with identical arguments twice
-                    (danger) DO NOT repeat tool calls that already have results
-                    (warning)  Check the results below BEFORE making any new tool call
-                    (warning)  If information was already obtained, use it instead of calling again
-                    </critical_rules>
-                    
-                    <iteration_info>
-                    Current iteration: {current_iteration}/{self.agent_config.maxIterations}
-                    Total tools called so far: {len(called_tools)}
-                    </iteration_info>
-                """)
-
-                if redundancy_warnings:
-                    header_text += "\n<redundancy_alerts>\n"
-                    header_text += "\n".join(redundancy_warnings)
-                    header_text += "\n(danger) These redundant calls are wasting resources and iterations!\n"
-                    header_text += "</redundancy_alerts>\n"
-
-                # Add budget warnings
-                budget_warnings: MutableSequence[str] = []
-                for tool_name, count in tool_budget.items():
-                    if count >= self.agent_config.maxCallPerTool - 1:
-                        budget_warnings.append(
-                            f"(warning) Tool '{tool_name}' approaching limit: {count}/{self.agent_config.maxCallPerTool} calls"
-                        )
-
-                if budget_warnings:
-                    header_text += "\n<budget_warnings>\n"
-                    header_text += "\n".join(budget_warnings)
-                    header_text += "</budget_warnings>\n"
-
-                called_tools_prompt_parts.append(TextPart(text=header_text))
-
-                # Add the actual tool results as ToolExecutionResult objects
-                called_tools_prompt_parts.append(
-                    TextPart(text="\n<completed_tool_executions>")
-                )
-
-                for idx, (suggestion, result) in enumerate(called_tools.values(), 1):
-                    if isinstance(result, FilePart):
-                        # For file results, still use the existing approach but also add ToolExecutionResult
-                        called_tools_prompt_parts.extend(
-                            [
-                                TextPart(
-                                    text=f"\n[Execution #{idx}]\n"
-                                    + f"Tool: {suggestion.tool_name}\n"
-                                    + f"Args: {json.dumps(suggestion.args, indent=2)}\n"
-                                    + "Result: [File generated - see below]"
-                                ),
-                                result,
-                                TextPart(text="[End of file]\n"),
-                            ]
-                        )
-
-                    # Add ToolExecutionResult for proper Google API compliance
-                    tool_execution_result = ToolExecutionResult(
-                        suggestion=suggestion,
-                        result=result,
-                        execution_time_ms=None,  # You can add timing if tracked
-                        success=True,  # Set based on actual execution status
-                        error_message=None,  # Set if there were execution errors
+                _logger.bind_optional(
+                    lambda log: log.debug(
+                        "Adding %d tool execution results to message", len(called_tools)
                     )
-                    called_tools_prompt_parts.append(tool_execution_result)
-
-                called_tools_prompt_parts.append(
-                    TextPart(text="</completed_tool_executions>")
-                )
-                called_tools_prompt_parts.append(
-                    TextPart(text="\n</previous_tool_calls>")
                 )
 
-                called_tools_prompt = UserMessage(parts=called_tools_prompt_parts)
+                # Find the last user message and clone it
+                last_user_message_index = -1
+                for i in range(len(message_history) - 1, -1, -1):
+                    if isinstance(message_history[i], UserMessage):
+                        last_user_message_index = i
+                        break
+
+                if last_user_message_index >= 0:
+                    original_user_message = message_history[last_user_message_index]
+                    # Clone the user message to avoid modifying the original
+                    cloned_user_message = UserMessage(
+                        parts=list(original_user_message.parts)
+                    )
+
+                    # Add tool execution results as proper parts
+                    for suggestion, result in called_tools.values():
+                        tool_execution_result = ToolExecutionResult(
+                            suggestion=suggestion,
+                            result=result,
+                            execution_time_ms=None,  # Could be tracked if needed
+                            success=True,  # Set based on actual execution status
+                            error_message=None,  # Set if there were execution errors
+                        )
+                        cloned_user_message.insert_at_end(tool_execution_result)
+
+                    # Replace the last user message with the modified one
+                    message_history[last_user_message_index] = cloned_user_message
+
+                    _logger.bind_optional(
+                        lambda log: log.debug(
+                            "Added tool execution results to user message. "
+                            + f"Message now has {len(cloned_user_message.parts)} parts"
+                        )
+                    )
 
             _logger.bind_optional(
                 lambda log: log.debug("Generating tool call response")
             )
 
-            _new_messages = MessageSequence(
-                context.message_history
-            ).merge_with_last_user_message(called_tools_prompt)
-
             generation_start = time.perf_counter()
             tool_call_generation = await generation_provider.generate_async(
                 model=self.resolved_model,
-                messages=_new_messages.elements,
+                messages=message_history,
                 generation_config=self.agent_config.generation_config,
                 tools=all_tools,
             )
@@ -1443,58 +1389,11 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                         lambda log: log.debug("Generating structured response")
                     )
 
-                    # --- IMPROVED CONTEXT BLOCK ---
-
-                    # 1. Get the text from the previous turn's tool-use prompt.
-                    # This contains the history of all tools called so far.
-                    called_tools_history_text = (
-                        called_tools_prompt.text
-                        if bool(called_tools_prompt.text)
-                        else "<no_tools_were_called_in_previous_iterations>"
-                    )
-
-                    available_tools_text = "\n".join(tool.text for tool in all_tools)
-
-                    # 2. Construct a clear, structured prompt for the final formatting task.
-                    reformatting_context_prompt = dedent(f"""
-                    <final_formatting_instructions>
-                        <objective>
-                        (critical) Your previous response was generated as plain text. Your ONLY task now is to analyze that text and the full context to format the final answer into the required structured JSON schema. DO NOT generate new information or call more tools.
-                        </objective>
-                        
-                        <source_text_to_format>
-                        <reasoning>This was your internal thought process and final answer text before formatting.</reasoning>
-                        <content>
-                            {tool_call_generation.text or "No text was generated in the previous step. Synthesize a response based on the tool history."}
-                        </content>
-                        </source_text_to_format>
-                        
-                        <full_context>
-                        <summary>This is the context you had in the previous step. Use it to ensure your final structured output is correct.</summary>
-                        
-                        <tool_execution_history>
-                            {called_tools_history_text}
-                        </tool_execution_history>
-                        
-                        <available_tools>
-                            {available_tools_text}
-                        </available_tools>
-                        </full_context>
-                    </final_formatting_instructions>
-                    """)
-
-                    # 3. Create the new message sequence for the final generation call.
-                    # We replace the previous turn's messy context with our clean, structured one.
-                    messages_for_final_generation = (
-                        MessageSequence(context.message_history)
-                        .append_before_last_message(reformatting_context_prompt)
-                        .elements
-                    )
-
+                    # Generate final structured response
                     generation_start = time.perf_counter()
                     generation = await generation_provider.generate_async(
                         model=self.resolved_model,
-                        messages=messages_for_final_generation,
+                        messages=message_history,
                         response_schema=self.response_schema,
                         generation_config=self.agent_config.generation_config,
                     )
@@ -1502,7 +1401,6 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                         time.perf_counter() - generation_start
                     ) * 1000
                     generation_time_total += generation_time_single
-                    # --- END OF IMPROVEMENT ---
 
                     _logger.bind_optional(
                         lambda log: log.debug("Final generation complete")
@@ -1686,6 +1584,14 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
 
                 # Check if this exact pattern was already called
                 pattern_count = tool_call_patterns.get(pattern_key, 0)
+
+                _logger.bind_optional(
+                    lambda log: log.debug(
+                        f"Tool pattern '{pattern_key}' has been called {pattern_count} times. "
+                        + f"Max allowed: {self.agent_config.maxIdenticalToolCalls}"
+                    )
+                )
+
                 if pattern_count >= self.agent_config.maxIdenticalToolCalls:
                     _logger.bind_optional(
                         lambda log: log.warning(
