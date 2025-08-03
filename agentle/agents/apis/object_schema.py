@@ -7,13 +7,15 @@ Simply replace the existing EndpointParameter and related classes with these imp
 
 from __future__ import annotations
 
-from collections.abc import MutableMapping
-from typing import Any, Literal
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Literal
 
 from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
 
-from agentle.agents.apis.parameter_schema import ParameterSchema
+if TYPE_CHECKING:
+    from agentle.agents.apis.array_schema import ArraySchema
+    from agentle.agents.apis.primitive_schema import PrimitiveSchema
 
 
 class ObjectSchema(BaseModel):
@@ -21,11 +23,11 @@ class ObjectSchema(BaseModel):
 
     type: Literal["object"] = Field(default="object")
 
-    properties: MutableMapping[str, ParameterSchema] = Field(
+    properties: Mapping[str, ObjectSchema | ArraySchema | PrimitiveSchema] = Field(
         default_factory=dict, description="Properties of the object with their schemas"
     )
 
-    required: list[str] = Field(
+    required: Sequence[str] = Field(
         default_factory=list, description="List of required property names"
     )
 
@@ -34,6 +36,6 @@ class ObjectSchema(BaseModel):
         description="Whether additional properties beyond those defined are allowed",
     )
 
-    example: dict[str, Any] | None = Field(
+    example: Mapping[str, Any] | None = Field(
         default=None, description="Example value for the object"
     )

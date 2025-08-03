@@ -1,9 +1,14 @@
+from __future__ import annotations
+
 from collections.abc import Sequence
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
+
 from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
 
-from agentle.agents.apis.parameter_schema import ParameterSchema
+if TYPE_CHECKING:
+    from agentle.agents.apis.object_schema import ObjectSchema
+    from agentle.agents.apis.primitive_schema import PrimitiveSchema
 
 
 class ArraySchema(BaseModel):
@@ -11,7 +16,9 @@ class ArraySchema(BaseModel):
 
     type: Literal["array"] = Field(default="array")
 
-    items: ParameterSchema = Field(description="Schema for array items")
+    items: ObjectSchema | ArraySchema | PrimitiveSchema = Field(
+        description="Schema for array items"
+    )
 
     min_items: int | None = Field(default=None)
     max_items: int | None = Field(default=None)

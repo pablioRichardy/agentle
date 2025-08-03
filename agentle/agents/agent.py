@@ -437,6 +437,20 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 f"Converted {len(all_endpoints)} endpoints/APIs to {len(api_tools)} tools"
             )
 
+    def add_endpoint(self, endpoint: Endpoint | Sequence[Endpoint]) -> None:
+        if isinstance(endpoint, Sequence):
+            self.endpoints.extend(endpoint)
+            return
+
+        self.endpoints.append(endpoint)
+
+    def add_api(self, api: API | Sequence[API]) -> None:
+        if isinstance(api, Sequence):
+            self.apis.extend(api)
+            return
+
+        self.apis.append(api)
+
     def add_tool(self, tool: Callable[..., Any] | Callable[..., Awaitable[Any] | Tool]):
         self.tools += [tool]
 
@@ -1918,17 +1932,52 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 token_usage=tool_call_generation.usage,
             )
 
+        # Generate detailed execution summary
+        tool_call_summary = self._format_tool_call_summary(called_tools)
+        steps_summary = self._format_steps_summary(context.steps)
+        pattern_analysis = self._analyze_tool_call_patterns(called_tools)
+
+        execution_summary = dedent(f"""
+        EXECUTION SUMMARY:
+        ==================
+        Iterations completed: {iteration_count}/{self.agent_config.maxIterations}
+        Total messages in context: {len(context.message_history)}
+
+        {tool_call_summary}
+
+        {steps_summary}
+
+        {pattern_analysis}
+        """).strip()
+
+        # Add token usage if available
+        if context.total_token_usage:
+            usage = context.total_token_usage
+            execution_summary += f"\n\nToken usage: {usage.prompt_tokens} prompt + {usage.completion_tokens} completion = {usage.total_tokens} total"
+
+        # Create enhanced error message
+        enhanced_error_message = dedent(f"""
+        Max tool calls exceeded after {self.agent_config.maxIterations} iterations.
+
+        {execution_summary}
+
+        RECOMMENDATIONS:
+        - Review the tool calls above to identify potential loops or inefficiencies
+        - Consider increasing maxIterations if the agent is making progress
+        - Check if tools are returning expected results
+        - Verify that the agent's instructions are clear and specific
+        - Look for repeated calls with same arguments (potential infinite loops)
+        """).strip()
+
         _logger.bind_optional(
             lambda log: log.error(
-                "Max tool calls exceeded after %d iterations",
-                self.agent_config.maxIterations,
+                "Max tool calls exceeded with execution summary:\n%s",
+                execution_summary
             )
         )
 
         # Mark context as failed due to max iterations exceeded
-        context.fail_execution(
-            error_message=f"Max tool calls exceeded after {self.agent_config.maxIterations} iterations"
-        )
+        context.fail_execution(error_message=enhanced_error_message)
 
         # Calculate final metrics before raising exception
         total_execution_time = (time.perf_counter() - execution_start_time) * 1000
@@ -1961,12 +2010,11 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             ),
         )
 
-        # Store metrics in context for potential debugging
+        # Store metrics and execution summary in context for debugging
         context.metadata["performance_metrics"] = performance_metrics.model_dump()
+        context.metadata["execution_summary_on_failure"] = execution_summary
 
-        raise MaxToolCallsExceededError(
-            f"Max tool calls exceeded after {self.agent_config.maxIterations} iterations"
-        )
+        raise MaxToolCallsExceededError(enhanced_error_message)
 
     def to_api(self, *extra_routes: type[Controller]) -> Application:
         from agentle.agents.asgi.blacksheep.agent_to_blacksheep_application_adapter import (
@@ -3076,6 +3124,123 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
     ) -> str:
         """Generate a deterministic key for tracking tool call patterns."""
         return f"{tool_name}:{json.dumps(args, sort_keys=True)}"
+
+    def _format_tool_call_summary(
+        self,
+        called_tools: dict[str, tuple[ToolExecutionSuggestion, Any]],
+        max_calls_to_show: int = 10,
+    ) -> str:
+        """Format a summary of tool calls made during execution."""
+        if not called_tools:
+            return "No tool calls were made."
+
+        summary_lines = [f"Total tool calls made: {len(called_tools)}"]
+
+        if len(called_tools) <= max_calls_to_show:
+            summary_lines.append("\nTool calls made:")
+            for i, (suggestion, result) in enumerate(called_tools.values(), 1):
+                result_str = str(result)
+                if len(result_str) > 200:
+                    result_str = result_str[:197] + "..."
+
+                summary_lines.append(
+                    f"  {i}. {suggestion.tool_name}({json.dumps(suggestion.args, default=str)})"
+                )
+                summary_lines.append(f"     Result: {result_str}")
+        else:
+            show_count = max_calls_to_show // 2
+            summary_lines.append(f"\nFirst {show_count} tool calls:")
+
+            tool_items = list(called_tools.values())
+            for i, (suggestion, result) in enumerate(tool_items[:show_count], 1):
+                result_str = str(result)
+                if len(result_str) > 100:
+                    result_str = result_str[:97] + "..."
+                summary_lines.append(
+                    f"  {i}. {suggestion.tool_name}({json.dumps(suggestion.args, default=str)})"
+                )
+                summary_lines.append(f"     Result: {result_str}")
+
+            summary_lines.append(
+                f"\n... ({len(called_tools) - max_calls_to_show} tool calls omitted) ..."
+            )
+
+            summary_lines.append(f"\nLast {show_count} tool calls:")
+            for i, (suggestion, result) in enumerate(
+                tool_items[-show_count:], len(called_tools) - show_count + 1
+            ):
+                result_str = str(result)
+                if len(result_str) > 100:
+                    result_str = result_str[:97] + "..."
+                summary_lines.append(
+                    f"  {i}. {suggestion.tool_name}({json.dumps(suggestion.args, default=str)})"
+                )
+                summary_lines.append(f"     Result: {result_str}")
+
+        return "\n".join(summary_lines)
+
+    def _format_steps_summary(self, steps: Sequence[Step]) -> str:
+        """Format a summary of execution steps."""
+        if not steps:
+            return "No execution steps recorded."
+
+        summary_lines = [f"Total execution steps: {len(steps)}"]
+        summary_lines.append("\nStep summary:")
+
+        for i, step in enumerate(steps, 1):
+            step_info = f"  {i}. Iteration {step.iteration}: {step.step_type}"
+
+            if step.tool_execution_suggestions:
+                tool_names = [
+                    suggestion.tool_name
+                    for suggestion in step.tool_execution_suggestions
+                ]
+                step_info += f" (tools: {', '.join(tool_names)})"
+
+            if step.duration_ms:
+                step_info += f" - {step.duration_ms:.1f}ms"
+
+            if step.error_message:
+                step_info += f" - ERROR: {step.error_message}"
+
+            summary_lines.append(step_info)
+
+        return "\n".join(summary_lines)
+
+    def _analyze_tool_call_patterns(
+        self,
+        called_tools: dict[str, tuple[ToolExecutionSuggestion, Any]],
+    ) -> str:
+        """Analyze patterns in tool calls to identify potential issues."""
+        if not called_tools:
+            return "No tool calls to analyze."
+
+        tool_usage: dict[str, Any] = {}
+        repeated_calls: dict[str, Any] = {}
+
+        for suggestion, _ in called_tools.values():
+            tool_name = suggestion.tool_name
+            tool_usage[tool_name] = tool_usage.get(tool_name, 0) + 1
+
+            call_signature = f"{tool_name}({json.dumps(suggestion.args, sort_keys=True, default=str)})"
+            repeated_calls[call_signature] = repeated_calls.get(call_signature, 0) + 1
+
+        analysis_lines = ["TOOL CALL ANALYSIS:"]
+
+        sorted_tools = sorted(tool_usage.items(), key=lambda x: x[1], reverse=True)
+        analysis_lines.append(f"Most used tools: {dict(sorted_tools[:5])}")
+
+        repeated = {call: count for call, count in repeated_calls.items() if count > 1}
+        if repeated:
+            analysis_lines.append(
+                f"Repeated calls detected: {len(repeated)} unique calls repeated"
+            )
+            for call, count in sorted(
+                repeated.items(), key=lambda x: x[1], reverse=True
+            )[:3]:
+                analysis_lines.append(f"  - {call}: {count} times")
+
+        return "\n".join(analysis_lines)
 
     def __call__(self, input: AgentInput | Any) -> AgentRunOutput[T_Schema]:
         return self.run(input)

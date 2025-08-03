@@ -149,6 +149,13 @@ class AgentRunOutput[T_StructuredOutput](BaseModel):
     performance_metrics: PerformanceMetrics | None = Field(default=None)
 
     @property
+    def safe_generation(self) -> Generation[T_StructuredOutput]:
+        """Validates if Generation is null"""
+        if self.generation is None:
+            raise ValueError("Generation is null.")
+        return self.generation
+
+    @property
     def tool_execution_results(self) -> Sequence[ToolExecutionResult]:
         return self.context.tool_execution_results
 

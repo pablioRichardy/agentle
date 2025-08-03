@@ -347,7 +347,10 @@ class Endpoint(BaseModel):
         global_headers: MutableMapping[str, str] | None = None,
     ) -> Tool[Any]:
         """
-        Convert this endpoint to a Tool instance.
+        Convert this endpoint to a Tool instance with proper parameter mapping.
+
+        This fixed version creates tool parameters directly from endpoint parameters
+        instead of relying on function signature analysis of **kwargs.
 
         Args:
             base_url: Base URL for path-based endpoints
@@ -363,8 +366,41 @@ class Endpoint(BaseModel):
                 base_url=base_url, global_headers=global_headers, **kwargs
             )
 
-        return Tool.from_callable(
-            endpoint_callable,
+        # Create tool parameters from endpoint parameters
+        tool_parameters: dict[str, object] = {}
+
+        for param in self.parameters:
+            # Use the parameter's to_tool_parameter_schema method if available
+            if hasattr(param, "to_tool_parameter_schema"):
+                tool_parameters[param.name] = param.to_tool_parameter_schema()
+            else:
+                # Fallback for basic parameters
+                param_info: dict[str, object] = {
+                    "type": getattr(param, "param_type", "string") or "string",
+                    "description": param.description,
+                    "required": param.required,
+                }
+
+                if param.default is not None:
+                    param_info["default"] = param.default
+
+                if hasattr(param, "enum") and param.enum:
+                    param_info["enum"] = list(param.enum)
+
+                tool_parameters[param.name] = param_info
+
+        # Create the tool instance manually instead of using from_callable
+        tool = Tool(
             name=self.name,
             description=self.get_enhanced_description(),
+            parameters=tool_parameters,
         )
+
+        # Set the callable reference manually
+        tool.set_callable_ref(endpoint_callable)
+
+        logger.debug(
+            f"Created tool '{self.name}' with {len(tool_parameters)} parameters: {list(tool_parameters.keys())}"
+        )
+
+        return tool

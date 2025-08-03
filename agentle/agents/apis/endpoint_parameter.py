@@ -1,18 +1,21 @@
+from __future__ import annotations
+
 import json
 import urllib
-from collections.abc import Sequence, Sized
-from typing import Any, cast
 import urllib.parse
+from collections.abc import Sequence, Sized
+from typing import TYPE_CHECKING, Any, cast
 
 from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
 
-from agentle.agents.apis.array_schema import ArraySchema
-from agentle.agents.apis.object_schema import ObjectSchema
 from agentle.agents.apis.object_serialization_style import ObjectSerializationStyle
 from agentle.agents.apis.parameter_location import ParameterLocation
-from agentle.agents.apis.parameter_schema import ParameterSchema
-from agentle.agents.apis.primitive_schema import PrimitiveSchema
+
+if TYPE_CHECKING:
+    from agentle.agents.apis.array_schema import ArraySchema
+    from agentle.agents.apis.object_schema import ObjectSchema
+    from agentle.agents.apis.primitive_schema import PrimitiveSchema
 
 
 class EndpointParameter(BaseModel):
@@ -32,7 +35,7 @@ class EndpointParameter(BaseModel):
     )
 
     # Renamed from 'schema' to avoid conflict with BaseModel.schema()
-    parameter_schema: ParameterSchema | None = Field(
+    parameter_schema: ObjectSchema | ArraySchema | PrimitiveSchema | None = Field(
         default=None, description="Detailed schema definition for this parameter"
     )
 
@@ -56,6 +59,10 @@ class EndpointParameter(BaseModel):
 
     def model_post_init(self, __context: Any) -> None:
         """Initialize schema from param_type if schema not provided (backward compatibility)."""
+        from agentle.agents.apis.object_schema import ObjectSchema
+        from agentle.agents.apis.array_schema import ArraySchema
+        from agentle.agents.apis.primitive_schema import PrimitiveSchema
+
         super().model_post_init(__context)
 
         if self.parameter_schema is None and self.param_type:
@@ -228,67 +235,116 @@ class EndpointParameter(BaseModel):
         """
         Convert this parameter to tool parameter format with proper object schema.
 
+        Fixed version that creates proper tool parameter schemas.
+
         Returns:
             Tool parameter schema dictionary
         """
-        base_schema: dict[str, Any] = {
+        from agentle.agents.apis.object_schema import ObjectSchema
+        from agentle.agents.apis.array_schema import ArraySchema
+
+        # Start with basic info
+        param_schema: dict[str, Any] = {
             "description": self.description,
             "required": self.required,
         }
 
         if self.default is not None:
-            base_schema["default"] = self.default
+            param_schema["default"] = self.default
 
-        if self.parameter_schema is None:
-            # Fallback for old param_type style
-            base_schema["type"] = self.param_type or "string"
-            if self.enum:
-                base_schema["enum"] = list(self.enum)
-            return base_schema
+        # Handle parameter schema if available
+        if self.parameter_schema is not None:
+            if isinstance(self.parameter_schema, ObjectSchema):
+                # For object parameters
+                param_schema["type"] = "object"
 
-        # Add schema-specific information
-        if isinstance(self.parameter_schema, ObjectSchema):
-            properties_dict: dict[str, Any] = {}
-            for name, prop_schema in self.parameter_schema.properties.items():
-                properties_dict[name] = self._schema_to_tool_property(prop_schema)
+                # Convert properties
+                if self.parameter_schema.properties:
+                    properties_dict: dict[str, Any] = {}
+                    for (
+                        prop_name,
+                        prop_schema,
+                    ) in self.parameter_schema.properties.items():
+                        properties_dict[prop_name] = (
+                            self._convert_schema_to_tool_property(prop_schema)
+                        )
+                    param_schema["properties"] = properties_dict
 
-            base_schema.update(
-                {
-                    "type": "object",
-                    "properties": properties_dict,
-                    "required_properties": list(self.parameter_schema.required),
-                }
-            )
+                # Add required properties
+                if self.parameter_schema.required:
+                    param_schema["required_properties"] = list(
+                        self.parameter_schema.required
+                    )
 
-            if self.parameter_schema.example:
-                base_schema["example"] = self.parameter_schema.example
+                # Add example if available
+                if self.parameter_schema.example:
+                    param_schema["example"] = self.parameter_schema.example
 
-        elif isinstance(self.parameter_schema, ArraySchema):
-            base_schema.update(
-                {
-                    "type": "array",
-                    "items": self._schema_to_tool_property(self.parameter_schema.items),
-                }
-            )
+            elif isinstance(self.parameter_schema, ArraySchema):
+                # For array parameters
+                param_schema["type"] = "array"
+                param_schema["items"] = self._convert_schema_to_tool_property(
+                    self.parameter_schema.items
+                )
 
-            if self.parameter_schema.example:
-                base_schema["example"] = list(self.parameter_schema.example)
+                if self.parameter_schema.example:
+                    param_schema["example"] = list(self.parameter_schema.example)
 
+            else:
+                # For primitive parameters
+                param_schema["type"] = self.parameter_schema.type
+
+                if (
+                    hasattr(self.parameter_schema, "enum")
+                    and self.parameter_schema.enum
+                ):
+                    param_schema["enum"] = list(self.parameter_schema.enum)
+                if (
+                    hasattr(self.parameter_schema, "example")
+                    and self.parameter_schema.example
+                ):
+                    param_schema["example"] = self.parameter_schema.example
         else:
-            # Primitive schema
-            base_schema["type"] = self.parameter_schema.type
+            # Fallback for old param_type style
+            param_schema["type"] = self.param_type or "string"
+            if hasattr(self, "enum") and self.enum:
+                param_schema["enum"] = list(self.enum)
 
-            if hasattr(self.parameter_schema, "enum") and self.parameter_schema.enum:
-                base_schema["enum"] = list(self.parameter_schema.enum)
-            if (
-                hasattr(self.parameter_schema, "example")
-                and self.parameter_schema.example
-            ):
-                base_schema["example"] = self.parameter_schema.example
+        return param_schema
 
-        return base_schema
+    def _convert_schema_to_tool_property(self, schema: Any) -> dict[str, Any]:
+        """Convert a parameter schema to tool property format."""
+        if hasattr(schema, "type"):
+            if schema.type == "object" and hasattr(schema, "properties"):
+                # Object schema
+                result: dict[str, Any] = {"type": "object"}
+                if schema.properties:
+                    properties_dict: dict[str, Any] = {}
+                    for prop_name, prop_schema in schema.properties.items():
+                        properties_dict[prop_name] = (
+                            self._convert_schema_to_tool_property(prop_schema)
+                        )
+                    result["properties"] = properties_dict
+                return result
+            elif schema.type == "array" and hasattr(schema, "items"):
+                # Array schema
+                return {
+                    "type": "array",
+                    "items": self._convert_schema_to_tool_property(schema.items),
+                }
+            else:
+                # Primitive schema
+                result = {"type": schema.type}
+                if hasattr(schema, "enum") and schema.enum:
+                    result["enum"] = list(schema.enum)
+                return result
 
-    def _schema_to_tool_property(self, schema: ParameterSchema) -> dict[str, Any]:
+        # Fallback
+        return {"type": "string"}
+
+    def _schema_to_tool_property(
+        self, schema: ObjectSchema | ArraySchema | PrimitiveSchema
+    ) -> dict[str, Any]:
         """Convert a parameter schema to tool property format."""
         if isinstance(schema, ObjectSchema):
             properties_dict: dict[str, Any] = {}
