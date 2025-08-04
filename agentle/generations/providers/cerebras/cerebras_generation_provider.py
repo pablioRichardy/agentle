@@ -293,7 +293,7 @@ class CerebrasGenerationProvider(GenerationProvider):
             self._raise_unsuported_model_kind(model_kind)
 
         mapping: Mapping[ModelKind, str] = {
-            "category_nano": "llama-4-maverick-17b-128e-instruct",
+            "category_nano": "llama-4-scout-17b-16e-instruct",
             "category_mini": "qwen-3-32b",
             "category_standard": "llama-3.3-70b",
             "category_pro": "deepseek-r1-distill-llama-70b",
