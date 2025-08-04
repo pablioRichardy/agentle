@@ -64,6 +64,7 @@ if TYPE_CHECKING:
         DebugConfig,
     )
     from google.genai.types import Content, GenerateContentResponse, HttpOptions
+
     from agentle.generations.tracing.otel_client import OtelClient
 
 
@@ -335,7 +336,6 @@ class GoogleGenerationProvider(GenerationProvider):
             "gemini-2.5-flash": 0.15,
             "gemini-2.5-flash-preview-05-20": 0.15,  # Assuming same as standard 2.5 Flash
             # Gemini 2.0 Flash family
-            "gemini-2.5-flash": 0.15,
             "gemini-2.5-flash-lite": 0.075,
         }
 
@@ -390,7 +390,6 @@ class GoogleGenerationProvider(GenerationProvider):
             "gemini-2.5-flash": 0.60,  # Standard text output (3.50 for thinking/reasoning)
             "gemini-2.5-flash-preview-05-20": 0.60,  # Assuming same as standard 2.5 Flash
             # Gemini 2.0 Flash family
-            "gemini-2.5-flash": 0.60,
             "gemini-2.5-flash-lite": 0.30,
         }
 
