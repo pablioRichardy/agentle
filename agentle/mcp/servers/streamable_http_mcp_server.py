@@ -8,6 +8,7 @@ Key changes:
 2. Adapted exception handling to aiohttp-specific errors (e.g., aiohttp.ClientError).
 3. Updated response handling to use await on methods like .json() and .text().
 4. Maintained all original functionality, retry logic, and session management.
+5. FIXED: JSON-RPC 2.0 compliance - only include params when they exist and are not empty.
 """
 
 from __future__ import annotations
@@ -204,10 +205,10 @@ class StreamableHTTPMCPServer(MCPServerProtocol):
                 if "error" in response:
                     raise ConnectionError(f"Failed to initialize: {response['error']}")
 
+                # FIXED: Remove empty params from initialized notification
                 notification: Dict[str, Any] = {
                     "jsonrpc": "2.0",
                     "method": "initialized",
-                    "params": {},
                 }
                 await self._send_notification_internal(notification)
 
@@ -377,12 +378,16 @@ class StreamableHTTPMCPServer(MCPServerProtocol):
         request_id = str(self._jsonrpc_id_counter)
         self._jsonrpc_id_counter += 1
 
+        # FIXED: Build request - only include params if they exist and are not empty
         request: Dict[str, Any] = {
             "jsonrpc": "2.0",
             "id": request_id,
             "method": method,
-            "params": params or {},
         }
+
+        # Only add params if they exist and are not empty
+        if params:
+            request["params"] = params
 
         last_exception = None
         for attempt in range(self.max_retries):
