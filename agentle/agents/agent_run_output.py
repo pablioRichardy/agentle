@@ -36,6 +36,9 @@ from rsb.models.field import Field
 from agentle.agents.context import Context
 from agentle.agents.performance_metrics import PerformanceMetrics
 from agentle.generations.models.generation.generation import Generation
+from agentle.generations.models.message_parts.tool_execution_suggestion import (
+    ToolExecutionSuggestion,
+)
 from agentle.generations.tools.tool_execution_result import ToolExecutionResult
 
 logger = logging.getLogger(__name__)
@@ -158,6 +161,10 @@ class AgentRunOutput[T_StructuredOutput](BaseModel):
     @property
     def tool_execution_results(self) -> Sequence[ToolExecutionResult]:
         return self.context.tool_execution_results
+
+    @property
+    def tool_execution_suggestions(self) -> Sequence[ToolExecutionSuggestion]:
+        return self.context.tool_execution_suggestions
 
     @property
     def text(self) -> str:
