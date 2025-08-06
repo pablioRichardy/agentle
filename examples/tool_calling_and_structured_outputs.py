@@ -11,6 +11,9 @@ from agentle.agents.agent import Agent
 from agentle.generations.providers.google.google_generation_provider import (
     GoogleGenerationProvider,
 )
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 # Define a tool the agent can use
