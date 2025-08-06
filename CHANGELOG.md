@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.24
+feat(tool): add ignore_errors flag to handle tool execution failures
+
+Add a new field to allow tools to continue running when errors occur by setting ignore_errors=True. This provides more flexibility in tool execution by preventing agent crashes from individual tool failures.
+
 ## v0.7.23
 refactor(google): improve message handling and type safety
 
