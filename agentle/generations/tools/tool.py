@@ -142,6 +142,11 @@ class Tool[T_Output = Any](BaseModel):
         ],
     )
 
+    ignore_errors: bool = Field(
+        default=False,
+        description="If True, errors in the tool execution will be ignored and the agent will continue running.",
+    )
+
     # change to private
     _before_call: Callable[..., Any] | Callable[..., Awaitable[Any]] | None = (
         PrivateAttr(
@@ -280,9 +285,29 @@ class Tool[T_Output = Any](BaseModel):
             # Execute the main function
             _logger.debug(f"Executing main function for tool '{self.name}'")
             if inspect.iscoroutinefunction(self._callable_ref):
-                ret: T_Output = await self._callable_ref(**kwargs)  # type: ignore
+                try:
+                    ret: T_Output = await self._callable_ref(**kwargs)  # type: ignore
+                except Exception as e:
+                    if self.ignore_errors:
+                        _logger.error(
+                            f"Error executing tool '{self.name}': {str(e)}",
+                            exc_info=True,
+                        )
+                        return f"Error while executing tool {self.name}: {str(e)}"  # type: ignore
+                    else:
+                        raise
             else:
-                ret: T_Output = self._callable_ref(**kwargs)  # type: ignore
+                try:
+                    ret: T_Output = self._callable_ref(**kwargs)  # type: ignore
+                except Exception as e:
+                    if self.ignore_errors:
+                        _logger.error(
+                            f"Error executing tool '{self.name}': {str(e)}",
+                            exc_info=True,
+                        )
+                        return f"Error while executing tool {self.name}: {str(e)}"  # type: ignore
+                    else:
+                        raise
 
             _logger.info(f"Tool '{self.name}' executed successfully")
 
@@ -310,7 +335,7 @@ class Tool[T_Output = Any](BaseModel):
 
     @classmethod
     def from_mcp_tool(
-        cls, mcp_tool: MCPTool, server: MCPServerProtocol
+        cls, mcp_tool: MCPTool, server: MCPServerProtocol, ignore_errors: bool = False
     ) -> Tool[T_Output]:
         """
         Creates a Tool instance from an MCP Tool.
@@ -354,6 +379,7 @@ class Tool[T_Output = Any](BaseModel):
                 name=mcp_tool.name,
                 description=mcp_tool.description,
                 parameters=mcp_tool.inputSchema,
+                ignore_errors=ignore_errors,
             )
             tool._server = server
 
@@ -429,6 +455,7 @@ class Tool[T_Output = Any](BaseModel):
         after_call: Callable[..., T_Output]
         | Callable[..., Awaitable[T_Output]]
         | None = None,
+        ignore_errors: bool = False,
     ) -> Tool[T_Output]:
         """
         Creates a Tool instance from a callable function.
@@ -518,6 +545,7 @@ class Tool[T_Output = Any](BaseModel):
                 name=_name,
                 description=_description,
                 parameters=parameters,
+                ignore_errors=ignore_errors,
             )
 
             # Definir o atributo privado após a criação da instância
