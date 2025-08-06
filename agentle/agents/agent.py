@@ -1312,50 +1312,46 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                         last_user_message_index = i
                         break
 
-                if last_user_message_index >= 0:
-                    original_user_message = message_history[last_user_message_index]
-                    # Clone the user message to avoid modifying the original
-                    cloned_user_message = UserMessage(
-                        parts=list(original_user_message.parts)
+                original_user_message = message_history[last_user_message_index]
+                cloned_user_message = UserMessage(
+                    parts=list(original_user_message.parts)
+                )
+
+                # Find the last assistant message and clone it
+                last_assistant_message_index = -1
+                for i in range(len(message_history) - 1, -1, -1):
+                    if isinstance(message_history[i], AssistantMessage):
+                        last_assistant_message_index = i
+                        break
+
+                cloned_assistant_message = AssistantMessage(
+                    parts=list(message_history[last_assistant_message_index].parts)
+                )
+
+                # Add tool execution results as proper parts
+                for suggestion, result in called_tools.values():
+                    tool_execution_result = ToolExecutionResult(
+                        suggestion=suggestion,
+                        result=result,
+                        execution_time_ms=None,  # Could be tracked if needed
+                        success=True,  # Set based on actual execution status
+                        error_message=None,  # Set if there were execution errors
                     )
+                    cloned_user_message.insert_at_beggining(tool_execution_result)
 
-                    # Find the last assistant message and clone it
-                    last_assistant_message_index = -1
-                    for i in range(len(message_history) - 1, -1, -1):
-                        if isinstance(message_history[i], AssistantMessage):
-                            last_assistant_message_index = i
-                            break
+                    cloned_assistant_message.insert_at_end(suggestion)
 
-                    cloned_assistant_message = AssistantMessage(
-                        parts=list(message_history[last_assistant_message_index].parts)
+                # Replace the last user message with the modified one
+                message_history[last_user_message_index] = cloned_user_message
+
+                message_history[last_assistant_message_index] = cloned_assistant_message
+
+                _logger.bind_optional(
+                    lambda log: log.debug(
+                        "Added tool execution results to user message. "
+                        + f"Message now has {len(cloned_user_message.parts)} parts"
                     )
-
-                    # Add tool execution results as proper parts
-                    for suggestion, result in called_tools.values():
-                        tool_execution_result = ToolExecutionResult(
-                            suggestion=suggestion,
-                            result=result,
-                            execution_time_ms=None,  # Could be tracked if needed
-                            success=True,  # Set based on actual execution status
-                            error_message=None,  # Set if there were execution errors
-                        )
-                        cloned_user_message.insert_at_beggining(tool_execution_result)
-
-                        cloned_assistant_message.insert_at_end(suggestion)
-
-                    # Replace the last user message with the modified one
-                    message_history[last_user_message_index] = cloned_user_message
-
-                    message_history[last_assistant_message_index] = (
-                        cloned_assistant_message
-                    )
-
-                    _logger.bind_optional(
-                        lambda log: log.debug(
-                            "Added tool execution results to user message. "
-                            + f"Message now has {len(cloned_user_message.parts)} parts"
-                        )
-                    )
+                )
 
             _logger.bind_optional(
                 lambda log: log.debug("Generating tool call response")
