@@ -1182,6 +1182,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                     new_trace_params=trace_params
                 ),
             )
+            context.message_history.append(generation.message.to_assistant_message())
             generation_time_single = (time.perf_counter() - generation_start) * 1000
             generation_time_total += generation_time_single
 
@@ -1364,6 +1365,9 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 generation_config=self.agent_config.generation_config,
                 tools=all_tools,
             )
+            context.message_history.append(
+                tool_call_generation.message.to_assistant_message()
+            )
             generation_time_single = (time.perf_counter() - generation_start) * 1000
             generation_time_total += generation_time_single
 
@@ -1409,6 +1413,9 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                         messages=message_history,
                         response_schema=self.response_schema,
                         generation_config=self.agent_config.generation_config,
+                    )
+                    context.message_history.append(
+                        generation.message.to_assistant_message()
                     )
                     generation_time_single = (
                         time.perf_counter() - generation_start
