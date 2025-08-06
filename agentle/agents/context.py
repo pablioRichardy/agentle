@@ -43,6 +43,9 @@ from agentle.agents.execution_state import ExecutionState
 from agentle.agents.step import Step
 from agentle.generations.models.generation.usage import Usage
 from agentle.generations.models.message_parts.text import TextPart
+from agentle.generations.models.message_parts.tool_execution_suggestion import (
+    ToolExecutionSuggestion,
+)
 from agentle.generations.models.messages.assistant_message import AssistantMessage
 from agentle.generations.models.messages.developer_message import DeveloperMessage
 from agentle.generations.models.messages.user_message import UserMessage
@@ -151,6 +154,14 @@ class Context(BaseModel):
     @property
     def last_message(self) -> DeveloperMessage | AssistantMessage | UserMessage:
         return self.message_history[-1]
+
+    @property
+    def tool_execution_suggestions(self) -> Sequence[ToolExecutionSuggestion]:
+        suggestions: MutableSequence[ToolExecutionSuggestion] = []
+        for step in self.steps:
+            suggestions.extend(step.tool_execution_suggestions)
+
+        return suggestions
 
     @property
     def tool_execution_results(self) -> Sequence[ToolExecutionResult]:
