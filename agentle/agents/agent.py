@@ -1284,9 +1284,6 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         tool_call_patterns: dict[str, int] = {}  # pattern_hash -> count
         tool_budget: dict[str, int] = {}  # tool_name -> call_count
 
-        # FIX: Track all tool suggestions to ensure unique IDs
-        all_tool_suggestions: set[str] = set()
-
         while state.iteration < self.agent_config.maxIterations:
             current_iteration = state.iteration + 1
             iteration_count = current_iteration
@@ -1301,7 +1298,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             # Clone message history to avoid modifying the original context
             message_history = list(context.message_history)
 
-            # Add tool execution results directly to the last user message if any exist
+            # FIX: Build tool execution results properly
             if called_tools:
                 _logger.bind_optional(
                     lambda log: log.debug(
@@ -1309,81 +1306,88 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                     )
                 )
 
-                # Find the last user message and clone it
-                last_user_message_index = -1
-                for i in range(len(message_history) - 1, -1, -1):
-                    if isinstance(message_history[i], UserMessage):
-                        last_user_message_index = i
-                        break
-
-                original_user_message = message_history[last_user_message_index]
-                cloned_user_message = UserMessage(
-                    parts=list(original_user_message.parts)
-                )
-
-                # Find the last assistant message and clone it
-                last_assistant_message_index = -1
+                # Find the last assistant message that contains tool suggestions
+                last_assistant_with_tools_index = -1
+                assistant_tool_suggestions = []
+                
                 for i in range(len(message_history) - 1, -1, -1):
                     if isinstance(message_history[i], AssistantMessage):
-                        last_assistant_message_index = i
-                        break
+                        msg_tool_suggestions = [
+                            part for part in message_history[i].parts
+                            if isinstance(part, ToolExecutionSuggestion)
+                        ]
+                        if msg_tool_suggestions:
+                            last_assistant_with_tools_index = i
+                            assistant_tool_suggestions = msg_tool_suggestions
+                            break
 
-                # Add tool execution results as proper parts
-                for suggestion, result in called_tools.values():
-                    tool_execution_result = ToolExecutionResult(
-                        suggestion=suggestion,
-                        result=result,
-                        execution_time_ms=None,  # Could be tracked if needed
-                        success=True,  # Set based on actual execution status
-                        error_message=None,  # Set if there were execution errors
-                    )
-                    cloned_user_message.insert_at_beggining(tool_execution_result)
-
-                # Replace the last user message with the modified one
-                message_history[last_user_message_index] = cloned_user_message
-
-
-                _logger.bind_optional(
-                    lambda log: log.debug(
-                        "Added tool execution results to user message. "
-                        + f"Message now has {len(cloned_user_message.parts)} parts"
-                    )
-                )
-
-                # FIX: Validate message history before continuing
-                # Check that tool suggestions match tool results
-                assistant_suggestions = [
-                    part
-                    for part in message_history[last_assistant_message_index].parts
-                    if isinstance(part, ToolExecutionSuggestion)
-                ]
-                user_results = [
-                    part
-                    for part in cloned_user_message.parts
-                    if isinstance(part, ToolExecutionResult)
-                ]
-
-                if len(assistant_suggestions) != len(user_results):
-                    _logger.bind_optional(
-                        lambda log: log.error(
-                            "Mismatch: %d tool suggestions but %d tool results",
-                            len(assistant_suggestions),
-                            len(user_results),
-                        )
-                    )
-                    # Log the actual suggestions and results for debugging
-                    for s in assistant_suggestions:
+                # Only proceed if we found an assistant message with tool suggestions
+                if last_assistant_with_tools_index >= 0 and assistant_tool_suggestions:
+                    # Find or create the next user message after this assistant message
+                    next_user_message_index = -1
+                    for i in range(last_assistant_with_tools_index + 1, len(message_history)):
+                        if isinstance(message_history[i], UserMessage):
+                            next_user_message_index = i
+                            break
+                    
+                    if next_user_message_index >= 0:
+                        # Clone the existing user message
+                        original_user_message = message_history[next_user_message_index]
+                        
+                        # Check if this user message already has tool results
+                        existing_results = [
+                            part for part in original_user_message.parts
+                            if isinstance(part, ToolExecutionResult)
+                        ]
+                        
+                        # Only add results if they're not already there
+                        if not existing_results:
+                            cloned_user_message = UserMessage(
+                                parts=list(original_user_message.parts)
+                            )
+                            
+                            # Add tool execution results for each suggestion
+                            for suggestion in assistant_tool_suggestions:
+                                if suggestion.id in called_tools:
+                                    _, result = called_tools[suggestion.id]
+                                    tool_execution_result = ToolExecutionResult(
+                                        suggestion=suggestion,
+                                        result=result,
+                                        execution_time_ms=None,
+                                        success=True,
+                                        error_message=None,
+                                    )
+                                    cloned_user_message.insert_at_beggining(tool_execution_result)
+                            
+                            # Replace the user message with the modified one
+                            message_history[next_user_message_index] = cloned_user_message
+                    else:
+                        # No user message after assistant message with tools
+                        # This shouldn't happen in normal flow, but let's handle it
                         _logger.bind_optional(
-                            lambda log: log.debug(
-                                "Suggestion ID: %s, Tool: %s", s.id, s.tool_name
+                            lambda log: log.warning(
+                                "No user message found after assistant message with tool suggestions"
                             )
                         )
-                    for r in user_results:
-                        _logger.bind_optional(
-                            lambda log: log.debug(
-                                "Result for suggestion ID: %s", r.suggestion.id
-                            )
-                        )
+                        
+                        # Create a new user message with just the tool results
+                        tool_results_parts: list[ToolExecutionResult] = []
+                        for suggestion in assistant_tool_suggestions:
+                            if suggestion.id in called_tools:
+                                _, result = called_tools[suggestion.id]
+                                tool_execution_result = ToolExecutionResult(
+                                    suggestion=suggestion,
+                                    result=result,
+                                    execution_time_ms=None,
+                                    success=True,
+                                    error_message=None,
+                                )
+                                tool_results_parts.append(tool_execution_result)
+                        
+                        if tool_results_parts:
+                            # Add a new user message with the results
+                            new_user_message = UserMessage(parts=tool_results_parts)
+                            message_history.append(new_user_message)
 
             _logger.bind_optional(
                 lambda log: log.debug("Generating tool call response")
@@ -1396,26 +1400,11 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 generation_config=self.agent_config.generation_config,
                 tools=all_tools,
             )
-
-            # FIX: Validate that tool suggestions have unique IDs
-            generated_suggestions = tool_call_generation.tool_calls
-            for suggestion in generated_suggestions:
-                if suggestion.id in all_tool_suggestions:
-                    _logger.bind_optional(
-                        lambda log: log.warning(
-                            "Duplicate tool suggestion ID detected: %s. Creating new ID.",
-                            suggestion.id,
-                        )
-                    )
-                    # Create a new unique ID for the duplicate
-                    import uuid
-
-                    suggestion.id = str(uuid.uuid4())
-                all_tool_suggestions.add(suggestion.id)
-
-            context.message_history.append(
-                tool_call_generation.message.to_assistant_message()
-            )
+            
+            # Store the assistant message WITH tool suggestions
+            assistant_message_with_tools = tool_call_generation.message.to_assistant_message()
+            context.message_history.append(assistant_message_with_tools)
+            
             generation_time_single = (time.perf_counter() - generation_start) * 1000
             generation_time_total += generation_time_single
 
@@ -1629,6 +1618,9 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 )
             )
 
+            # Clear called_tools for this iteration to ensure fresh results
+            called_tools.clear()
+
             # Create a step to track this iteration's tool executions
             step_start_time = time.perf_counter()
             step = Step(
@@ -1738,10 +1730,9 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
 
                 _logger.bind_optional(
                     lambda log: log.debug(
-                        "Executing tool: %s with args: %s (ID: %s)",
+                        "Executing tool: %s with args: %s",
                         tool_execution_suggestion.tool_name,
                         tool_execution_suggestion.args,
-                        tool_execution_suggestion.id,
                     )
                 )
 
@@ -1991,6 +1982,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         context.metadata["execution_summary_on_failure"] = execution_summary
 
         raise MaxToolCallsExceededError(enhanced_error_message)
+
 
     def to_api(self, *extra_routes: type[Controller]) -> Application:
         from agentle.agents.asgi.blacksheep.agent_to_blacksheep_application_adapter import (
