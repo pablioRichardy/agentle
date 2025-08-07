@@ -425,6 +425,16 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
     ) -> None:
         self.endpoints = endpoints or self.endpoints
 
+    def change_instructions(
+        self,
+        instructions: str
+        | Prompt
+        | Callable[[], str]
+        | MutableSequence[str]
+        | None = None,
+    ) -> None:
+        self.instructions = instructions or self.instructions
+
     def append_instructions(
         self, instructions: str | Sequence[str] | None = None
     ) -> None:
