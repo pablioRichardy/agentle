@@ -1310,11 +1310,11 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         }
 
         state = RunState[T_Schema].init_state()
-        
+
         # CRITICAL: Track ALL tool suggestions and results across ALL iterations
         all_tool_suggestions: MutableSequence[ToolExecutionSuggestion] = []
         all_tool_results: dict[str, tuple[ToolExecutionSuggestion, Any]] = {}
-        
+
         # Initialize tracking systems before the while loop
         tool_call_patterns: dict[str, int] = {}  # pattern_hash -> count
         tool_budget: dict[str, int] = {}  # tool_name -> call_count
@@ -1332,65 +1332,67 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
 
             # Build message history for this iteration
             message_history = list(context.message_history)
-            
+
             # If we have tool results from ANY previous iterations, we need to add them
             if all_tool_results:
                 _logger.bind_optional(
                     lambda log: log.debug(
-                        "Processing %d total tool results across all iterations", 
-                        len(all_tool_results)
+                        "Processing %d total tool results across all iterations",
+                        len(all_tool_results),
                     )
                 )
-                
+
                 # Find the last assistant message with tool suggestions
                 last_assistant_index = -1
                 for i in range(len(message_history) - 1, -1, -1):
                     if isinstance(message_history[i], AssistantMessage):
                         last_assistant_index = i
                         break
-                
+
                 if last_assistant_index >= 0:
                     # Clone the assistant message and ensure it has ALL tool suggestions
                     original_assistant = message_history[last_assistant_index]
                     cloned_assistant = AssistantMessage(
                         parts=list(original_assistant.parts)
                     )
-                    
+
                     # Add any missing tool suggestions to the assistant message
                     existing_suggestion_ids = {
-                        part.id for part in cloned_assistant.parts
+                        part.id
+                        for part in cloned_assistant.parts
                         if isinstance(part, ToolExecutionSuggestion)
                     }
-                    
+
                     for suggestion in all_tool_suggestions:
                         if suggestion.id not in existing_suggestion_ids:
                             cloned_assistant.parts.append(suggestion)
-                    
+
                     message_history[last_assistant_index] = cloned_assistant
-                    
+
                     # Now find or create the user message after the assistant message
                     next_user_index = -1
                     for i in range(last_assistant_index + 1, len(message_history)):
                         if isinstance(message_history[i], UserMessage):
                             next_user_index = i
                             break
-                    
+
                     if next_user_index == -1:
                         # Create a new user message
                         new_user_message = UserMessage(parts=[])
                         message_history.append(new_user_message)
                         next_user_index = len(message_history) - 1
-                    
+
                     # Clone the user message and add ALL tool results
                     original_user = message_history[next_user_index]
                     cloned_user = UserMessage(parts=list(original_user.parts))
-                    
+
                     # Remove any existing tool results to avoid duplicates
                     cloned_user.parts = [
-                        part for part in cloned_user.parts
+                        part
+                        for part in cloned_user.parts
                         if not isinstance(part, ToolExecutionResult)
                     ]
-                    
+
                     # Add ALL tool results that correspond to suggestions in the assistant message
                     for suggestion in cloned_assistant.parts:
                         if isinstance(suggestion, ToolExecutionSuggestion):
@@ -1404,7 +1406,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                                     error_message=None,
                                 )
                                 cloned_user.parts.insert(0, tool_execution_result)
-                    
+
                     message_history[next_user_index] = cloned_user
 
             _logger.bind_optional(
@@ -1418,12 +1420,12 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 generation_config=self.agent_config.generation_config,
                 tools=all_tools,
             )
-            
+
             # Add this generation to context
             context.message_history.append(
                 tool_call_generation.message.to_assistant_message()
             )
-            
+
             generation_time_single = (time.perf_counter() - generation_start) * 1000
             generation_time_total += generation_time_single
 
@@ -1445,7 +1447,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                         "Agent didn't call any tool, generating final response"
                     )
                 )
-                
+
                 # Create a step for the final generation (no tools called)
                 final_step_start_time = time.perf_counter()
                 final_step = Step(
@@ -1471,11 +1473,11 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                         response_schema=self.response_schema,
                         generation_config=self.agent_config.generation_config,
                     )
-                    
+
                     # CRITICAL: Append ALL tool calls to the final generation
                     if all_tool_suggestions:
                         generation.append_tool_calls(all_tool_suggestions)
-                    
+
                     context.message_history.append(
                         generation.message.to_assistant_message()
                     )
@@ -1646,7 +1648,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                     "Processing %d tool calls", len(tool_call_generation.tool_calls)
                 )
             )
-            
+
             # Add these tool suggestions to our tracking
             for suggestion in tool_call_generation.tool_calls:
                 all_tool_suggestions.append(suggestion)
