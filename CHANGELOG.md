@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.34
+feat(api): add json schema support for endpoint parameters
+
+implement from_json_schema method to create EndpointParameter from JSON schema
+add _convert_json_schema helper to handle schema conversion
+support object, array and primitive types with $ref resolution
+
 ## v0.7.33
 feat(context): add replace_message_history method to Context class
 
