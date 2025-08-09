@@ -11,6 +11,13 @@ Add comprehensive type parser for complex Python type annotations and improve JS
 
 chore(examples): simplify open_memory.py by removing unused imports and server setup
 
+feat(agent): improve serialization and add endpoint support
+
+- Replace async_lru with aiocache for better caching
+- Add endpoint configuration support in Agent class
+- Refactor serialization to use versioned dictionary format (experimental || WIP)
+- Update dependencies to include aiocache
+
 ## v0.7.32
 
 feat(agent): improve tool call tracking and message history handling
