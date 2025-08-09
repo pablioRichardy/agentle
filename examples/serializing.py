@@ -1,6 +1,5 @@
 import pprint
 from typing import Any
-from uuid import uuid4
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
@@ -10,6 +9,10 @@ from agentle.agents.a2a.models.authentication import Authentication
 from agentle.agents.a2a.models.capabilities import Capabilities
 from agentle.agents.agent import Agent
 from agentle.agents.agent_config import AgentConfig
+from agentle.agents.apis.endpoint import Endpoint
+from agentle.agents.apis.http_method import HTTPMethod
+from agentle.agents.apis.parameter_location import ParameterLocation
+from agentle.agents.apis.params.integer_param import integer_param
 from agentle.agents.conversations.local_conversation_store import LocalConversationStore
 from agentle.agents.knowledge.static_knowledge import StaticKnowledge
 from agentle.agents.suspension_manager import InMemorySuspensionStore, SuspensionManager
@@ -38,6 +41,7 @@ from agentle.vector_stores.qdrant_vector_store import QdrantVectorStore
 
 load_dotenv()
 
+
 class ExampleResponse(BaseModel):
     response: str | None = Field(default=None)
 
@@ -48,7 +52,7 @@ async def call_me(param: str | float | None = None) -> ExampleResponse:
 
 
 agent = Agent(
-    uid=str(uuid4()),
+    uid="123",
     name="ExampleAgent",
     description="Example agent",
     url="example url",
@@ -108,9 +112,47 @@ agent = Agent(
             embedding_provider=GoogleEmbeddingProvider(),
         ),
     ],
+    endpoints=[
+        Endpoint(
+            name="get_cat_fact",
+            description="Get a random cat fact",
+            call_condition="when user asks about cats, cat facts, or wants cat trivia",
+            url="https://catfact.ninja/fact",
+            method=HTTPMethod.GET,
+            parameters=[
+                integer_param(
+                    name="max_length",
+                    description="Maximum length of the cat fact",
+                    required=False,
+                    minimum=1,
+                    maximum=1000,
+                    location=ParameterLocation.QUERY,
+                )
+            ],
+        ),
+        Endpoint(
+            name="get_cat_breeds",
+            description="Get information about cat breeds",
+            call_condition="when user asks about cat breeds or types of cats",
+            url="https://catfact.ninja/breeds",
+            method=HTTPMethod.GET,
+            parameters=[
+                integer_param(
+                    name="limit",
+                    description="Number of breeds to return",
+                    required=False,
+                    minimum=1,
+                    maximum=100,
+                    default=10,
+                    location=ParameterLocation.QUERY,
+                )
+            ],
+        ),
+    ],
 )
+
 
 encoded: str = agent.serialize()
 print(len(encoded))
 decoded_agent: Agent[Any] = Agent.deserialize(encoded)
-pprint.pprint(agent)
+pprint.pprint(decoded_agent)

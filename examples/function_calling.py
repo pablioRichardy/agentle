@@ -5,10 +5,14 @@ This example demonstrates how to create an agent that can call functions/tools
 to perform tasks beyond simple text generation.
 """
 
+from dotenv import load_dotenv
+
 from agentle.agents.agent import Agent
 from agentle.generations.providers.google.google_generation_provider import (
     GoogleGenerationProvider,
 )
+
+load_dotenv()
 
 
 # Define some simple functions that our agent can use

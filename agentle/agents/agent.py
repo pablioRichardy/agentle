@@ -52,7 +52,7 @@ from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Literal, cast, override
 
 import dill
-from async_lru import alru_cache
+from aiocache import cached
 from rsb.containers.maybe import Maybe
 from rsb.coroutines.run_sync import run_sync
 from rsb.models.base_model import BaseModel
@@ -543,21 +543,54 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         Returns:
             str: The serialized agent instance.
         """
-        pickle_bytes = dill.dumps(self)
+        encoded: Mapping[str, Any] = {
+            "version": "0.0.1",
+            "uid": self.uid,
+            "name": self.name,
+            "instructions": self.instructions,
+            "endpoints": self.endpoints,
+            "apis": self.apis,
+            # "tools": self.tools,
+        }
+
+        # pickle_bytes = dill.dumps(self)
+        pickle_bytes = dill.dumps(encoded)
 
         # Encode to base64 and then decode to string
         base64_bytes = base64.b64encode(pickle_bytes)
-        return base64_bytes.decode('utf-8')
+        return base64_bytes.decode("utf-8")
 
     @classmethod
     def deserialize(cls, encoded: str) -> Agent[Any]:
-        base64_bytes = encoded.encode('utf-8')
+        base64_bytes = encoded.encode("utf-8")
         pickle_bytes = base64.b64decode(base64_bytes)
-        
-        # Deserialize with dill
-        return dill.loads(pickle_bytes)
 
-    @alru_cache(maxsize=128, typed=True)
+        # Deserialize with dill
+        obj = dill.loads(pickle_bytes)
+        if isinstance(obj, dict):
+            version = obj.get("version")
+            if version is None:
+                raise ValueError("Version not found")
+
+            obj = cast(dict[str, Any], obj)
+
+            match version:
+                case "0.0.1":
+                    return Agent(
+                        name=obj.get("name") or "Agent",
+                        uid=str(obj.get("uid")) or str(uuid.uuid4()),
+                        instructions=obj.get("instructions")
+                        or "You are a helpful assistant.",
+                        endpoints=obj.get("endpoints") or [],
+                        apis=obj.get("apis") or [],
+                        tools=obj.get("tools") or [],
+                    )
+                case _:
+                    raise NotImplementedError("Not implemented yet.")
+
+        raise ValueError("not supported yet.")
+
+    @cached(ttl=None)
     async def _all_tools(self) -> Sequence[Tool[Any]]:
         # Reconstruct the tool execution environment
         mcp_tools: Sequence[tuple[MCPServerProtocol, MCPTool]] = []
@@ -1333,21 +1366,23 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 performance_metrics=performance_metrics,
             )
 
-        # Agent has tools. We must iterate until generate the final answer.
+        # # Agent has tools. We must iterate until generate the final answer.
 
-        all_tools: MutableSequence[Tool[Any]] = [
-            Tool.from_mcp_tool(mcp_tool=tool, server=server)
-            for server, tool in mcp_tools
-        ] + [
-            Tool.from_callable(tool)
-            if callable(tool) and not isinstance(tool, Tool)
-            else tool
-            for tool in self.tools
-        ]
+        # all_tools: MutableSequence[Tool[Any]] = [
+        #     Tool.from_mcp_tool(mcp_tool=tool, server=server)
+        #     for server, tool in mcp_tools
+        # ] + [
+        #     Tool.from_callable(tool)
+        #     if callable(tool) and not isinstance(tool, Tool)
+        #     else tool
+        #     for tool in self.tools
+        # ]
 
-        _logger.bind_optional(
-            lambda log: log.debug("Using %d tools in total", len(all_tools))
-        )
+        # _logger.bind_optional(
+        #     lambda log: log.debug("Using %d tools in total", len(all_tools))
+        # )
+
+        all_tools: Sequence[Tool] = cast(Sequence[Tool], await self._all_tools())
 
         available_tools: MutableMapping[str, Tool[Any]] = {
             tool.name: tool for tool in all_tools
@@ -2324,7 +2359,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             )
         )
 
-        all_tools = await self._all_tools()
+        all_tools: Sequence[Tool] = cast(Sequence[Tool], await self._all_tools())
 
         available_tools: MutableMapping[str, Tool[Any]] = {
             tool.name: tool for tool in all_tools
