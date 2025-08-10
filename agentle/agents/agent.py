@@ -106,7 +106,7 @@ from agentle.generations.providers.google.google_generation_provider import (
 from agentle.generations.providers.types.model_kind import ModelKind
 from agentle.generations.tools.tool import Tool
 
-# from agentle.generations.tracing.langfuse import LangfuseObservabilityClient
+
 from agentle.generations.tools.tool_execution_result import ToolExecutionResult
 from agentle.mcp.servers.mcp_server_protocol import MCPServerProtocol
 from agentle.parsing.cache.document_cache_store import DocumentCacheStore

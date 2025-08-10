@@ -602,17 +602,17 @@ app = AgentToBlackSheepApplicationAdapter().adapt(agent_with_hitl)
 Monitor every aspect of your agents in production:
 
 ```python
-from agentle.generations.tracing.langfuse import LangfuseObservabilityClient
+from agentle.generations.tracing.langfuse_otel_client import LangfuseOtelClient
 from agentle.agents.agent import Agent
 from agentle.generations.providers.google.google_generation_provider import GoogleGenerationProvider
 
 # Create a tracing client
-tracing_client = LangfuseObservabilityClient()
+tracing_client = LangfuseOtelClient()
 
 # Create an agent with tracing enabled
 agent = Agent(
     name="Traceable Agent",
-    generation_provider=GoogleGenerationProvider(tracing_client=tracing_client),
+    generation_provider=GoogleGenerationProvider(otel_clients=tracing_client),
     model="gemini-2.5-flash",
     instructions="You are a helpful assistant.",
     # Tracing is automatically enabled
