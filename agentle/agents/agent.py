@@ -37,6 +37,7 @@ import time
 import uuid
 from collections.abc import (
     AsyncGenerator,
+    AsyncIterator,
     Awaitable,
     Callable,
     Generator,
@@ -49,7 +50,7 @@ from contextlib import asynccontextmanager, contextmanager
 from io import BytesIO, StringIO
 from pathlib import Path
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Literal, cast, override
+from typing import TYPE_CHECKING, Any, Literal, cast, overload, override
 
 import dill
 from aiocache import cached
@@ -970,7 +971,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         trace_params: TraceParams | None = None,
         chat_id: str | None = None,
         stream: bool = False,
-    ) -> AgentRunOutput[T_Schema]:
+    ) -> AgentRunOutput[T_Schema] | AsyncIterator[AgentRunOutput[T_Schema]]:
         """
         Runs the agent synchronously with the provided input.
 
@@ -1013,6 +1014,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             stream=stream,
         )
 
+    @overload
     async def run_async(
         self,
         input: AgentInput | Any,
@@ -1020,7 +1022,26 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         trace_params: TraceParams | None = None,
         chat_id: str | None = None,
         stream: bool = False,
-    ) -> AgentRunOutput[T_Schema]:
+    ) -> AgentRunOutput[T_Schema]: ...
+
+    @overload
+    async def run_async(
+        self,
+        input: AgentInput | Any,
+        *,
+        trace_params: TraceParams | None = None,
+        chat_id: str | None = None,
+        stream: Literal[True],
+    ) -> AsyncIterator[AgentRunOutput[T_Schema]]: ...
+
+    async def run_async(
+        self,
+        input: AgentInput | Any,
+        *,
+        trace_params: TraceParams | None = None,
+        chat_id: str | None = None,
+        stream: bool = False,
+    ) -> AgentRunOutput[T_Schema] | AsyncIterator[AgentRunOutput[T_Schema]]:
         """
         Runs the agent asynchronously with the provided input and collects comprehensive performance metrics.
 
@@ -3379,7 +3400,9 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
 
         return "\n".join(analysis_lines)
 
-    def __call__(self, input: AgentInput | Any) -> AgentRunOutput[T_Schema]:
+    def __call__(
+        self, input: AgentInput | Any
+    ) -> AgentRunOutput[T_Schema] | AsyncIterator[AgentRunOutput[T_Schema]]:
         return self.run(input)
 
     def __add__(self, other: Agent[Any]) -> AgentTeam:
