@@ -912,49 +912,6 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             for server in self.mcp_servers:
                 await server.cleanup_async()
 
-    def run(
-        self,
-        input: AgentInput | Any,
-        *,
-        timeout: float | None = None,
-        trace_params: TraceParams | None = None,
-        chat_id: str | None = None,
-    ) -> AgentRunOutput[T_Schema]:
-        """
-        Runs the agent synchronously with the provided input.
-
-        This method is a synchronous wrapper for run_async, allowing
-        easy use in synchronous contexts.
-
-        Args:
-            input: The input for the agent, which can be of various types.
-            timeout: Optional time limit in seconds for execution.
-            trace_params: Optional trace parameters for observability purposes.
-
-        Returns:
-            AgentRunOutput[T_Schema]: The result of the agent execution.
-
-        Example:
-            ```python
-            # Input as string
-            result = agent.run("What is the weather in London?")
-
-            # Input as UserMessage object
-            from agentle.generations.models.messages.user_message import UserMessage
-            from agentle.generations.models.message_parts.text import TextPart
-
-            message = UserMessage(parts=[TextPart(text="What is the weather in London?")])
-            result = agent.run(message)
-            ```
-        """
-        return run_sync(
-            self.run_async,
-            timeout=timeout,
-            input=input,
-            trace_params=trace_params,
-            chat_id=chat_id,
-        )
-
     async def resume_async(
         self, resumption_token: str, approval_data: dict[str, Any] | None = None
     ) -> AgentRunOutput[T_Schema]:
@@ -1005,12 +962,64 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             approval_data=approval_data,
         )
 
+    def run(
+        self,
+        input: AgentInput | Any,
+        *,
+        timeout: float | None = None,
+        trace_params: TraceParams | None = None,
+        chat_id: str | None = None,
+        stream: bool = False,
+    ) -> AgentRunOutput[T_Schema]:
+        """
+        Runs the agent synchronously with the provided input.
+
+        This method is a synchronous wrapper for run_async, allowing
+        easy use in synchronous contexts.
+
+        Args:
+            input: The input for the agent, which can be of various types.
+            timeout: Optional time limit in seconds for execution.
+            trace_params: Optional trace parameters for observability purposes.
+
+        Returns:
+            AgentRunOutput[T_Schema]: The result of the agent execution.
+
+        Example:
+            ```python
+            # Input as string
+            result = agent.run("What is the weather in London?")
+
+            # Input as UserMessage object
+            from agentle.generations.models.messages.user_message import UserMessage
+            from agentle.generations.models.message_parts.text import TextPart
+
+            message = UserMessage(parts=[TextPart(text="What is the weather in London?")])
+            result = agent.run(message)
+            ```
+        """
+        if stream:
+            raise ValueError(
+                "Streaming is not supported in the synchronous version "
+                + "of the run function. Use the asynchronous version instead."
+            )
+
+        return run_sync(
+            self.run_async,
+            timeout=timeout,
+            input=input,
+            trace_params=trace_params,
+            chat_id=chat_id,
+            stream=stream,
+        )
+
     async def run_async(
         self,
         input: AgentInput | Any,
         *,
         trace_params: TraceParams | None = None,
         chat_id: str | None = None,
+        stream: bool = False,
     ) -> AgentRunOutput[T_Schema]:
         """
         Runs the agent asynchronously with the provided input and collects comprehensive performance metrics.
