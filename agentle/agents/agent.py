@@ -1488,7 +1488,9 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                             performance_metrics=performance_metrics,
                         )
 
-                return _stream_direct_response()
+                # Create and return the async generator
+                stream_generator = _stream_direct_response()
+                return stream_generator
 
             # Non-streaming path (existing code)
             step_start_time = time.perf_counter()
