@@ -1,34 +1,15 @@
 """
-Module for representing and managing agent execution results.
+Updated AgentRunOutput class with enhanced streaming support.
 
-This module provides the AgentRunOutput class which encapsulates all data
-produced during an agent's execution cycle. It represents both the final response
-and metadata about the execution process, including conversation steps and structured outputs.
-
-Example:
-```python
-from agentle.agents.agent import Agent
-from agentle.generations.providers.google.google_generation_provider import GoogleGenerationProvider
-
-# Create and run an agent
-agent = Agent(
-    generation_provider=GoogleGenerationProvider(),
-    model="gemini-2.5-flash",
-    instructions="You are a helpful assistant."
-)
-
-# The result is an AgentRunOutput object
-result = agent.run("What is the capital of France?")
-
-# Access different aspects of the result
-text_response = result.generation.text
-conversation_steps = result.steps
-structured_data = result.parsed  # If using a response_schema
-```
+Key additions:
+1. New properties for streaming state detection
+2. Better handling of partial vs complete states
+3. Streaming-specific convenience methods
 """
 
 from collections.abc import Sequence
 import logging
+from typing import Any
 
 from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
@@ -48,90 +29,65 @@ class AgentRunOutput[T_StructuredOutput](BaseModel):
     """
     Represents the complete result of an agent execution.
 
-    AgentRunOutput encapsulates all data produced when an agent is run, including
-    the primary generation response, conversation steps, and optionally
-    structured output data when a response schema is provided.
-
-    This class is generic over T_StructuredOutput, which represents the optional
-    structured data format that can be extracted from the agent's response when
-    a response schema is specified.
-
-    For suspended executions (e.g., waiting for human approval), the generation
-    field may be None and the context will contain the suspended state information.
+    Enhanced to support streaming scenarios where results are delivered incrementally.
+    In streaming mode, multiple AgentRunOutput instances are yielded, with the final
+    one containing complete information.
 
     Attributes:
-        generation (Generation[T_StructuredOutput] | None): The primary generation produced by the agent,
-            containing the response to the user's input. This includes text, potentially images,
-            and any other output format supported by the model. Will be None for suspended executions.
+        generation (Generation[T_StructuredOutput] | None): The primary generation produced by the agent.
+            In streaming mode, this contains incremental content until the final chunk.
 
-        context (Context): The complete conversation context at the end of execution,
-            including execution state, steps, and resumption data.
+        context (Context): The complete conversation context at the time of this output.
+            In streaming mode, this may be a snapshot for intermediate chunks.
 
         parsed (T_StructuredOutput | None): The structured data extracted from the agent's
-            response when a response schema was provided. This will be None if
-            no schema was specified or if execution is suspended.
+            response. Only available in the final chunk for streaming scenarios.
 
-        is_suspended (bool): Whether the execution is suspended and waiting for external input
-            (e.g., human approval). When True, the agent can be resumed later.
+        is_suspended (bool): Whether the execution is suspended and waiting for external input.
 
         suspension_reason (str | None): The reason why execution was suspended, if applicable.
 
         resumption_token (str | None): A token that can be used to resume suspended execution.
 
+        performance_metrics (PerformanceMetrics | None): Performance metrics for this execution.
+            In streaming mode, these are partial metrics until the final chunk.
+
+        is_streaming_chunk (bool): Whether this is an intermediate streaming chunk.
+
+        is_final_chunk (bool): Whether this is the final chunk in a streaming response.
+
     Example:
         ```python
-        # Basic usage to access the text response
-        result = agent.run("Tell me about Paris")
+        # Non-streaming usage (existing behavior)
+        result = await agent.run_async("Tell me about Paris")
+        print(result.text)
 
-        if result.is_suspended:
-            print(f"Execution suspended: {result.suspension_reason}")
-            print(f"Resume with token: {result.resumption_token}")
+        # Streaming usage (new behavior)
+        async for chunk in agent.run_async("Tell me about Paris", streaming=True):
+            print(chunk.text, end="", flush=True)
 
-            # Later, resume the execution
-            resumed_result = agent.resume(result.resumption_token, approval_data)
-        else:
-            response_text = result.generation.text
-            print(response_text)
-
-        # Examining conversation steps
-        for step in result.context.steps:
-            print(f"Step type: {step.step_type}")
-
-        # Working with structured output
-        from pydantic import BaseModel
-
-        class CityInfo(BaseModel):
-            name: str
-            country: str
-            population: int
-
-        structured_agent = Agent(
-            # ... other parameters ...
-            response_schema=CityInfo
-        )
-
-        result = structured_agent.run("Tell me about Paris")
-        if not result.is_suspended and result.parsed:
-            print(f"{result.parsed.name} is in {result.parsed.country}")
-            print(f"Population: {result.parsed.population}")
+            if chunk.is_final_chunk:
+                print(f"\nFinal tokens: {chunk.generation.usage.total_tokens}")
+                print(f"Total time: {chunk.performance_metrics.total_execution_time_ms}ms")
         ```
     """
 
     generation: Generation[T_StructuredOutput] | None = Field(default=None)
     """
     The generation produced by the agent.
-    Will be None for suspended executions.
+    In streaming mode, contains incremental content until the final chunk.
     """
 
     context: Context
     """
-    The complete conversation context at the end of execution.
+    The conversation context at the time of this output.
+    In streaming mode, may be a snapshot for intermediate chunks.
     """
 
     parsed: T_StructuredOutput
     """
-    Structured data extracted from the agent's response when a response schema was provided.
-    Will be None if no schema was specified or if execution is suspended.
+    Structured data extracted from the agent's response.
+    In streaming mode, only available in the final chunk.
     """
 
     is_suspended: bool = Field(default=False)
@@ -150,6 +106,22 @@ class AgentRunOutput[T_StructuredOutput](BaseModel):
     """
 
     performance_metrics: PerformanceMetrics | None = Field(default=None)
+    """
+    Performance metrics for this execution.
+    In streaming mode, these are partial metrics until the final chunk.
+    """
+
+    is_streaming_chunk: bool = Field(default=False)
+    """
+    Whether this is an intermediate chunk from a streaming response.
+    True for all chunks except the final one in streaming mode.
+    """
+
+    is_final_chunk: bool = Field(default=True)
+    """
+    Whether this is the final chunk in a streaming response.
+    False for intermediate chunks, True for the final chunk and non-streaming responses.
+    """
 
     @property
     def safe_generation(self) -> Generation[T_StructuredOutput]:
@@ -170,7 +142,7 @@ class AgentRunOutput[T_StructuredOutput](BaseModel):
     def text(self) -> str:
         """
         The text response from the agent.
-        Returns empty string if execution is suspended.
+        Returns empty string if execution is suspended or generation is None.
         """
         if self.generation is None:
             return ""
@@ -180,8 +152,22 @@ class AgentRunOutput[T_StructuredOutput](BaseModel):
     def is_completed(self) -> bool:
         """
         Whether the execution has completed successfully.
+        In streaming mode, only True for the final chunk.
         """
-        return not self.is_suspended and self.generation is not None
+        return (
+            not self.is_suspended
+            and self.generation is not None
+            and self.is_final_chunk
+            and self.context.execution_state.state == "completed"
+        )
+
+    @property
+    def is_streaming(self) -> bool:
+        """
+        Whether this output is part of a streaming response.
+        True if either is_streaming_chunk or not is_final_chunk.
+        """
+        return self.is_streaming_chunk or not self.is_final_chunk
 
     @property
     def can_resume(self) -> bool:
@@ -190,26 +176,100 @@ class AgentRunOutput[T_StructuredOutput](BaseModel):
         """
         return self.is_suspended and self.resumption_token is not None
 
+    @property
+    def has_partial_content(self) -> bool:
+        """
+        Whether this output contains partial content (streaming scenario).
+        """
+        return self.is_streaming and not self.is_final_chunk
+
+    @property
+    def chunk_tokens(self) -> int:
+        """
+        Number of tokens in this specific chunk.
+        For non-streaming, returns total tokens.
+        """
+        if self.generation is None:
+            return 0
+        return self.generation.usage.completion_tokens
+
+    @property
+    def total_tokens_so_far(self) -> int:
+        """
+        Total tokens processed up to this point in the execution.
+        Useful for tracking progress in streaming scenarios.
+        """
+        if self.performance_metrics is None:
+            return 0
+        return self.performance_metrics.total_tokens_processed
+
+    def get_streaming_progress(self) -> dict[str, Any]:
+        """
+        Get progress information for streaming scenarios.
+
+        Returns:
+            dict: Progress information including tokens, iterations, and timing.
+        """
+        if self.performance_metrics is None:
+            return {
+                "tokens_processed": 0,
+                "iterations_completed": 0,
+                "execution_time_ms": 0,
+                "is_final": self.is_final_chunk,
+                "has_tools": False,
+            }
+
+        return {
+            "tokens_processed": self.performance_metrics.total_tokens_processed,
+            "iterations_completed": self.performance_metrics.iteration_count,
+            "tool_calls_count": self.performance_metrics.tool_calls_count,
+            "execution_time_ms": self.performance_metrics.total_execution_time_ms,
+            "generation_time_ms": self.performance_metrics.generation_time_ms,
+            "tool_execution_time_ms": self.performance_metrics.tool_execution_time_ms,
+            "is_final": self.is_final_chunk,
+            "has_tools": self.performance_metrics.tool_calls_count > 0,
+            "cache_hit_rate": self.performance_metrics.cache_hit_rate,
+        }
+
     def pretty_formatted(self) -> str:
         """
         Returns a pretty formatted string representation of the AgentRunOutput.
-
-        This method provides a comprehensive view of the agent execution result,
-        including all attributes, properties, and execution state information.
-
-        Returns:
-            str: A formatted string containing all relevant information about the agent run output.
+        Enhanced with streaming-specific information.
         """
         lines: list[str] = []
         lines.append("=" * 80)
         lines.append("AGENT RUN OUTPUT")
+        if self.is_streaming:
+            chunk_type = "FINAL CHUNK" if self.is_final_chunk else "STREAMING CHUNK"
+            lines.append(f"({chunk_type})")
         lines.append("=" * 80)
 
         # Execution Status
         lines.append("\n📊 EXECUTION STATUS:")
         lines.append(f"   • Completed: {self.is_completed}")
         lines.append(f"   • Suspended: {self.is_suspended}")
+        lines.append(f"   • Streaming: {self.is_streaming}")
+        if self.is_streaming:
+            lines.append(f"   • Final Chunk: {self.is_final_chunk}")
+            lines.append(f"   • Has Partial Content: {self.has_partial_content}")
         lines.append(f"   • Can Resume: {self.can_resume}")
+
+        # Streaming Progress (if applicable)
+        if self.is_streaming:
+            lines.append("\n🔄 STREAMING PROGRESS:")
+            progress = self.get_streaming_progress()
+            lines.append(f"   • Tokens So Far: {progress['tokens_processed']}")
+            lines.append(f"   • Iterations: {progress['iterations_completed']}")
+            lines.append(f"   • Tool Calls: {progress['tool_calls_count']}")
+            lines.append(f"   • Execution Time: {progress['execution_time_ms']:.2f}ms")
+            if progress["has_tools"]:
+                lines.append(
+                    f"   • Generation Time: {progress['generation_time_ms']:.2f}ms"
+                )
+                lines.append(
+                    f"   • Tool Time: {progress['tool_execution_time_ms']:.2f}ms"
+                )
+            lines.append(f"   • Cache Hit Rate: {progress['cache_hit_rate']:.1f}%")
 
         # Suspension Information
         if self.is_suspended:
@@ -275,8 +335,20 @@ class AgentRunOutput[T_StructuredOutput](BaseModel):
             lines.append(f"   • Model: {self.generation.model}")
             lines.append(f"   • Choices: {len(self.generation.choices)}")
             lines.append(f"   • Text Length: {len(self.generation.text)} characters")
+
+            # Show streaming-specific text info
+            if self.is_streaming:
+                lines.append(f"   • Chunk Tokens: {self.chunk_tokens}")
+                if not self.is_final_chunk:
+                    lines.append("   • Text Preview (chunk):")
+                else:
+                    lines.append("   • Final Text:")
+            else:
+                lines.append("   • Text Preview:")
+
+            preview_text = self.generation.text[:100]
             lines.append(
-                f"   • Text Preview: {self.generation.text[:100]}{'...' if len(self.generation.text) > 100 else ''}"
+                f"     {preview_text}{'...' if len(self.generation.text) > 100 else ''}"
             )
 
             # Usage information from generation
@@ -293,9 +365,14 @@ class AgentRunOutput[T_StructuredOutput](BaseModel):
         if self.text:
             lines.append(f"   • Length: {len(self.text)} characters")
             lines.append(f"   • Word Count: {len(self.text.split())} words")
-            lines.append(
-                f"   • Content: {self.text[:200]}{'...' if len(self.text) > 200 else ''}"
-            )
+            if self.is_streaming and not self.is_final_chunk:
+                lines.append(
+                    f"   • Partial Content: {self.text[:200]}{'...' if len(self.text) > 200 else ''}"
+                )
+            else:
+                lines.append(
+                    f"   • Content: {self.text[:200]}{'...' if len(self.text) > 200 else ''}"
+                )
         else:
             lines.append("   • Content: (empty)")
 
@@ -308,7 +385,12 @@ class AgentRunOutput[T_StructuredOutput](BaseModel):
                 f"   • Content: {str(self.parsed)[:200]}{'...' if len(str(self.parsed)) > 200 else ''}"
             )
         else:
-            lines.append("   • Has Parsed Data: No")
+            status = (
+                "Not available (streaming)"
+                if self.is_streaming and not self.is_final_chunk
+                else "No"
+            )
+            lines.append(f"   • Has Parsed Data: {status}")
 
         # Enhanced Context Information
         lines.append("\n💬 CONTEXT:")
