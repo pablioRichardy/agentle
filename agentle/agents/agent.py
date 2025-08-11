@@ -1021,7 +1021,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         *,
         trace_params: TraceParams | None = None,
         chat_id: str | None = None,
-        stream: bool = False,
+        stream: Literal[False] = False,
     ) -> AgentRunOutput[T_Schema]: ...
 
     @overload
@@ -1045,6 +1045,8 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         """
         Runs the agent asynchronously with the provided input and collects comprehensive performance metrics.
 
+        Now supports streaming responses for real-time output generation.
+
         This main method processes user input, interacts with the
         generation provider, and optionally calls tools until reaching a final response.
         It now includes detailed performance monitoring to help identify optimization opportunities.
@@ -1056,15 +1058,29 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             input: The input for the agent, which can be of various types.
             trace_params: Optional trace parameters for observability purposes.
             chat_id: Optional chat ID for conversation persistence.
+            stream: Whether to stream the response. Requires provider to support streaming.
 
         Returns:
-            AgentRunOutput[T_Schema]: The result of the agent execution with performance metrics,
-                                    possibly with a structured response according to the defined schema.
+            AgentRunOutput[T_Schema] | AsyncIterator[AgentRunOutput[T_Schema]]:
+                The result of the agent execution with performance metrics,
+                possibly with a structured response according to the defined schema.
+                If streaming is enabled, returns an async iterator of partial results.
 
         Raises:
             MaxToolCallsExceededError: If the maximum number of tool calls is exceeded.
+            ValueError: If streaming is requested but the provider doesn't support it.
         """
         import time
+        from agentle.generations.providers.base.supports_streaming import (
+            SupportsStreaming,
+        )
+
+        # Check if streaming is supported when requested
+        if stream and not isinstance(self.generation_provider, SupportsStreaming):
+            raise ValueError(
+                f"Streaming is not supported by {type(self.generation_provider).__name__}. "
+                + "The provider must implement the SupportsStreaming interface."
+            )
 
         # Start overall timing
         execution_start_time = time.perf_counter()
@@ -1090,11 +1106,11 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         # Phase 1: Input Processing
         input_processing_start = time.perf_counter()
 
-        # Logging with proper type ignore
         _logger.bind_optional(
             lambda log: log.info(
-                "Starting agent run with input type: %s",
-                str(type(input)),  # type: ignore[reportGeneralTypeIssues, reportUnknownArgumentType]
+                "Starting agent run with input type: %s (streaming=%s)",
+                str(type(input).__name__),
+                stream,
             )
         )
         generation_provider: GenerationProvider = self.generation_provider
@@ -1245,7 +1261,6 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 )
                 # Add the current user message to the context
                 context.message_history.append(current_user_message)
-            # If no conversation history, context already has the current message, so we're good
 
         # Start execution tracking
         context.start_execution()
@@ -1285,19 +1300,206 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             lambda log: log.debug("Agent has tools: %s", agent_has_tools)
         )
 
+        # Handle non-tool agents (simpler case)
         if not agent_has_tools:
             _logger.bind_optional(
                 lambda log: log.debug("No tools available, generating direct response")
             )
 
-            # Create a step to track the direct generation
+            if stream and isinstance(generation_provider, SupportsStreaming):
+                # Streaming path for non-tool agents
+                _logger.bind_optional(
+                    lambda log: log.debug(
+                        "Using streaming generation for direct response"
+                    )
+                )
+
+                async def _stream_direct_response() -> AsyncIterator[
+                    AgentRunOutput[T_Schema]
+                ]:
+                    nonlocal generation_time_total, total_tokens_processed
+
+                    step_start_time = time.perf_counter()
+                    step = Step(
+                        step_type="generation",
+                        iteration=1,
+                        tool_execution_suggestions=[],
+                        generation_text="Generating streaming response...",
+                        token_usage=None,
+                    )
+
+                    generation_start = time.perf_counter()
+
+                    # Stream the generation
+                    chunk_count = 0
+                    final_generation: Generation[T_Schema] | None = None
+
+                    async for generation_chunk in cast(
+                        SupportsStreaming, generation_provider
+                    ).stream_async(
+                        model=self.resolved_model,
+                        messages=context.message_history,
+                        response_schema=self.response_schema,
+                        generation_config=self.agent_config.generation_config
+                        if trace_params is None
+                        else self.agent_config.generation_config.clone(
+                            new_trace_params=trace_params
+                        ),
+                    ):
+                        generation_chunk = cast(Generation[T_Schema], generation_chunk)
+                        chunk_count += 1
+                        generation_time_single = (
+                            time.perf_counter() - generation_start
+                        ) * 1000
+
+                        # Update metrics
+                        if generation_chunk.usage:
+                            total_tokens_processed = generation_chunk.usage.total_tokens
+
+                        # Create partial performance metrics
+                        partial_metrics = PerformanceMetrics(
+                            total_execution_time_ms=(
+                                time.perf_counter() - execution_start_time
+                            )
+                            * 1000,
+                            input_processing_time_ms=input_processing_time,
+                            static_knowledge_processing_time_ms=static_knowledge_time,
+                            mcp_tools_preparation_time_ms=mcp_tools_time,
+                            generation_time_ms=generation_time_single,
+                            tool_execution_time_ms=0.0,
+                            final_response_processing_time_ms=0.0,
+                            iteration_count=1,
+                            tool_calls_count=0,
+                            total_tokens_processed=total_tokens_processed,
+                            cache_hit_rate=(
+                                cache_hits / (cache_hits + cache_misses) * 100
+                            )
+                            if (cache_hits + cache_misses) > 0
+                            else 0.0,
+                            step_metrics=[],
+                            average_generation_time_ms=generation_time_single,
+                            average_tool_execution_time_ms=0.0,
+                            longest_step_duration_ms=generation_time_single,
+                            shortest_step_duration_ms=generation_time_single,
+                        )
+
+                        # Yield intermediate chunk
+                        yield AgentRunOutput(
+                            generation=generation_chunk,
+                            context=context,
+                            parsed=generation_chunk.parsed
+                            if hasattr(generation_chunk, "parsed")
+                            else cast(T_Schema, None),
+                            is_streaming_chunk=True,
+                            is_final_chunk=False,
+                            performance_metrics=partial_metrics,
+                        )
+
+                        final_generation = generation_chunk
+
+                    # After streaming completes
+                    if final_generation:
+                        context.message_history.append(
+                            final_generation.message.to_assistant_message()
+                        )
+                        generation_time_total = (
+                            time.perf_counter() - generation_start
+                        ) * 1000
+
+                        _logger.bind_optional(
+                            lambda log: log.debug(
+                                "Streamed response with %d chunks, %d tokens",
+                                chunk_count,
+                                final_generation.usage.total_tokens,
+                            )
+                        )
+
+                        # Update step with final results
+                        step.generation_text = final_generation.text
+                        step.token_usage = final_generation.usage
+                        step_duration = (time.perf_counter() - step_start_time) * 1000
+                        step.mark_completed(duration_ms=step_duration)
+
+                        # Track step metrics
+                        step_metrics.append(
+                            StepMetric(
+                                step_id=step.step_id,
+                                step_type="generation",
+                                duration_ms=step_duration,
+                                iteration=1,
+                                tool_calls_count=0,
+                                generation_tokens=final_generation.usage.total_tokens,
+                                cache_hits=0,
+                                cache_misses=0,
+                            )
+                        )
+
+                        # Add step to context
+                        context.add_step(step)
+                        context.update_token_usage(final_generation.usage)
+                        context.complete_execution()
+
+                        total_tokens_processed = final_generation.usage.total_tokens
+                        total_execution_time = (
+                            time.perf_counter() - execution_start_time
+                        ) * 1000
+
+                        # Create final performance metrics
+                        performance_metrics = PerformanceMetrics(
+                            total_execution_time_ms=total_execution_time,
+                            input_processing_time_ms=input_processing_time,
+                            static_knowledge_processing_time_ms=static_knowledge_time,
+                            mcp_tools_preparation_time_ms=mcp_tools_time,
+                            generation_time_ms=generation_time_total,
+                            tool_execution_time_ms=0.0,
+                            final_response_processing_time_ms=0.0,
+                            iteration_count=1,
+                            tool_calls_count=0,
+                            total_tokens_processed=total_tokens_processed,
+                            cache_hit_rate=(
+                                cache_hits / (cache_hits + cache_misses) * 100
+                            )
+                            if (cache_hits + cache_misses) > 0
+                            else 0.0,
+                            step_metrics=step_metrics,
+                            average_generation_time_ms=generation_time_total,
+                            average_tool_execution_time_ms=0.0,
+                            longest_step_duration_ms=step_duration,
+                            shortest_step_duration_ms=step_duration,
+                        )
+
+                        # Save to conversation store after successful execution
+                        if chat_id:
+                            assert self.conversation_store is not None
+                            await self.conversation_store.add_message_async(
+                                chat_id, current_user_message
+                            )
+                            await self.conversation_store.add_message_async(
+                                chat_id, final_generation.message.to_assistant_message()
+                            )
+
+                        # Yield final chunk
+                        yield AgentRunOutput(
+                            generation=final_generation,
+                            context=context,
+                            parsed=final_generation.parsed,
+                            is_streaming_chunk=False,
+                            is_final_chunk=True,
+                            performance_metrics=performance_metrics,
+                        )
+
+                # Create and return the async generator
+                stream_generator = _stream_direct_response()
+                return stream_generator
+
+            # Non-streaming path (existing code)
             step_start_time = time.perf_counter()
             step = Step(
                 step_type="generation",
                 iteration=1,
-                tool_execution_suggestions=[],  # No tools called
+                tool_execution_suggestions=[],
                 generation_text="Generating direct response...",
-                token_usage=None,  # Will be updated after generation
+                token_usage=None,
             )
 
             generation_start = time.perf_counter()
@@ -1324,9 +1526,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             # Update the step with the actual generation results
             step.generation_text = generation.text
             step.token_usage = generation.usage
-            step_duration = (
-                time.perf_counter() - step_start_time
-            ) * 1000  # Convert to milliseconds
+            step_duration = (time.perf_counter() - step_start_time) * 1000
             step.mark_completed(duration_ms=step_duration)
 
             # Track step metrics
@@ -1352,9 +1552,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
 
             total_tokens_processed = generation.usage.total_tokens
             total_execution_time = (time.perf_counter() - execution_start_time) * 1000
-            final_response_processing_time = (
-                0.0  # Minimal processing for direct response
-            )
+            final_response_processing_time = 0.0
 
             # Create performance metrics
             performance_metrics = PerformanceMetrics(
@@ -1381,7 +1579,6 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             # Save to conversation store after successful execution
             if chat_id:
                 assert self.conversation_store is not None
-                # Add the current user message and AI response to conversation store
                 await self.conversation_store.add_message_async(
                     chat_id, current_user_message
                 )
@@ -1396,22 +1593,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 performance_metrics=performance_metrics,
             )
 
-        # # Agent has tools. We must iterate until generate the final answer.
-
-        # all_tools: MutableSequence[Tool[Any]] = [
-        #     Tool.from_mcp_tool(mcp_tool=tool, server=server)
-        #     for server, tool in mcp_tools
-        # ] + [
-        #     Tool.from_callable(tool)
-        #     if callable(tool) and not isinstance(tool, Tool)
-        #     else tool
-        #     for tool in self.tools
-        # ]
-
-        # _logger.bind_optional(
-        #     lambda log: log.debug("Using %d tools in total", len(all_tools))
-        # )
-
+        # Agent has tools - handle streaming and non-streaming paths
         all_tools: Sequence[Tool] = cast(Sequence[Tool], await self._all_tools())
 
         available_tools: MutableMapping[str, Tool[Any]] = {
@@ -1425,9 +1607,916 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         all_tool_results: dict[str, tuple[ToolExecutionSuggestion, Any]] = {}
 
         # Initialize tracking systems before the while loop
-        tool_call_patterns: dict[str, int] = {}  # pattern_hash -> count
-        tool_budget: dict[str, int] = {}  # tool_name -> call_count
+        tool_call_patterns: dict[str, int] = {}
+        tool_budget: dict[str, int] = {}
 
+        # For streaming with tools, we need a different approach
+        if stream and isinstance(generation_provider, SupportsStreaming):
+            _logger.bind_optional(
+                lambda log: log.debug("Using streaming generation with tools")
+            )
+
+            async def _stream_with_tools() -> AsyncIterator[AgentRunOutput[T_Schema]]:
+                nonlocal \
+                    state, \
+                    all_tool_suggestions, \
+                    all_tool_results, \
+                    tool_call_patterns, \
+                    tool_budget
+                nonlocal \
+                    generation_time_total, \
+                    tool_execution_time_total, \
+                    iteration_count, \
+                    tool_calls_count, \
+                    total_tokens_processed
+
+                total_tokens_processed = total_tokens_processed
+
+                while state.iteration < self.agent_config.maxIterations:
+                    current_iteration = state.iteration + 1
+                    iteration_count = current_iteration
+
+                    _logger.bind_optional(
+                        lambda log: log.info(
+                            "Starting streaming iteration %d of %d",
+                            current_iteration,
+                            self.agent_config.maxIterations,
+                        )
+                    )
+
+                    # Build message history for this iteration
+                    message_history = list(context.message_history)
+
+                    # If we have tool results from ANY previous iterations, we need to add them
+                    if all_tool_results:
+                        _logger.bind_optional(
+                            lambda log: log.debug(
+                                "Processing %d total tool results across all iterations",
+                                len(all_tool_results),
+                            )
+                        )
+
+                        # Find the last assistant message with tool suggestions
+                        last_assistant_index = -1
+                        for i in range(len(message_history) - 1, -1, -1):
+                            if isinstance(message_history[i], AssistantMessage):
+                                last_assistant_index = i
+                                break
+
+                        if last_assistant_index >= 0:
+                            # Clone the assistant message and ensure it has ALL tool suggestions
+                            original_assistant = message_history[last_assistant_index]
+                            cloned_assistant = AssistantMessage(
+                                parts=list(original_assistant.parts)
+                            )
+
+                            # Add any missing tool suggestions to the assistant message
+                            existing_suggestion_ids = {
+                                part.id
+                                for part in cloned_assistant.parts
+                                if isinstance(part, ToolExecutionSuggestion)
+                            }
+
+                            for suggestion in all_tool_suggestions:
+                                if suggestion.id not in existing_suggestion_ids:
+                                    cloned_assistant.parts.append(suggestion)
+
+                            message_history[last_assistant_index] = cloned_assistant
+
+                            # Now find or create the user message after the assistant message
+                            next_user_index = -1
+                            for i in range(
+                                last_assistant_index + 1, len(message_history)
+                            ):
+                                if isinstance(message_history[i], UserMessage):
+                                    next_user_index = i
+                                    break
+
+                            if next_user_index == -1:
+                                # Create a new user message
+                                new_user_message = UserMessage(parts=[])
+                                message_history.append(new_user_message)
+                                next_user_index = len(message_history) - 1
+
+                            # Clone the user message and add ALL tool results
+                            original_user = message_history[next_user_index]
+                            cloned_user = UserMessage(parts=list(original_user.parts))
+
+                            # Remove any existing tool results to avoid duplicates
+                            cloned_user.parts = [
+                                part
+                                for part in cloned_user.parts
+                                if not isinstance(part, ToolExecutionResult)
+                            ]
+
+                            # Add ALL tool results that correspond to suggestions in the assistant message
+                            for suggestion in cloned_assistant.parts:
+                                if isinstance(suggestion, ToolExecutionSuggestion):
+                                    if suggestion.id in all_tool_results:
+                                        _, result = all_tool_results[suggestion.id]
+                                        tool_execution_result = ToolExecutionResult(
+                                            suggestion=suggestion,
+                                            result=result,
+                                            execution_time_ms=None,
+                                            success=True,
+                                            error_message=None,
+                                        )
+                                        cloned_user.parts.insert(
+                                            0, tool_execution_result
+                                        )
+
+                            message_history[next_user_index] = cloned_user
+
+                    _logger.bind_optional(
+                        lambda log: log.debug("Streaming tool call generation")
+                    )
+
+                    generation_start = time.perf_counter()
+
+                    # Stream tool call generation (no response_schema for tool calls)
+                    final_tool_generation: (
+                        Generation[WithoutStructuredOutput] | None
+                    ) = None
+                    chunk_count = 0
+
+                    async for tool_generation_chunk in generation_provider.stream_async(
+                        model=self.resolved_model,
+                        messages=message_history,
+                        generation_config=self.agent_config.generation_config,
+                        tools=all_tools,
+                    ):
+                        chunk_count += 1
+                        final_tool_generation = tool_generation_chunk
+
+                        # We don't yield intermediate chunks for tool calls
+                        # since we need to execute the tools first
+
+                    if final_tool_generation is None:
+                        break
+
+                    final_tool_generation = cast(
+                        Generation[WithoutStructuredOutput], final_tool_generation
+                    )
+
+                    # Add this generation to context
+                    context.message_history.append(
+                        final_tool_generation.message.to_assistant_message()
+                    )
+
+                    generation_time_single = (
+                        time.perf_counter() - generation_start
+                    ) * 1000
+                    generation_time_total += generation_time_single
+
+                    _logger.bind_optional(
+                        lambda log: log.debug(
+                            "Tool call streaming completed with %d chunks, %d tool calls",
+                            chunk_count,
+                            cast(
+                                Generation[WithoutStructuredOutput],
+                                final_tool_generation,
+                            ).tool_calls_amount(),
+                        )
+                    )
+
+                    # Update context with token usage from this generation
+                    context.update_token_usage(final_tool_generation.usage)
+                    total_tokens_processed += final_tool_generation.usage.total_tokens
+
+                    agent_didnt_call_any_tool = (
+                        final_tool_generation.tool_calls_amount() == 0
+                    )
+                    if agent_didnt_call_any_tool:
+                        _logger.bind_optional(
+                            lambda log: log.info(
+                                "Agent didn't call any tool, generating final streaming response"
+                            )
+                        )
+
+                        # Create a step for the final generation
+                        final_step_start_time = time.perf_counter()
+                        final_step = Step(
+                            step_type="generation",
+                            iteration=current_iteration,
+                            tool_execution_suggestions=[],
+                            generation_text=final_tool_generation.text
+                            or "Generating final response...",
+                            token_usage=final_tool_generation.usage,
+                        )
+
+                        # Only make another call if we need structured output or didn't get text
+                        if (
+                            self.response_schema is not None
+                            or not final_tool_generation.text
+                        ):
+                            _logger.bind_optional(
+                                lambda log: log.debug("Streaming structured response")
+                            )
+
+                            # Stream final structured response (no tools for structured output)
+                            generation_start = time.perf_counter()
+                            final_generation: Generation[T_Schema] | None = None
+                            chunk_count = 0
+
+                            async for (
+                                generation_chunk
+                            ) in generation_provider.stream_async(
+                                model=self.resolved_model,
+                                messages=message_history,
+                                response_schema=self.response_schema,
+                                generation_config=self.agent_config.generation_config,
+                            ):
+                                generation_chunk = cast(
+                                    Generation[T_Schema], generation_chunk
+                                )
+                                chunk_count += 1
+                                generation_time_single = (
+                                    time.perf_counter() - generation_start
+                                ) * 1000
+
+                                # Update metrics
+                                if generation_chunk.usage:
+                                    total_tokens_processed += (
+                                        generation_chunk.usage.completion_tokens
+                                    )
+
+                                # CRITICAL: Append ALL tool calls to the generation
+                                if all_tool_suggestions:
+                                    generation_chunk.append_tool_calls(
+                                        all_tool_suggestions
+                                    )
+
+                                # Create partial performance metrics
+                                partial_metrics = PerformanceMetrics(
+                                    total_execution_time_ms=(
+                                        time.perf_counter() - execution_start_time
+                                    )
+                                    * 1000,
+                                    input_processing_time_ms=input_processing_time,
+                                    static_knowledge_processing_time_ms=static_knowledge_time,
+                                    mcp_tools_preparation_time_ms=mcp_tools_time,
+                                    generation_time_ms=generation_time_total
+                                    + generation_time_single,
+                                    tool_execution_time_ms=tool_execution_time_total,
+                                    final_response_processing_time_ms=0.0,
+                                    iteration_count=iteration_count,
+                                    tool_calls_count=tool_calls_count,
+                                    total_tokens_processed=total_tokens_processed,
+                                    cache_hit_rate=(
+                                        cache_hits / (cache_hits + cache_misses) * 100
+                                    )
+                                    if (cache_hits + cache_misses) > 0
+                                    else 0.0,
+                                    step_metrics=step_metrics,
+                                    average_generation_time_ms=(
+                                        generation_time_total + generation_time_single
+                                    )
+                                    / max(1, iteration_count),
+                                    average_tool_execution_time_ms=tool_execution_time_total
+                                    / max(1, tool_calls_count),
+                                    longest_step_duration_ms=max(
+                                        [s.duration_ms for s in step_metrics],
+                                        default=0.0,
+                                    ),
+                                    shortest_step_duration_ms=min(
+                                        [s.duration_ms for s in step_metrics],
+                                        default=0.0,
+                                    ),
+                                )
+
+                                # Yield intermediate chunk
+                                yield AgentRunOutput(
+                                    generation=generation_chunk,
+                                    context=context,
+                                    parsed=generation_chunk.parsed
+                                    if hasattr(generation_chunk, "parsed")
+                                    else cast(T_Schema, None),
+                                    is_streaming_chunk=True,
+                                    is_final_chunk=False,
+                                    performance_metrics=partial_metrics,
+                                )
+
+                                final_generation = generation_chunk
+
+                            if final_generation:
+                                context.message_history.append(
+                                    final_generation.message.to_assistant_message()
+                                )
+                                generation_time_single = (
+                                    time.perf_counter() - generation_start
+                                ) * 1000
+                                generation_time_total += generation_time_single
+
+                                _logger.bind_optional(
+                                    lambda log: log.debug(
+                                        "Final streaming generation complete with %d chunks",
+                                        chunk_count,
+                                    )
+                                )
+
+                                # Update the step with the final generation results
+                                final_step.generation_text = final_generation.text
+                                final_step.token_usage = final_generation.usage
+                                final_step_duration = (
+                                    time.perf_counter() - final_step_start_time
+                                ) * 1000
+                                final_step.mark_completed(
+                                    duration_ms=final_step_duration
+                                )
+                                context.add_step(final_step)
+
+                                # Track step metrics
+                                step_metrics.append(
+                                    StepMetric(
+                                        step_id=final_step.step_id,
+                                        step_type="generation",
+                                        duration_ms=final_step_duration,
+                                        iteration=current_iteration,
+                                        tool_calls_count=0,
+                                        generation_tokens=final_generation.usage.total_tokens,
+                                        cache_hits=0,
+                                        cache_misses=0,
+                                    )
+                                )
+
+                                # Update context with final generation and complete execution
+                                context.update_token_usage(final_generation.usage)
+                                context.complete_execution()
+                                total_tokens_processed += (
+                                    final_generation.usage.total_tokens
+                                )
+
+                                # Calculate final metrics
+                                total_execution_time = (
+                                    time.perf_counter() - execution_start_time
+                                ) * 1000
+                                final_response_processing_time = 10.0
+
+                                # Create performance metrics
+                                performance_metrics = PerformanceMetrics(
+                                    total_execution_time_ms=total_execution_time,
+                                    input_processing_time_ms=input_processing_time,
+                                    static_knowledge_processing_time_ms=static_knowledge_time,
+                                    mcp_tools_preparation_time_ms=mcp_tools_time,
+                                    generation_time_ms=generation_time_total,
+                                    tool_execution_time_ms=tool_execution_time_total,
+                                    final_response_processing_time_ms=final_response_processing_time,
+                                    iteration_count=iteration_count,
+                                    tool_calls_count=tool_calls_count,
+                                    total_tokens_processed=total_tokens_processed,
+                                    cache_hit_rate=(
+                                        cache_hits / (cache_hits + cache_misses) * 100
+                                    )
+                                    if (cache_hits + cache_misses) > 0
+                                    else 0.0,
+                                    step_metrics=step_metrics,
+                                    average_generation_time_ms=generation_time_total
+                                    / max(
+                                        1,
+                                        len(
+                                            [
+                                                s
+                                                for s in step_metrics
+                                                if s.step_type == "generation"
+                                            ]
+                                        ),
+                                    ),
+                                    average_tool_execution_time_ms=tool_execution_time_total
+                                    / max(1, tool_calls_count),
+                                    longest_step_duration_ms=max(
+                                        [s.duration_ms for s in step_metrics],
+                                        default=0.0,
+                                    ),
+                                    shortest_step_duration_ms=min(
+                                        [s.duration_ms for s in step_metrics],
+                                        default=0.0,
+                                    ),
+                                )
+
+                                # Save to conversation store after successful execution
+                                if chat_id:
+                                    assert self.conversation_store is not None
+                                    await self.conversation_store.add_message_async(
+                                        chat_id, current_user_message
+                                    )
+                                    await self.conversation_store.add_message_async(
+                                        chat_id,
+                                        final_generation.message.to_assistant_message(),
+                                    )
+
+                                # Yield final result
+                                yield self._build_agent_run_output(
+                                    context=context,
+                                    generation=final_generation,
+                                    performance_metrics=performance_metrics,
+                                )
+                                return
+
+                        # If we got text and don't need structure, use what we have
+                        _logger.bind_optional(
+                            lambda log: log.debug(
+                                "Using existing text response from streaming"
+                            )
+                        )
+
+                        # CRITICAL: Append ALL tool calls to the final generation
+                        if all_tool_suggestions:
+                            final_tool_generation.append_tool_calls(
+                                all_tool_suggestions
+                            )
+
+                        # Complete the final step and add to context
+                        final_step_duration = (
+                            time.perf_counter() - final_step_start_time
+                        ) * 1000
+                        final_step.mark_completed(duration_ms=final_step_duration)
+                        context.add_step(final_step)
+
+                        # Track step metrics
+                        step_metrics.append(
+                            StepMetric(
+                                step_id=final_step.step_id,
+                                step_type="generation",
+                                duration_ms=final_step_duration,
+                                iteration=current_iteration,
+                                tool_calls_count=0,
+                                generation_tokens=final_tool_generation.usage.total_tokens,
+                                cache_hits=0,
+                                cache_misses=0,
+                            )
+                        )
+
+                        # Complete execution before returning
+                        context.complete_execution()
+
+                        # Calculate final metrics
+                        total_execution_time = (
+                            time.perf_counter() - execution_start_time
+                        ) * 1000
+                        final_response_processing_time = 5.0
+
+                        # Create performance metrics
+                        performance_metrics = PerformanceMetrics(
+                            total_execution_time_ms=total_execution_time,
+                            input_processing_time_ms=input_processing_time,
+                            static_knowledge_processing_time_ms=static_knowledge_time,
+                            mcp_tools_preparation_time_ms=mcp_tools_time,
+                            generation_time_ms=generation_time_total,
+                            tool_execution_time_ms=tool_execution_time_total,
+                            final_response_processing_time_ms=final_response_processing_time,
+                            iteration_count=iteration_count,
+                            tool_calls_count=tool_calls_count,
+                            total_tokens_processed=total_tokens_processed,
+                            cache_hit_rate=(
+                                cache_hits / (cache_hits + cache_misses) * 100
+                            )
+                            if (cache_hits + cache_misses) > 0
+                            else 0.0,
+                            step_metrics=step_metrics,
+                            average_generation_time_ms=generation_time_total
+                            / max(
+                                1,
+                                len(
+                                    [
+                                        s
+                                        for s in step_metrics
+                                        if s.step_type == "generation"
+                                    ]
+                                ),
+                            ),
+                            average_tool_execution_time_ms=tool_execution_time_total
+                            / max(1, tool_calls_count),
+                            longest_step_duration_ms=max(
+                                [s.duration_ms for s in step_metrics], default=0.0
+                            ),
+                            shortest_step_duration_ms=min(
+                                [s.duration_ms for s in step_metrics], default=0.0
+                            ),
+                        )
+
+                        # Save to conversation store after successful execution
+                        if chat_id:
+                            assert self.conversation_store is not None
+                            await self.conversation_store.add_message_async(
+                                chat_id, current_user_message
+                            )
+                            await self.conversation_store.add_message_async(
+                                chat_id,
+                                final_tool_generation.message.to_assistant_message(),
+                            )
+
+                        # Yield final result
+                        yield self._build_agent_run_output(
+                            generation=cast(
+                                Generation[T_Schema], final_tool_generation
+                            ),
+                            context=context,
+                            performance_metrics=performance_metrics,
+                        )
+                        return
+
+                    # Agent called tools. Process them (no streaming for tool execution)
+                    _logger.bind_optional(
+                        lambda log: log.info(
+                            "Processing %d tool calls",
+                            len(
+                                final_tool_generation.tool_calls
+                                if final_tool_generation
+                                else []
+                            ),
+                        )
+                    )
+
+                    # Add these tool suggestions to our tracking
+                    for suggestion in final_tool_generation.tool_calls:
+                        all_tool_suggestions.append(suggestion)
+
+                    # Create a step to track this iteration's tool executions
+                    step_start_time = time.perf_counter()
+                    step = Step(
+                        step_type="tool_execution",
+                        iteration=current_iteration,
+                        tool_execution_suggestions=list(
+                            final_tool_generation.tool_calls
+                        ),
+                        generation_text=final_tool_generation.text,
+                        token_usage=final_tool_generation.usage,
+                    )
+
+                    # Track skipped tools for logging
+                    skipped_tools: MutableSequence[str] = []
+                    step_tool_execution_time = 0.0
+                    step_tool_calls = 0
+
+                    for tool_execution_suggestion in final_tool_generation.tool_calls:
+                        pattern_key = self._get_tool_call_pattern_key(
+                            tool_execution_suggestion.tool_name,
+                            dict(tool_execution_suggestion.args),
+                        )
+
+                        # Check if this exact pattern was already called
+                        pattern_count = tool_call_patterns.get(pattern_key, 0)
+
+                        _logger.bind_optional(
+                            lambda log: log.debug(
+                                f"Tool pattern '{pattern_key}' has been called {pattern_count} times. "
+                                + f"Max allowed: {self.agent_config.maxIdenticalToolCalls}"
+                            )
+                        )
+
+                        if pattern_count >= self.agent_config.maxIdenticalToolCalls:
+                            _logger.bind_optional(
+                                lambda log: log.warning(
+                                    "Blocking redundant tool call: %s with args: %s (already called %d times)",
+                                    tool_execution_suggestion.tool_name,
+                                    tool_execution_suggestion.args,
+                                    pattern_count,
+                                )
+                            )
+
+                            # Find the previous result from all_tool_results
+                            previous_result = None
+                            for (
+                                prev_suggestion,
+                                prev_result,
+                            ) in all_tool_results.values():
+                                if (
+                                    prev_suggestion.tool_name
+                                    == tool_execution_suggestion.tool_name
+                                    and prev_suggestion.args
+                                    == tool_execution_suggestion.args
+                                ):
+                                    previous_result = prev_result
+                                    break
+
+                            if previous_result is not None:
+                                # Reuse the previous result
+                                all_tool_results[tool_execution_suggestion.id] = (
+                                    tool_execution_suggestion,
+                                    previous_result,
+                                )
+
+                                step.add_tool_execution_result(
+                                    suggestion=tool_execution_suggestion,
+                                    result=f"[DUPLICATE BLOCKED - Using previous result] {previous_result}",
+                                    execution_time_ms=0,
+                                    success=True,
+                                )
+                            else:
+                                # This shouldn't happen, but handle it gracefully
+                                error_msg = "Duplicate tool call blocked but no previous result found"
+                                step.add_tool_execution_result(
+                                    suggestion=tool_execution_suggestion,
+                                    result=error_msg,
+                                    execution_time_ms=0,
+                                    success=False,
+                                    error_message=error_msg,
+                                )
+
+                            skipped_tools.append(
+                                f"{tool_execution_suggestion.tool_name} (duplicate)"
+                            )
+                            continue
+
+                        # Check budget
+                        tool_name = tool_execution_suggestion.tool_name
+                        current_tool_calls = tool_budget.get(tool_name, 0)
+                        if current_tool_calls >= self.agent_config.maxCallPerTool:
+                            _logger.bind_optional(
+                                lambda log: log.warning(
+                                    "Tool budget exceeded for: %s (already called %d times)",
+                                    tool_name,
+                                    current_tool_calls,
+                                )
+                            )
+
+                            error_msg = f"Tool '{tool_name}' budget exceeded ({self.agent_config.maxCallPerTool} calls max)"
+                            step.add_tool_execution_result(
+                                suggestion=tool_execution_suggestion,
+                                result=error_msg,
+                                execution_time_ms=0,
+                                success=False,
+                                error_message=error_msg,
+                            )
+
+                            skipped_tools.append(f"{tool_name} (budget exceeded)")
+                            continue
+
+                        _logger.bind_optional(
+                            lambda log: log.debug(
+                                "Executing tool: %s with args: %s",
+                                tool_execution_suggestion.tool_name,
+                                tool_execution_suggestion.args,
+                            )
+                        )
+
+                        selected_tool = available_tools[
+                            tool_execution_suggestion.tool_name
+                        ]
+
+                        # Time the tool execution
+                        tool_start_time = time.perf_counter()
+                        try:
+                            tool_result = await selected_tool.call_async(
+                                context=context, **tool_execution_suggestion.args
+                            )
+                            tool_execution_time = (
+                                time.perf_counter() - tool_start_time
+                            ) * 1000
+
+                            step_tool_execution_time += tool_execution_time
+                            step_tool_calls += 1
+                            tool_calls_count += 1
+                            tool_execution_time_total += tool_execution_time
+
+                            _logger.bind_optional(
+                                lambda log: log.debug(
+                                    "Tool execution result: %s", tool_result
+                                )
+                            )
+
+                            # Update tracking structures
+                            all_tool_results[tool_execution_suggestion.id] = (
+                                tool_execution_suggestion,
+                                tool_result,
+                            )
+
+                            # Update pattern tracking
+                            tool_call_patterns[pattern_key] = pattern_count + 1
+
+                            # Update budget
+                            tool_budget[tool_name] = current_tool_calls + 1
+
+                            # Add the tool execution result to the step
+                            step.add_tool_execution_result(
+                                suggestion=tool_execution_suggestion,
+                                result=tool_result,
+                                execution_time_ms=tool_execution_time,
+                                success=True,
+                            )
+                        except ToolSuspensionError as suspension_error:
+                            # Handle tool suspension for HITL workflows
+                            suspension_reason = suspension_error.reason
+                            _logger.bind_optional(
+                                lambda log: log.info(
+                                    "Tool execution suspended: %s", suspension_reason
+                                )
+                            )
+
+                            # Get the suspension manager (injected or default)
+                            suspension_mgr = (
+                                self.suspension_manager
+                                or get_default_suspension_manager()
+                            )
+
+                            # Save suspension state with tracking info
+                            await self._save_suspension_state(
+                                context=context,
+                                suspension_type="tool_execution",
+                                tool_suggestion=tool_execution_suggestion,
+                                current_iteration=current_iteration,
+                                all_tools=all_tools,
+                                called_tools=all_tool_results,
+                                current_step=step.model_dump()
+                                if hasattr(step, "model_dump")
+                                else None,
+                            )
+
+                            # Suspend the execution
+                            resumption_token = await suspension_mgr.suspend_execution(
+                                context=context,
+                                reason=suspension_error.reason,
+                                approval_data=suspension_error.approval_data,
+                                timeout_hours=suspension_error.timeout_seconds // 3600
+                                if suspension_error.timeout_seconds
+                                else 24,
+                            )
+
+                            # Calculate partial metrics before suspension
+                            total_execution_time = (
+                                time.perf_counter() - execution_start_time
+                            ) * 1000
+
+                            # Create performance metrics for suspended execution
+                            performance_metrics = PerformanceMetrics(
+                                total_execution_time_ms=total_execution_time,
+                                input_processing_time_ms=input_processing_time,
+                                static_knowledge_processing_time_ms=static_knowledge_time,
+                                mcp_tools_preparation_time_ms=mcp_tools_time,
+                                generation_time_ms=generation_time_total,
+                                tool_execution_time_ms=tool_execution_time_total,
+                                final_response_processing_time_ms=0.0,
+                                iteration_count=iteration_count,
+                                tool_calls_count=tool_calls_count,
+                                total_tokens_processed=total_tokens_processed,
+                                cache_hit_rate=(
+                                    cache_hits / (cache_hits + cache_misses) * 100
+                                )
+                                if (cache_hits + cache_misses) > 0
+                                else 0.0,
+                                step_metrics=step_metrics,
+                                average_generation_time_ms=generation_time_total
+                                / max(
+                                    1,
+                                    len(
+                                        [
+                                            s
+                                            for s in step_metrics
+                                            if s.step_type == "generation"
+                                        ]
+                                    ),
+                                ),
+                                average_tool_execution_time_ms=tool_execution_time_total
+                                / max(1, tool_calls_count),
+                                longest_step_duration_ms=max(
+                                    [s.duration_ms for s in step_metrics], default=0.0
+                                ),
+                                shortest_step_duration_ms=min(
+                                    [s.duration_ms for s in step_metrics], default=0.0
+                                ),
+                            )
+
+                            # Yield suspended result
+                            yield AgentRunOutput(
+                                generation=None,
+                                context=context,
+                                parsed=cast(T_Schema, None),
+                                is_suspended=True,
+                                suspension_reason=suspension_error.reason,
+                                resumption_token=resumption_token,
+                                performance_metrics=performance_metrics,
+                            )
+                            return
+
+                    # Log skipped tools if any
+                    if skipped_tools:
+                        _logger.bind_optional(
+                            lambda log: log.info(
+                                "Skipped %d redundant tool calls: %s",
+                                len(skipped_tools),
+                                ", ".join(skipped_tools),
+                            )
+                        )
+
+                    # Complete the step and add it to context
+                    step_duration = (time.perf_counter() - step_start_time) * 1000
+                    step.mark_completed(duration_ms=step_duration)
+                    context.add_step(step)
+
+                    # Track step metrics
+                    step_metrics.append(
+                        StepMetric(
+                            step_id=step.step_id,
+                            step_type="tool_execution",
+                            duration_ms=step_duration,
+                            iteration=current_iteration,
+                            tool_calls_count=step_tool_calls,
+                            generation_tokens=final_tool_generation.usage.total_tokens,
+                            cache_hits=0,
+                            cache_misses=0,
+                        )
+                    )
+
+                    state.update(
+                        last_response=final_tool_generation.text,
+                        tool_calls_amount=final_tool_generation.tool_calls_amount(),
+                        iteration=state.iteration + 1,
+                        token_usage=final_tool_generation.usage,
+                    )
+
+                # If we reach here, we've exceeded max iterations
+                execution_summary = self._format_tool_call_summary(all_tool_results)
+                steps_summary = self._format_steps_summary(context.steps)
+                pattern_analysis = self._analyze_tool_call_patterns(all_tool_results)
+
+                execution_summary = dedent(f"""
+                EXECUTION SUMMARY:
+                ==================
+                Iterations completed: {iteration_count}/{self.agent_config.maxIterations}
+                Total messages in context: {len(context.message_history)}
+                
+                {execution_summary}
+                
+                {steps_summary}
+                
+                {pattern_analysis}
+                """).strip()
+
+                # Add token usage if available
+                if context.total_token_usage:
+                    usage = context.total_token_usage
+                    execution_summary += f"\n\nToken usage: {usage.prompt_tokens} prompt + {usage.completion_tokens} completion = {usage.total_tokens} total"
+
+                # Create enhanced error message
+                enhanced_error_message = dedent(f"""
+                Max tool calls exceeded after {self.agent_config.maxIterations} iterations.
+                
+                {execution_summary}
+                
+                RECOMMENDATIONS:
+                - Review the tool calls above to identify potential loops or inefficiencies
+                - Consider increasing maxIterations if the agent is making progress
+                - Check if tools are returning expected results
+                - Verify that the agent's instructions are clear and specific
+                - Look for repeated calls with same arguments (potential infinite loops)
+                """).strip()
+
+                _logger.bind_optional(
+                    lambda log: log.error(
+                        "Max tool calls exceeded with execution summary:\n%s",
+                        execution_summary,
+                    )
+                )
+
+                # Mark context as failed due to max iterations exceeded
+                context.fail_execution(error_message=enhanced_error_message)
+
+                # Calculate final metrics before raising exception
+                total_execution_time = (
+                    time.perf_counter() - execution_start_time
+                ) * 1000
+
+                # Create performance metrics for failed execution
+                performance_metrics = PerformanceMetrics(
+                    total_execution_time_ms=total_execution_time,
+                    input_processing_time_ms=input_processing_time,
+                    static_knowledge_processing_time_ms=static_knowledge_time,
+                    mcp_tools_preparation_time_ms=mcp_tools_time,
+                    generation_time_ms=generation_time_total,
+                    tool_execution_time_ms=tool_execution_time_total,
+                    final_response_processing_time_ms=0.0,
+                    iteration_count=iteration_count,
+                    tool_calls_count=tool_calls_count,
+                    total_tokens_processed=total_tokens_processed,
+                    cache_hit_rate=(cache_hits / (cache_hits + cache_misses) * 100)
+                    if (cache_hits + cache_misses) > 0
+                    else 0.0,
+                    step_metrics=step_metrics,
+                    average_generation_time_ms=generation_time_total
+                    / max(
+                        1, len([s for s in step_metrics if s.step_type == "generation"])
+                    ),
+                    average_tool_execution_time_ms=tool_execution_time_total
+                    / max(1, tool_calls_count),
+                    longest_step_duration_ms=max(
+                        [s.duration_ms for s in step_metrics], default=0.0
+                    ),
+                    shortest_step_duration_ms=min(
+                        [s.duration_ms for s in step_metrics], default=0.0
+                    ),
+                )
+
+                # Store metrics and execution summary in context for debugging
+                context.metadata["performance_metrics"] = (
+                    performance_metrics.model_dump()
+                )
+                context.metadata["execution_summary_on_failure"] = execution_summary
+
+                raise MaxToolCallsExceededError(enhanced_error_message)
+
+            return _stream_with_tools()
+
+        # Non-streaming path with tools (existing code)
         while state.iteration < self.agent_config.maxIterations:
             current_iteration = state.iteration + 1
             iteration_count = current_iteration
@@ -1631,9 +2720,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                     total_execution_time = (
                         time.perf_counter() - execution_start_time
                     ) * 1000
-                    final_response_processing_time = (
-                        10.0  # Estimated time for response building
-                    )
+                    final_response_processing_time = 10.0
 
                     # Create performance metrics
                     performance_metrics = PerformanceMetrics(
@@ -1722,9 +2809,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 total_execution_time = (
                     time.perf_counter() - execution_start_time
                 ) * 1000
-                final_response_processing_time = (
-                    5.0  # Estimated time for response building
-                )
+                final_response_processing_time = 5.0
 
                 # Create performance metrics
                 performance_metrics = PerformanceMetrics(

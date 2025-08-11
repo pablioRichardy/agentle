@@ -138,7 +138,11 @@ class GenerateGenerateContentResponseToGenerationAdapter[T](
         _response_schema = self.response_schema
 
         _all_parts: list[Part] = []
-        _optional_model = make_fields_optional(cast(type[BaseModel], _response_schema))
+        _optional_model = (
+            make_fields_optional(cast(type[BaseModel], _response_schema))
+            if _response_schema is not None
+            else None
+        )
 
         async for chunk in response_stream:
             if _response_schema:
@@ -159,12 +163,14 @@ class GenerateGenerateContentResponseToGenerationAdapter[T](
 
                 _all_parts.extend(_parts)
 
-                optional_model = parse_streaming_json(
-                    "".join([str(p.text) for p in _all_parts]),
-                    model=_optional_model,
-                )
-
-                chunk.parsed = optional_model
+                if _optional_model is not None:
+                    optional_model = parse_streaming_json(
+                        "".join([str(p.text) for p in _all_parts]),
+                        model=_optional_model,
+                    )
+                    chunk.parsed = optional_model
+                else:
+                    chunk.parsed = None
 
             # Extract parsed data (usually only available in final chunk)
             if hasattr(chunk, "parsed") and chunk.parsed is not None:
