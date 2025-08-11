@@ -25,7 +25,7 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator, Mapping, Sequence
 from textwrap import dedent
-from typing import TYPE_CHECKING, cast, override
+from typing import TYPE_CHECKING, cast, overload, override
 
 from agentle.generations.models.generation.generation import Generation
 from agentle.generations.models.generation.generation_config import GenerationConfig
@@ -165,6 +165,26 @@ class GoogleGenerationProvider(GenerationProvider):
         """
         return "google"
 
+    @overload
+    async def stream_async[T](
+        self,
+        *,
+        model: str | ModelKind | None = None,
+        messages: Sequence[Message],
+        response_schema: type[T],
+        generation_config: GenerationConfig | GenerationConfigDict | None = None,
+    ) -> AsyncIterator[Generation[T]]: ...
+
+    @overload
+    async def stream_async(
+        self,
+        *,
+        model: str | ModelKind | None = None,
+        messages: Sequence[Message],
+        generation_config: GenerationConfig | GenerationConfigDict | None = None,
+        tools: Sequence[Tool],
+    ) -> AsyncIterator[Generation[WithoutStructuredOutput]]: ...
+
     async def stream_async[T = WithoutStructuredOutput](
         self,
         *,
@@ -283,6 +303,26 @@ class GoogleGenerationProvider(GenerationProvider):
         ).adapt(generate_content_response_stream)
 
         return response
+
+    @overload
+    async def generate_async[T](
+        self,
+        *,
+        model: str | ModelKind | None = None,
+        messages: Sequence[Message],
+        response_schema: type[T],
+        generation_config: GenerationConfig | GenerationConfigDict | None = None,
+    ) -> Generation[T]: ...
+
+    @overload
+    async def generate_async(
+        self,
+        *,
+        model: str | ModelKind | None = None,
+        messages: Sequence[Message],
+        generation_config: GenerationConfig | GenerationConfigDict | None = None,
+        tools: Sequence[Tool],
+    ) -> Generation[WithoutStructuredOutput]: ...
 
     @observe
     @override

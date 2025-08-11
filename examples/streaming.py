@@ -25,15 +25,8 @@ tools = [tool]
 async def main():
     provider = GoogleGenerationProvider()
     stream = await provider.stream_async(
-        messages=[
-            UserMessage(
-                parts=[
-                    TextPart(text="what is 2+2")
-                ]
-            )
-        ],
+        messages=[UserMessage(parts=[TextPart(text="what is 2+2")])],
         response_schema=Response,
-        tools=tools,
     )
 
     full_text = ""
