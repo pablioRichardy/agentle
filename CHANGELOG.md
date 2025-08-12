@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.7.35
+refactor(agent): simplify streaming agent example by removing unused imports
+
+remove unnecessary type casting and imports in streaming agent example
+
+refactor(streaming_agent): improve streaming output handling and typing
+
+Add proper typing imports and cast for stream iterator
+Replace pprint with direct text output handling for streaming chunks
+Add visual separators and status messages for better user feedback
+
+feat(example): add streaming agent example demonstrating async usage
+
+Add a new example file showing how to use the Agent class with async streaming capabilities. The example includes a simple async function and demonstrates streaming output with pretty printing.
+
 ## v0.7.34
 feat(api): add json schema support for endpoint parameters
 
