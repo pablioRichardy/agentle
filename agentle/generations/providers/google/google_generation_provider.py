@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator, Mapping, Sequence
+from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Sequence
 from textwrap import dedent
 from typing import TYPE_CHECKING, cast, overload, override
 
@@ -166,25 +166,26 @@ class GoogleGenerationProvider(GenerationProvider):
         return "google"
 
     @overload
-    async def stream_async[T](
+    def stream_async[T](
         self,
         *,
         model: str | ModelKind | None = None,
         messages: Sequence[Message],
         response_schema: type[T],
         generation_config: GenerationConfig | GenerationConfigDict | None = None,
-    ) -> AsyncIterator[Generation[T]]: ...
+    ) -> AsyncGenerator[Generation[T], None]: ...
 
     @overload
-    async def stream_async(
+    def stream_async(
         self,
         *,
         model: str | ModelKind | None = None,
         messages: Sequence[Message],
         generation_config: GenerationConfig | GenerationConfigDict | None = None,
         tools: Sequence[Tool],
-    ) -> AsyncIterator[Generation[WithoutStructuredOutput]]: ...
+    ) -> AsyncGenerator[Generation[WithoutStructuredOutput], None]: ...
 
+    # Remove the explicit return type annotation from the implementation
     async def stream_async[T = WithoutStructuredOutput](
         self,
         *,
@@ -193,7 +194,7 @@ class GoogleGenerationProvider(GenerationProvider):
         response_schema: type[T] | None = None,
         generation_config: GenerationConfig | GenerationConfigDict | None = None,
         tools: Sequence[Tool] | None = None,
-    ) -> AsyncIterator[Generation[T]]:
+    ):
         from google.genai import types
 
         if self._normalize_generation_config(generation_config).n > 1:
