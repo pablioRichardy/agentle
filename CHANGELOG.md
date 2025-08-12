@@ -1,5 +1,20 @@
 # Changelog
 
+# v0.7.36
+fix(agents): ensure tool results immediately follow tool calls
+
+Fix message history sequence by moving tool results to immediately follow their corresponding tool calls. Add synthetic results for missing calls and clean up orphaned messages. This ensures proper message ordering required for agent execution.
+
+feat(agent): add synchronous streaming support to agent.run
+
+Implement synchronous streaming by bridging async iterator with a queue and background thread. This allows synchronous contexts to consume streaming responses without blocking.
+
+Add example script demonstrating streaming usage with poem generation.
+
+refactor(google-generation): make stream_async method synchronous and update return types
+
+Change stream_async method to be synchronous and update return type annotations to AsyncGenerator for better clarity. Remove explicit return type annotation from implementation to match the overload signatures.
+
 ## v0.7.35
 refactor(agent): simplify streaming agent example by removing unused imports
 
