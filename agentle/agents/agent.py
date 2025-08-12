@@ -79,6 +79,7 @@ from agentle.agents.errors.max_tool_calls_exceeded_error import (
 )
 from agentle.agents.errors.tool_suspension_error import ToolSuspensionError
 from agentle.agents.knowledge.static_knowledge import NO_CACHE, StaticKnowledge
+from agentle.agents.message_history_fixer import MessageHistoryFixer
 from agentle.agents.performance_metrics import PerformanceMetrics
 from agentle.agents.step import Step
 from agentle.agents.step_metric import StepMetric
@@ -1241,6 +1242,9 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
 
         # Create context with current input
         context: Context = self.input2context(input, instructions=instructions)
+        context.message_history = list(
+            MessageHistoryFixer().fix_message_history(context.message_history)
+        )
 
         # CRITICAL: Store the current user message BEFORE replacing message history
         current_user_message = context.last_message

@@ -283,11 +283,16 @@ class MessageHistoryFixer:
         return messages
 
     def _fix_wrong_message_sequence(self, messages: list[Any]) -> list[Any]:
-        """Fix messages that are in the wrong order (tool results not immediately after tool calls)."""
-        # This is a complex fix that would require sophisticated reordering
-        # For now, we'll detect and warn about it
+        """
+        Fix messages that are in the wrong order (tool results not immediately after tool calls).
 
-        for i in range(len(messages)):
+        This method ensures that every AssistantMessage with tool calls is immediately
+        followed by a UserMessage containing the corresponding tool results.
+        """
+        changes_made = 0
+        i = 0
+
+        while i < len(messages):
             msg = messages[i]
 
             if isinstance(msg, AssistantMessage):
@@ -296,43 +301,278 @@ class MessageHistoryFixer:
                 ]
 
                 if tool_calls:
-                    # Look for matching results in subsequent messages
                     call_ids = {tc.id for tc in tool_calls}
-                    found_matching_results = False
 
-                    for j in range(
-                        i + 1, min(i + 3, len(messages))
-                    ):  # Look ahead up to 2 messages
-                        if isinstance(messages[j], UserMessage):
-                            tool_results = [
-                                p
-                                for p in messages[j].parts
-                                if isinstance(p, ToolExecutionResult)
-                            ]
-                            result_ids = {tr.suggestion.id for tr in tool_results}
+                    # Check if immediately followed by correct UserMessage
+                    expected_user_msg_index = i + 1
+                    has_immediate_correct_results = False
 
-                            if call_ids.intersection(result_ids):
-                                found_matching_results = True
+                    if expected_user_msg_index < len(messages) and isinstance(
+                        messages[expected_user_msg_index], UserMessage
+                    ):
+                        immediate_results = [
+                            p
+                            for p in messages[expected_user_msg_index].parts
+                            if isinstance(p, ToolExecutionResult)
+                        ]
 
-                                if j != i + 1:
-                                    # Results are not in the immediately following message
-                                    if self.strict_mode:
-                                        raise ValueError(
-                                            f"Tool results at message {j} should immediately follow tool calls at message {i}"
-                                        )
+                        if immediate_results:
+                            immediate_result_ids = {
+                                tr.suggestion.id for tr in immediate_results
+                            }
+                            # Check if ALL tool calls have matching results
+                            has_immediate_correct_results = call_ids.issubset(
+                                immediate_result_ids
+                            )
 
-                                    logger.warning(
-                                        f"Tool results at message {j} are not immediately after tool calls at message {i}"
-                                    )
-                                    # Could implement message reordering here if needed
-
-                                break
-
-                    if not found_matching_results and not self.strict_mode:
-                        logger.warning(
-                            f"No matching tool results found for tool calls at message {i}"
+                    if not has_immediate_correct_results:
+                        # Need to find and move the correct tool results
+                        fixed = self._reorder_tool_results_for_calls(
+                            messages, i, call_ids, expected_user_msg_index
                         )
 
+                        if fixed:
+                            changes_made += 1
+                            # Don't increment i yet, recheck this position
+                            continue
+
+            i += 1
+
+        if changes_made > 0:
+            self.fixes_applied.append(
+                f"Fixed {changes_made} wrong message sequences (moved tool results to correct positions)"
+            )
+
+        return messages
+
+    def _reorder_tool_results_for_calls(
+        self,
+        messages: list[Any],
+        assistant_msg_index: int,
+        required_call_ids: set[str],
+        target_user_msg_index: int,
+    ) -> bool:
+        """
+        Find tool results matching the required call IDs and move them to the correct position.
+
+        Args:
+            messages: The message list to modify
+            assistant_msg_index: Index of AssistantMessage with tool calls
+            required_call_ids: Set of tool call IDs that need matching results
+            target_user_msg_index: Where the UserMessage with results should be
+
+        Returns:
+            bool: True if any changes were made
+        """
+        if self.strict_mode:
+            raise ValueError(
+                f"Tool results for calls at message {assistant_msg_index} are not in immediately following message"
+            )
+
+        # Collect all matching tool results from subsequent messages
+        collected_results: list[ToolExecutionResult] = []
+        collected_other_parts: list[Any] = []  # Non-tool parts from the target position
+        messages_to_clean: list[int] = []  # Indices of messages we'll modify/remove
+
+        # First, check if target position already exists and has some content
+        if target_user_msg_index < len(messages):
+            if isinstance(messages[target_user_msg_index], UserMessage):
+                target_msg = messages[target_user_msg_index]
+
+                # Separate tool results from other parts
+                for part in target_msg.parts:
+                    if isinstance(part, ToolExecutionResult):
+                        if part.suggestion.id in required_call_ids:
+                            collected_results.append(part)
+                    else:
+                        collected_other_parts.append(part)
+
+                # Mark for cleaning if we're taking some parts from it
+                if collected_results:
+                    messages_to_clean.append(target_user_msg_index)
+
+        # Search for matching tool results in subsequent messages
+        search_range = min(
+            len(messages), assistant_msg_index + 10
+        )  # Look ahead up to 10 messages
+
+        for j in range(target_user_msg_index + 1, search_range):
+            if isinstance(messages[j], UserMessage):
+                user_msg = messages[j]
+                matching_results = []
+                remaining_parts: list[ToolExecutionResult] = []
+
+                for part in user_msg.parts:
+                    if (
+                        isinstance(part, ToolExecutionResult)
+                        and part.suggestion.id in required_call_ids
+                    ):
+                        matching_results.append(part)
+                        collected_results.append(part)
+                    else:
+                        remaining_parts.append(part)
+
+                if matching_results:
+                    messages_to_clean.append(j)
+
+                    # Update the message with remaining parts
+                    if remaining_parts:
+                        messages[j] = UserMessage(parts=remaining_parts)
+                    else:
+                        # Mark for removal if no parts remain
+                        messages_to_clean.append(-j)  # Negative to indicate removal
+
+        # Check if we found all required results
+        found_call_ids = {tr.suggestion.id for tr in collected_results}
+        missing_call_ids = required_call_ids - found_call_ids
+
+        # Create synthetic results for missing call IDs
+        if missing_call_ids:
+            assistant_msg = messages[assistant_msg_index]
+            tool_calls = [
+                p for p in assistant_msg.parts if isinstance(p, ToolExecutionSuggestion)
+            ]
+
+            for tool_call in tool_calls:
+                if tool_call.id in missing_call_ids:
+                    synthetic_result = ToolExecutionResult(
+                        suggestion=tool_call,
+                        result="[AUTO-FIX] Tool result was found in wrong position or missing",
+                        execution_time_ms=0.0,
+                        success=False,
+                        error_message="Tool result was not in expected position in message history",
+                    )
+                    collected_results.append(synthetic_result)
+
+        # Now create/update the correct UserMessage at the target position
+        if collected_results:
+            correct_user_msg = UserMessage(
+                parts=collected_other_parts + collected_results
+            )
+
+            if target_user_msg_index < len(messages):
+                # Replace existing message
+                messages[target_user_msg_index] = correct_user_msg
+            else:
+                # Insert new message
+                messages.insert(target_user_msg_index, correct_user_msg)
+
+            for idx in sorted(messages_to_clean, reverse=True):
+                if idx < 0:
+                    # Negative index means remove the message
+                    actual_idx = abs(idx)
+                    if (
+                        actual_idx < len(messages)
+                        and actual_idx != target_user_msg_index
+                    ):
+                        messages.pop(actual_idx)
+                else:
+                    # Positive index means we already updated it, but double-check for empty messages
+                    if (
+                        idx < len(messages)
+                        and idx != target_user_msg_index
+                        and hasattr(messages[idx], "parts")
+                        and len(messages[idx].parts) == 0
+                    ):
+                        messages.pop(idx)
+
+            return True
+
+        return False
+
+    def _validate_and_log_sequence_fix(
+        self,
+        original_messages: list[Any],
+        fixed_messages: list[Any],
+        assistant_msg_index: int,
+    ) -> None:
+        """
+        Validate that the sequence fix was successful and log details.
+        """
+        if assistant_msg_index >= len(fixed_messages):
+            return
+
+        assistant_msg = fixed_messages[assistant_msg_index]
+        if not isinstance(assistant_msg, AssistantMessage):
+            return
+
+        tool_calls = [
+            p for p in assistant_msg.parts if isinstance(p, ToolExecutionSuggestion)
+        ]
+        if not tool_calls:
+            return
+
+        call_ids = {tc.id for tc in tool_calls}
+
+        # Check if next message has matching results
+        next_idx = assistant_msg_index + 1
+        if next_idx < len(fixed_messages) and isinstance(
+            fixed_messages[next_idx], UserMessage
+        ):
+            tool_results = [
+                p
+                for p in fixed_messages[next_idx].parts
+                if isinstance(p, ToolExecutionResult)
+            ]
+            result_ids = {tr.suggestion.id for tr in tool_results}
+
+            if call_ids.issubset(result_ids):
+                logger.debug(
+                    "Successfully fixed message sequence: "
+                    + f"{len(tool_calls)} tool calls at message {assistant_msg_index} "
+                    + "now properly followed by matching results"
+                )
+            else:
+                logger.warning(
+                    f"Sequence fix incomplete: missing results for IDs {call_ids - result_ids}"
+                )
+
+    # Helper method to add to the class
+    def _find_tool_results_in_range(
+        self,
+        messages: list[Any],
+        start_idx: int,
+        end_idx: int,
+        target_call_ids: set[str],
+    ) -> tuple[list[ToolExecutionResult], list[int]]:
+        """
+        Find tool results matching target call IDs within a message range.
+
+        Returns:
+            tuple: (list of matching ToolExecutionResults, list of message indices where found)
+        """
+        found_results = []
+        found_indices = []
+
+        for i in range(start_idx, min(end_idx, len(messages))):
+            if isinstance(messages[i], UserMessage):
+                user_msg = messages[i]
+                for part in user_msg.parts:
+                    if (
+                        isinstance(part, ToolExecutionResult)
+                        and part.suggestion.id in target_call_ids
+                    ):
+                        found_results.append(part)
+                        if i not in found_indices:
+                            found_indices.append(i)
+
+        return found_results, found_indices
+
+    # Additional helper method for complex scenarios
+    def _handle_interleaved_messages(
+        self, messages: list[Any], start_idx: int
+    ) -> list[Any]:
+        """
+        Handle complex scenarios where multiple assistant messages with tool calls
+        are interleaved with user messages in wrong order.
+
+        This method groups related tool calls and results together properly.
+        """
+        # This would be for very complex scenarios - the basic _fix_wrong_message_sequence
+        # should handle most cases. This could be implemented for edge cases where
+        # multiple assistant messages have interleaved results.
+
+        # For now, we'll let the main method handle these iteratively
         return messages
 
     def _fix_duplicate_tool_calls(self, messages: list[Any]) -> list[Any]:
