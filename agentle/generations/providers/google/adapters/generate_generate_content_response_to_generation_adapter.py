@@ -13,6 +13,10 @@ from agentle.generations.models.generation.choice import Choice
 from agentle.generations.models.generation.generation import Generation
 from agentle.generations.models.generation.usage import Usage
 from agentle.generations.models.message_parts.part import Part
+from agentle.generations.models.message_parts.text import TextPart
+from agentle.generations.models.messages.generated_assistant_message import (
+    GeneratedAssistantMessage,
+)
 from agentle.generations.providers.google.adapters.google_content_to_generated_assistant_message_adapter import (
     GoogleContentToGeneratedAssistantMessageAdapter,
 )
@@ -123,15 +127,42 @@ class GenerateGenerateContentResponseToGenerationAdapter[T](
             usage=usage,
         )
 
+    # Add this method to your GenerateGenerateContentResponseToGenerationAdapter class
+
+    def _build_choices_with_accumulated_text(
+        self,
+        accumulated_text: str,
+        generate_content_parsed_response: T | None,
+    ) -> list[Choice[T]]:
+        """Build Choice objects with accumulated text instead of just chunk text."""
+
+        choices: list[Choice[T]] = []
+
+        # Create a choice with the accumulated text
+        # We only need one choice since we're accumulating all the text
+        if accumulated_text:
+            accumulated_text_part = TextPart(text=accumulated_text)
+
+            message = GeneratedAssistantMessage[T](
+                parts=[accumulated_text_part],
+                parsed=generate_content_parsed_response
+                if generate_content_parsed_response
+                else cast(T, None),
+            )
+
+            choices.append(Choice[T](index=0, message=message))
+
+        return choices
+
     async def _adapt_streaming(
         self, response_stream: AsyncIterator["GenerateContentResponse"]
     ) -> AsyncIterator[Generation[T]]:
-        """Adapt a streaming response."""
+        """Adapt a streaming response with proper text accumulation."""
         generation_id = self.preferred_id or uuid.uuid4()
         created_time = datetime.datetime.now()
 
         # Keep track of accumulated content for final parsing
-        accumulated_text = ""
+        accumulated_text_parts: list[str] = []  # Store all text chunks
         final_usage: Usage | None = None
         final_parsed: T | None = None
 
@@ -145,6 +176,7 @@ class GenerateGenerateContentResponseToGenerationAdapter[T](
         )
 
         async for chunk in response_stream:
+            # Process structured output if needed
             if _response_schema:
                 candidates = chunk.candidates
                 if candidates is None:
@@ -160,7 +192,6 @@ class GenerateGenerateContentResponseToGenerationAdapter[T](
                     continue
 
                 _parts = [_part_adapter.adapt(part) for part in _content_parts]
-
                 _all_parts.extend(_parts)
 
                 if _optional_model is not None:
@@ -182,20 +213,29 @@ class GenerateGenerateContentResponseToGenerationAdapter[T](
 
             # Process candidates in this chunk
             if chunk.candidates:
-                choices = self._build_choices(
-                    chunk.candidates,
+                # Extract new text from this chunk
+                current_chunk_text = ""
+                for candidate in chunk.candidates:
+                    candidate_content = candidate.content
+                    if candidate_content and candidate_content.parts:
+                        for part in candidate_content.parts:
+                            if part.text:
+                                current_chunk_text += part.text
+
+                # Add this chunk's text to our accumulator
+                if current_chunk_text:
+                    accumulated_text_parts.append(current_chunk_text)
+
+                # Create accumulated text up to this point
+                full_accumulated_text = "".join(accumulated_text_parts)
+
+                # Build choices with accumulated text
+                choices = self._build_choices_with_accumulated_text(
+                    accumulated_text=full_accumulated_text,
                     generate_content_parsed_response=final_parsed
                     if self.response_schema
                     else None,
-                    is_streaming=True,
                 )
-
-                # Accumulate text content for debugging/logging
-                for choice in choices:
-                    if choice.message.parts:
-                        for part in choice.message.parts:
-                            if hasattr(part, "text"):
-                                accumulated_text += getattr(part, "text", "")
 
                 # Use accumulated usage or default
                 current_usage = final_usage or Usage(
