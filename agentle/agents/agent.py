@@ -1751,11 +1751,6 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                         Generation[WithoutStructuredOutput], final_tool_generation
                     )
 
-                    # FIXED: Add this generation to context immediately
-                    context.message_history.append(
-                        final_tool_generation.message.to_assistant_message()
-                    )
-
                     generation_time_single = (
                         time.perf_counter() - generation_start
                     ) * 1000
@@ -1815,7 +1810,10 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                                 generation_chunk
                             ) in generation_provider.stream_async(
                                 model=self.resolved_model,
-                                messages=context.message_history,  # Use clean context
+                                messages=list(context.message_history)
+                                + [
+                                    final_tool_generation.message.to_assistant_message()
+                                ],
                                 response_schema=self.response_schema,
                                 generation_config=self.agent_config.generation_config,
                             ):
@@ -2565,11 +2563,6 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 tools=all_tools,
             )
 
-            # FIXED: Add the generation to context immediately after generation
-            context.message_history.append(
-                tool_call_generation.message.to_assistant_message()
-            )
-
             generation_time_single = (time.perf_counter() - generation_start) * 1000
             generation_time_total += generation_time_single
 
@@ -2613,7 +2606,8 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                     generation_start = time.perf_counter()
                     generation = await generation_provider.generate_async(
                         model=self.resolved_model,
-                        messages=context.message_history,  # Use clean context
+                        messages=list(context.message_history)
+                        + [tool_call_generation.message.to_assistant_message()],
                         response_schema=self.response_schema,
                         generation_config=self.agent_config.generation_config,
                     )
