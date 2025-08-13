@@ -26,11 +26,8 @@ async def main():
     provider = GoogleGenerationProvider()
     stream = provider.stream_async(
         messages=[
-            UserMessage(
-                parts=[TextPart(text="escreva um poema bem grande sobre o Brasil")]
-            )
+            UserMessage(parts=[TextPart(text="escreva um poema sobre a america")])
         ],
-        response_schema=Response,
     )
 
     full_text = ""

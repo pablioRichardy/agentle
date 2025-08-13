@@ -185,6 +185,15 @@ class GoogleGenerationProvider(GenerationProvider):
         tools: Sequence[Tool],
     ) -> AsyncGenerator[Generation[WithoutStructuredOutput], None]: ...
 
+    @overload
+    def stream_async(
+        self,
+        *,
+        model: str | ModelKind | None = None,
+        messages: Sequence[Message],
+        generation_config: GenerationConfig | GenerationConfigDict | None = None,
+    ) -> AsyncGenerator[Generation[WithoutStructuredOutput], None]: ...
+
     # Remove the explicit return type annotation from the implementation
     async def stream_async[T = WithoutStructuredOutput](
         self,
@@ -325,6 +334,15 @@ class GoogleGenerationProvider(GenerationProvider):
         messages: Sequence[Message],
         generation_config: GenerationConfig | GenerationConfigDict | None = None,
         tools: Sequence[Tool],
+    ) -> Generation[WithoutStructuredOutput]: ...
+
+    @overload
+    async def generate_async(
+        self,
+        *,
+        model: str | ModelKind | None = None,
+        messages: Sequence[Message],
+        generation_config: GenerationConfig | GenerationConfigDict | None = None,
     ) -> Generation[WithoutStructuredOutput]: ...
 
     @observe
