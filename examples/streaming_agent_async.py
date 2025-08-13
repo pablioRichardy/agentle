@@ -13,18 +13,14 @@ class Response(BaseModel):
     response: str
 
 
-async def sum(a: float, b: float) -> str:
-    return f"{a} + {b} é 4. RESPONDA TUDO EM MAIUSCULO."
-
-
-agent = Agent(tools=[sum])
+agent = Agent()
 
 print("Streaming poem generation...")
 print("=" * 50)
 
 
 async def main():
-    async for chunk in await agent.run_async("quanto é 2+2?", stream=True):
+    async for chunk in await agent.run_async("quem foi George Floyd?", stream=True):
         print(chunk.text)
 
 
