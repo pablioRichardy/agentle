@@ -10,27 +10,7 @@ The Tool class encapsulates a callable function along with metadata such as name
 and parameter specifications. It can be created either directly from a callable Python function
 or by converting from MCP (Model Control Protocol) tool format.
 
-Tools are typically used in conjunction with Agents to provide them with capabilities to
-perform specific tasks. When an Agent decides to use a tool, it provides the necessary arguments,
-and the Tool executes the underlying function with those arguments.
-
-Example:
-```python
-from agentle.generations.tools.tool import Tool
-
-# Create a tool from a function
-def get_weather(location: str, unit: str = "celsius") -> str:
-    \"\"\"Get current weather for a location\"\"\"
-    # Implementation would typically call a weather API
-    return f"The weather in {location} is sunny. Temperature is 25°{unit[0].upper()}"
-
-# Create a tool instance from the function
-weather_tool = Tool.from_callable(get_weather)
-
-# Use the tool directly
-result = weather_tool.call(location="Tokyo", unit="celsius")
-print(result)  # "The weather in Tokyo is sunny. Temperature is 25°C"
-```
+Updated to use improved typing with better callback support.
 """
 
 from __future__ import annotations
@@ -39,7 +19,7 @@ import base64
 import inspect
 from collections.abc import Awaitable, Callable, MutableSequence
 import logging
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypeVar
 
 from rsb.coroutines.run_sync import run_sync
 from rsb.models.base_model import BaseModel
@@ -52,12 +32,15 @@ from agentle.mcp.servers.mcp_server_protocol import MCPServerProtocol
 
 if TYPE_CHECKING:
     from mcp.types import Tool as MCPTool
-    from agentle.agents.context import Context
 
 _logger = logging.getLogger(__name__)
 
+# Type variables for the from_callable method
+CallableP = ParamSpec("CallableP")
+CallableT = TypeVar("CallableT")
 
-class Tool[T_Output = Any](BaseModel):
+
+class Tool[**P = ..., T_Output = Any](BaseModel):
     """
     A callable tool that can be used by AI models to perform specific functions.
 
@@ -69,8 +52,13 @@ class Tool[T_Output = Any](BaseModel):
     `from_callable` class method, or from an MCP (Model Control Protocol) tool format using
     the `from_mcp_tool` class method.
 
-    The class is generic with a T_Output type parameter that represents the return type of
-    the underlying callable function.
+    The class is generic with T_Output representing the return type of the underlying callable function.
+    When used with `from_callable`, the Tool preserves both parameter and return type information
+    for full type safety.
+
+    Type Parameters:
+        P: ParamSpec for the callable's parameters
+        T_Output: Return type of the callable function
 
     Attributes:
         type: Literal field that identifies this as a tool, always set to "tool".
@@ -78,29 +66,20 @@ class Tool[T_Output = Any](BaseModel):
         description: Human-readable description of what the tool does.
         parameters: Dictionary of parameter specifications for the tool.
         _callable_ref: Private attribute storing the callable function.
+        _before_call: Optional callback executed before the main function.
+        _after_call: Optional callback executed after the main function.
 
     Examples:
         ```python
-        # Create a tool directly with parameters
-        calculator_tool = Tool(
-            name="calculate",
-            description="Performs arithmetic calculations",
-            parameters={
-                "expression": {
-                    "type": "string",
-                    "description": "The arithmetic expression to evaluate",
-                    "required": True
-                }
-            }
-        )
+        # Create a tool from a function with full type safety
+        def add_numbers(a: int, b: int) -> int:
+            \"\"\"Add two numbers together\"\"\"
+            return a + b
 
-        # Create a tool from a function
-        def fetch_user_data(user_id: str) -> dict:
-            \"\"\"Retrieve user data from the database\"\"\"
-            # Implementation would connect to a database
-            return {"id": user_id, "name": "Example User"}
-
-        user_data_tool = Tool.from_callable(fetch_user_data)
+        add_tool = Tool.from_callable(add_numbers)
+        # Now call is fully typed: (a: int, b: int) -> int
+        result = add_tool.call(a=5, b=3)  # Type-safe call
+        assert result == 8
         ```
     """
 
@@ -147,22 +126,20 @@ class Tool[T_Output = Any](BaseModel):
         description="If True, errors in the tool execution will be ignored and the agent will continue running.",
     )
 
-    # change to private
-    _before_call: Callable[..., Any] | Callable[..., Awaitable[Any]] | None = (
-        PrivateAttr(
-            default=None,
-        )
+    # Callable reference - using ParamSpec for better parameter type safety
+    _callable_ref: Callable[P, T_Output] | Callable[P, Awaitable[T_Output]] | None = (
+        PrivateAttr(default=None)
     )
 
-    _after_call: Callable[..., Any] | Callable[..., Awaitable[Any]] | None = (
-        PrivateAttr(
-            default=None,
-        )
-    )
-
-    _callable_ref: (
-        Callable[..., T_Output] | Callable[..., Awaitable[T_Output]] | None
+    # Before call receives same params as main function and optionally return result to short-circuit
+    _before_call: (
+        Callable[P, T_Output | None] | Callable[P, Awaitable[T_Output | None]] | None
     ) = PrivateAttr(default=None)
+
+    # After call receives result + original params and can modify the result
+    _after_call: Callable[..., T_Output] | Callable[..., Awaitable[T_Output]] | None = (
+        PrivateAttr(default=None)
+    )
 
     _server: MCPServerProtocol | None = PrivateAttr(default=None)
 
@@ -178,88 +155,43 @@ class Tool[T_Output = Any](BaseModel):
 
         Returns:
             str: A formatted string containing the tool name, description, and parameters.
-
-        Example:
-            ```python
-            weather_tool = Tool(
-                name="get_weather",
-                description="Get weather for a location",
-                parameters={"location": {"type": "string", "required": True}}
-            )
-
-            print(weather_tool.text)
-            # Output:
-            # Tool: get_weather
-            # Description: Get weather for a location
-            # Parameters: {'location': {'type': 'string', 'required': True}}
-            ```
         """
         return f"Tool: {self.name}\nDescription: {self.description}\nParameters: {self.parameters}"
 
-    def call(self, context: Context | None = None, **kwargs: object) -> T_Output:
+    def call(self, *args: P.args, **kwargs: P.kwargs) -> T_Output:
         """
         Executes the underlying function with the provided arguments.
 
-        This method calls the function referenced by the `_callable_ref` attribute
-        with the provided keyword arguments. It raises a ValueError if the Tool
-        was not created with a callable reference.
-
         Args:
-            context: Optional context object for HITL workflows and state management.
-            **kwargs: Keyword arguments to pass to the underlying function.
+            *args: Positional arguments matching the ParamSpec P of the underlying function.
+            **kwargs: Keyword arguments matching the ParamSpec P of the underlying function.
 
         Returns:
             T_Output: The result of calling the underlying function.
 
         Raises:
             ValueError: If the Tool does not have a callable reference.
-
-        Example:
-            ```python
-            def add(a: int, b: int) -> int:
-                \"\"\"Add two numbers\"\"\"
-                return a + b
-
-            add_tool = Tool.from_callable(add)
-            result = add_tool.call(a=5, b=3)
-            print(result)  # Output: 8
-            ```
         """
-        ret = run_sync(self.call_async, timeout=None, context=context, **kwargs)
+        ret = run_sync(self.call_async, timeout=None, *args, **kwargs)
         return ret
 
-    async def call_async(
-        self, context: Context | None = None, **kwargs: object
-    ) -> T_Output:
+    async def call_async(self, *args: P.args, **kwargs: P.kwargs) -> T_Output:
         """
         Executes the underlying function asynchronously with the provided arguments.
 
-        This method calls the function referenced by the `_callable_ref` attribute
-        with the provided keyword arguments. It raises a ValueError if the Tool
-        was not created with a callable reference.
-
         Args:
-            context: Optional context object for HITL workflows and state management.
-            **kwargs: Keyword arguments to pass to the underlying function.
+            *args: Positional arguments matching the ParamSpec P of the underlying function.
+            **kwargs: Keyword arguments matching the ParamSpec P of the underlying function.
 
         Returns:
             T_Output: The result of calling the underlying function.
 
         Raises:
             ValueError: If the Tool does not have a callable reference.
-
-        Example:
-            ```python
-            async def async_add(a: int, b: int) -> int:
-                \"\"\"Add two numbers\"\"\"
-                return a + b
-
-            add_tool = Tool.from_callable(async_add)
-            result = await add_tool.call_async(a=5, b=3)
-            print(result)  # Output: 8
-            ```
         """
-        _logger.debug(f"Calling tool '{self.name}' with arguments: {kwargs}")
+        _logger.debug(
+            f"Calling tool '{self.name}' with arguments: args={args}, kwargs={kwargs}"
+        )
 
         if self._callable_ref is None:
             _logger.error(f"Tool '{self.name}' is not callable - missing _callable_ref")
@@ -268,25 +200,24 @@ class Tool[T_Output = Any](BaseModel):
             )
 
         try:
-            # Execute before_call callback with context if available
+            # Execute before_call callback - can short-circuit execution
             if self._before_call is not None:
                 _logger.debug(f"Executing before_call callback for tool '{self.name}'")
                 if inspect.iscoroutinefunction(self._before_call):
-                    if context is not None:
-                        await self._before_call(context=context, **kwargs)
-                    else:
-                        await self._before_call(**kwargs)
+                    before_result = await self._before_call(*args, **kwargs)
                 else:
-                    if context is not None:
-                        self._before_call(context=context, **kwargs)
-                    else:
-                        self._before_call(**kwargs)
+                    before_result = self._before_call(*args, **kwargs)
+
+                # If before_call returns a result, use it and skip main function
+                if before_result is not None:
+                    _logger.debug("before_call returned result, skipping main function")
+                    return before_result  # type: ignore[return-value]
 
             # Execute the main function
             _logger.debug(f"Executing main function for tool '{self.name}'")
             if inspect.iscoroutinefunction(self._callable_ref):
                 try:
-                    ret: T_Output = await self._callable_ref(**kwargs)  # type: ignore
+                    async_ret: T_Output = await self._callable_ref(*args, **kwargs)
                 except Exception as e:
                     if self.ignore_errors:
                         _logger.error(
@@ -296,9 +227,10 @@ class Tool[T_Output = Any](BaseModel):
                         return f"Error while executing tool {self.name}: {str(e)}"  # type: ignore
                     else:
                         raise
+                ret = async_ret
             else:
                 try:
-                    ret: T_Output = self._callable_ref(**kwargs)  # type: ignore
+                    sync_ret: T_Output = self._callable_ref(*args, **kwargs)  # type: ignore[misc]
                 except Exception as e:
                     if self.ignore_errors:
                         _logger.error(
@@ -308,22 +240,20 @@ class Tool[T_Output = Any](BaseModel):
                         return f"Error while executing tool {self.name}: {str(e)}"  # type: ignore
                     else:
                         raise
+                ret = sync_ret
 
             _logger.info(f"Tool '{self.name}' executed successfully")
 
-            # Execute after_call callback with context and result if available
+            # Execute after_call callback - can modify the result
             if self._after_call is not None:
                 _logger.debug(f"Executing after_call callback for tool '{self.name}'")
                 if inspect.iscoroutinefunction(self._after_call):
-                    if context is not None:
-                        await self._after_call(context=context, result=ret, **kwargs)
-                    else:
-                        await self._after_call(result=ret, **kwargs)
+                    # Pass result as first positional arg, then original args and kwargs
+                    modified_result = await self._after_call(ret, *args, **kwargs)
                 else:
-                    if context is not None:
-                        self._after_call(context=context, result=ret, **kwargs)
-                    else:
-                        self._after_call(result=ret, **kwargs)
+                    modified_result = self._after_call(ret, *args, **kwargs)
+
+                return modified_result  # type: ignore[return-value]
 
             return ret
 
@@ -336,32 +266,17 @@ class Tool[T_Output = Any](BaseModel):
     @classmethod
     def from_mcp_tool(
         cls, mcp_tool: MCPTool, server: MCPServerProtocol, ignore_errors: bool = False
-    ) -> Tool[T_Output]:
+    ) -> Tool[..., Any]:
         """
         Creates a Tool instance from an MCP Tool.
 
-        This class method constructs a Tool from the Model Control Protocol (MCP)
-        Tool format, extracting the name, description, and parameter schema.
-
         Args:
             mcp_tool: An MCP Tool object with name, description, and inputSchema.
+            server: The MCP server protocol instance.
+            ignore_errors: Whether to ignore errors during execution.
 
         Returns:
-            Tool[T_Output]: A new Tool instance.
-
-        Example:
-            ```python
-            from mcp.types import Tool as MCPTool
-
-            # Assuming an MCP tool object is available
-            mcp_tool = MCPTool(
-                name="search",
-                description="Search for information",
-                inputSchema={"query": {"type": "string", "required": True}}
-            )
-
-            search_tool = Tool.from_mcp_tool(mcp_tool)
-            ```
+            Tool: A new Tool instance.
         """
         _logger.debug(f"Creating Tool from MCP tool: {mcp_tool.name}")
 
@@ -383,7 +298,7 @@ class Tool[T_Output = Any](BaseModel):
             )
             tool._server = server
 
-            async def _callable_ref(**kwargs: object) -> Any:
+            async def _callable_ref(**kwargs: Any) -> Any:
                 _logger.debug(f"Calling MCP tool '{mcp_tool.name}' with server")
                 try:
                     call_tool_result: CallToolResult = await server.call_tool_async(
@@ -430,7 +345,9 @@ class Tool[T_Output = Any](BaseModel):
                     )
                     raise
 
-            tool._callable_ref = _callable_ref
+            # Use type: ignore to bypass the strict type checking for MCP tools
+            # since they have dynamic signatures
+            tool._callable_ref = _callable_ref  # type: ignore[assignment]
             _logger.info(f"Successfully created Tool from MCP tool: {mcp_tool.name}")
             return tool
 
@@ -444,67 +361,91 @@ class Tool[T_Output = Any](BaseModel):
     @classmethod
     def from_callable(
         cls,
-        _callable: Callable[..., T_Output] | Callable[..., Awaitable[T_Output]],
+        _callable: Callable[CallableP, CallableT]
+        | Callable[CallableP, Awaitable[CallableT]],
         /,
         *,
         name: str | None = None,
         description: str | None = None,
-        before_call: Callable[..., T_Output]
-        | Callable[..., Awaitable[T_Output]]
-        | None = None,
-        after_call: Callable[..., T_Output]
-        | Callable[..., Awaitable[T_Output]]
-        | None = None,
+        before_call: (
+            Callable[CallableP, CallableT | None]
+            | Callable[CallableP, Awaitable[CallableT | None]]
+            | None
+        ) = None,
+        after_call: (
+            Callable[
+                ..., CallableT
+            ]  # (result: CallableT, *args, **kwargs) -> CallableT
+            | Callable[..., Awaitable[CallableT]]
+            | None
+        ) = None,
         ignore_errors: bool = False,
-    ) -> Tool[T_Output]:
+    ) -> Tool[CallableP, CallableT]:
         """
-        Creates a Tool instance from a callable function.
+        Creates a Tool instance from a callable function with full type safety.
 
-        This class method analyzes a function's signature, including its name,
-        docstring, parameter types, and default values, to create a Tool instance.
-        The resulting Tool encapsulates the function and its metadata.
+        This class method analyzes a function's signature and creates a Tool instance
+        that preserves both the parameter signature and return type.
+
+        Type Parameters:
+            CallableP: ParamSpec for the callable's parameters
+            CallableT: Return type of the callable
 
         Args:
             _callable: A callable function to wrap as a Tool.
+            name: Optional custom name for the tool.
+            description: Optional custom description for the tool.
+            before_call: Optional callback executed before the main function.
+                        Receives same params and can optionally return result to short-circuit.
+            after_call: Optional callback executed after the main function.
+                       Receives (result: CallableT, *args, **kwargs) and can modify the result.
+            ignore_errors: Whether to ignore errors during execution.
 
         Returns:
-            Tool[T_Output]: A new Tool instance with the callable function set as its reference.
+            Tool[CallableP, CallableT]: A new Tool instance with preserved type signatures.
 
         Example:
             ```python
-            def search_database(query: str, limit: int = 10) -> list[dict]:
-                \"\"\"Search the database for records matching the query\"\"\"
-                # Implementation would typically search a database
-                return [{"id": 1, "result": f"Result for {query}"}] * min(limit, 100)
+            def multiply(a: int, b: int) -> int:
+                \"\"\"Multiply two numbers\"\"\"
+                return a * b
 
-            db_search_tool = Tool.from_callable(search_database)
+            def log_before_multiply(a: int, b: int) -> None:
+                print(f"About to multiply {a} and {b}")
+                return None  # Continue to main function
 
-            # The resulting tool will have:
-            # - name: "search_database"
-            # - description: "Search the database for records matching the query"
-            # - parameters: {
-            #     "query": {"type": "str", "required": True},
-            #     "limit": {"type": "int", "default": 10}
-            # }
+            def log_after_multiply(result: int, a: int, b: int) -> int:
+                print(f"Result: {result}")
+                return result
+
+            # Full type safety preserved
+            multiply_tool = Tool.from_callable(
+                multiply,
+                before_call=log_before_multiply,
+                after_call=log_after_multiply
+            )
+
+            # Type-safe usage - parameters are properly typed!
+            result = multiply_tool.call(a=5, b=3)  # Returns int
             ```
         """
         _name: str = name or getattr(_callable, "__name__", "anonymous_function")
-        _logger.debug(f"Creating Tool from callable function: {name}")
+        _logger.debug(f"Creating Tool from callable function: {_name}")
 
         try:
             _description = (
                 description or _callable.__doc__ or "No description available"
             )
 
-            # Extrair informações dos parâmetros da função
+            # Extract parameter information from the function
             parameters: dict[str, object] = {}
             signature = inspect.signature(_callable)
             _logger.debug(
-                f"Analyzing {len(signature.parameters)} parameters for function '{name}'"
+                f"Analyzing {len(signature.parameters)} parameters for function '{_name}'"
             )
 
             for param_name, param in signature.parameters.items():
-                # Ignorar parâmetros do tipo self/cls para métodos
+                # Skip self/cls parameters for methods
                 if (
                     param_name in ("self", "cls")
                     and param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
@@ -514,7 +455,7 @@ class Tool[T_Output = Any](BaseModel):
 
                 param_info: dict[str, object] = {"type": "object"}
 
-                # Adicionar informações de tipo se disponíveis
+                # Add type information if available
                 if param.annotation != inspect.Parameter.empty:
                     param_type = (
                         str(param.annotation).replace("<class '", "").replace("'>", "")
@@ -524,14 +465,14 @@ class Tool[T_Output = Any](BaseModel):
                         f"Parameter '{param_name}' has type annotation: {param_type}"
                     )
 
-                # Adicionar valor padrão se disponível
+                # Add default value if available
                 if param.default != inspect.Parameter.empty:
                     param_info["default"] = param.default
                     _logger.debug(
                         f"Parameter '{param_name}' has default value: {param.default}"
                     )
 
-                # Determinar se o parâmetro é obrigatório
+                # Determine if parameter is required
                 if param.default == inspect.Parameter.empty and param.kind in (
                     inspect.Parameter.POSITIONAL_ONLY,
                     inspect.Parameter.POSITIONAL_OR_KEYWORD,
@@ -541,33 +482,64 @@ class Tool[T_Output = Any](BaseModel):
 
                 parameters[param_name] = param_info
 
-            instance = cls(
+            # Create instance with type parameter matching the callable's return type
+            instance: Tool[CallableP, CallableT] = cls(  # type: ignore[assignment]
                 name=_name,
                 description=_description,
                 parameters=parameters,
                 ignore_errors=ignore_errors,
             )
 
-            # Definir o atributo privado após a criação da instância
+            # Set private attributes after instance creation
             instance._callable_ref = _callable
             instance._before_call = before_call
             instance._after_call = after_call
 
             _logger.info(
-                f"Successfully created Tool from callable: {name} with {len(parameters)} parameters"
+                f"Successfully created Tool from callable: {_name} with {len(parameters)} parameters"
             )
             return instance
 
         except Exception as e:
             _logger.error(
-                f"Error creating Tool from callable '{name}': {str(e)}", exc_info=True
+                f"Error creating Tool from callable '{_name}': {str(e)}", exc_info=True
             )
             raise
 
     def set_callable_ref(
-        self, ref: Callable[..., T_Output] | Callable[..., Awaitable[T_Output]] | None
+        self, ref: Callable[P, T_Output] | Callable[P, Awaitable[T_Output]] | None
     ) -> None:
+        """Set the callable reference for this tool."""
         self._callable_ref = ref
 
     def __str__(self) -> str:
         return self.text
+
+
+# Example usage and type checking
+if __name__ == "__main__":
+    # Example 1: Simple function
+    def add_numbers(a: int, b: int) -> int:
+        """Add two numbers together."""
+        return a + b
+
+    # Tool preserves parameter and return type
+    add_tool = Tool.from_callable(add_numbers)
+    result = add_tool.call(
+        a=5, b=3
+    )  # Parameters are fully typed: (a: int, b: int) -> int
+
+    # Example 2: With callbacks
+    def log_before(a: int, b: int) -> int | None:
+        print(f"About to add {a} and {b}")
+        return None  # Continue to main function
+
+    def modify_result(result: int, *args: Any, **kwargs: Any) -> int:
+        print(f"Original result: {result}")
+        return result * 2  # Double the result
+
+    enhanced_tool = Tool.from_callable(
+        add_numbers, before_call=log_before, after_call=modify_result
+    )
+
+    enhanced_result = enhanced_tool.call(a=5, b=3)  # result is 16 (8*2)

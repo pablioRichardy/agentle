@@ -2,7 +2,7 @@ import abc
 from collections.abc import MutableSequence, Sequence
 import logging
 from textwrap import dedent
-from typing import Literal
+from typing import Literal, ParamSpec
 
 from rsb.coroutines.run_sync import run_sync
 
@@ -24,6 +24,7 @@ from agentle.vector_stores.filters.match_value import MatchValue
 type ChunkID = str
 
 logger = logging.getLogger(__name__)
+SearchParams = ParamSpec("SearchParams")
 
 
 class VectorStore(abc.ABC):
@@ -298,9 +299,9 @@ class VectorStore(abc.ABC):
     @abc.abstractmethod
     async def list_collections_async(self) -> Sequence[Collection]: ...
 
-    def as_search_tool(self) -> Tool[Sequence[Chunk]]:
+    def as_search_tool(self) -> Tool[[str, int], str]:
         async def retrieval_augmented_generation_search(
-            query: str, *, top_k: int = 5
+            query: str, top_k: int = 5
         ) -> str:
             related_chunks = await self.find_related_content_async(query=query, k=top_k)
             chunk_descriptions = [chunk.describe() for chunk in related_chunks]
