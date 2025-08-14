@@ -247,7 +247,7 @@ class Output(BaseModel):
 structured_agent = Agent(
     generation_provider=CerebrasGenerationProvider(),
     model="llama-4-scout-17b-16e-instruct",
-    response_schema=Output,
+    response_schema=TextOutput,
 )
 
 # Run the agent with a query that requires structured data
