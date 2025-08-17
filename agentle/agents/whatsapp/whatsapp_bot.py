@@ -185,7 +185,7 @@ class WhatsAppBot(BaseModel):
                 f"Cleaned up {len(abandoned_processors)} abandoned batch processors"
             )
 
-    async def handle_message(self, message: WhatsAppMessage) -> None:
+    async def handle_message(self, message: WhatsAppMessage) -> str | None:
         """
         Handle incoming WhatsApp message with enhanced error handling and batching.
 
@@ -235,7 +235,7 @@ class WhatsAppBot(BaseModel):
                     )
                     if session.is_rate_limited:
                         await self._send_rate_limit_message(message.from_number)
-                    return
+                    return None
 
             # Check welcome message for first interaction
             if (
@@ -268,12 +268,12 @@ class WhatsAppBot(BaseModel):
                 logger.info(
                     f"[BATCHING] Processing message with batching for {message.from_number}"
                 )
-                await self._handle_message_with_batching(message, session)
+                return await self._handle_message_with_batching(message, session)
             else:
                 logger.info(
                     f"[IMMEDIATE] Processing message immediately for {message.from_number}"
                 )
-                await self._process_single_message(message, session)
+                return await self._process_single_message(message, session)
 
         except Exception as e:
             logger.error(
@@ -282,10 +282,11 @@ class WhatsAppBot(BaseModel):
             )
             if self._is_user_facing_error(e):
                 await self._send_error_message(message.from_number, message.id)
+            return None
 
     async def _handle_message_with_batching(
         self, message: WhatsAppMessage, session: WhatsAppSession
-    ) -> None:
+    ) -> str | None:
         """Handle message with improved batching logic and atomic state management."""
         phone_number = message.from_number
 
@@ -301,7 +302,7 @@ class WhatsAppBot(BaseModel):
                 current_session = await self.provider.get_session(phone_number)
                 if not current_session:
                     logger.error(f"[BATCHING] Lost session for {phone_number}")
-                    return
+                    return None
 
                 # Convert message to storable format
                 message_data = await self._message_to_dict(message)
@@ -316,8 +317,7 @@ class WhatsAppBot(BaseModel):
                         f"[BATCHING] Failed to update session for {phone_number}"
                     )
                     # Fall back to immediate processing
-                    await self._process_single_message(message, current_session)
-                    return
+                    return await self._process_single_message(message, current_session)
 
                 # Re-fetch session after update to get latest processing state
                 updated_session = await self.provider.get_session(phone_number)
@@ -325,7 +325,7 @@ class WhatsAppBot(BaseModel):
                     logger.error(
                         f"[BATCHING] Lost session after update for {phone_number}"
                     )
-                    return
+                    return None
 
                 # Only start processor if we successfully initiated processing
                 if (
@@ -345,6 +345,9 @@ class WhatsAppBot(BaseModel):
                     logger.info(
                         f"[BATCHING] Message added to existing batch for {phone_number}"
                     )
+                
+                # Return None for batched messages since they're processed asynchronously
+                return None
 
         except Exception as e:
             logger.error(
@@ -352,12 +355,13 @@ class WhatsAppBot(BaseModel):
             )
             # Always fall back to immediate processing on error
             try:
-                await self._process_single_message(message, session)
+                return await self._process_single_message(message, session)
             except Exception as fallback_error:
                 logger.error(
                     f"[FALLBACK_ERROR] Fallback processing failed: {fallback_error}"
                 )
                 await self._send_error_message(message.from_number, message.id)
+                return None
 
     async def _atomic_session_update(
         self, phone_number: str, session: WhatsAppSession, message_data: dict[str, Any]
@@ -594,7 +598,7 @@ class WhatsAppBot(BaseModel):
 
     async def _process_message_batch(
         self, phone_number: str, session: WhatsAppSession, processing_token: str
-    ) -> None:
+    ) -> str | None:
         """Process a batch of messages for a user with token validation."""
         logger.info(
             f"[BATCH_PROCESSING] Starting to process message batch for {phone_number} with token {processing_token}"
@@ -606,7 +610,7 @@ class WhatsAppBot(BaseModel):
             )
             session.finish_batch_processing(processing_token)
             await self.provider.update_session(session)
-            return
+            return None
 
         try:
             # Show typing indicator
@@ -664,6 +668,8 @@ class WhatsAppBot(BaseModel):
                 f"[BATCH_PROCESSING] Successfully processed batch for {phone_number}. "
                 + f"Total messages processed: {session.message_count}"
             )
+            
+            return response
 
         except Exception as e:
             logger.error(
@@ -678,7 +684,7 @@ class WhatsAppBot(BaseModel):
 
     async def _process_single_message(
         self, message: WhatsAppMessage, session: WhatsAppSession
-    ) -> None:
+    ) -> str:
         """Process a single message immediately with quote message support."""
         logger.info(
             f"[SINGLE_MESSAGE] Processing single message for {message.from_number}"
@@ -724,6 +730,8 @@ class WhatsAppBot(BaseModel):
                 f"[SINGLE_MESSAGE] Successfully processed single message for {message.from_number}. "
                 + f"Total messages processed: {session.message_count}"
             )
+            
+            return response
 
         except Exception as e:
             logger.error(
@@ -846,22 +854,27 @@ class WhatsAppBot(BaseModel):
         # Simply return the user message - Agent will handle conversation history via chat_id
         return user_message
 
-    async def handle_webhook(self, payload: WhatsAppWebhookPayload) -> None:
+    async def handle_webhook(self, payload: WhatsAppWebhookPayload) -> str | None:
         """
         Handle incoming webhook from WhatsApp.
 
         Args:
             payload: Raw webhook payload
+            
+        Returns:
+            The generated response string if a message was processed, None otherwise
         """
         logger.info(f"[WEBHOOK] Received webhook event: {payload.event}")
 
         try:
             await self.provider.validate_webhook(payload)
 
+            response = None
+            
             # Handle Evolution API events
             if payload.event == "messages.upsert":
                 logger.debug("[WEBHOOK] Handling messages.upsert event")
-                await self._handle_message_upsert(payload)
+                response = await self._handle_message_upsert(payload)
             elif payload.event == "messages.update":
                 logger.debug("[WEBHOOK] Handling messages.update event")
                 await self._handle_message_update(payload)
@@ -871,15 +884,18 @@ class WhatsAppBot(BaseModel):
             # Handle Meta API events
             elif payload.entry:
                 logger.debug("[WEBHOOK] Handling Meta API webhook")
-                await self._handle_meta_webhook(payload)
+                response = await self._handle_meta_webhook(payload)
 
             # Call custom handlers
             for handler in self._webhook_handlers:
                 logger.debug("[WEBHOOK] Calling custom webhook handler")
                 await handler(payload)
+                
+            return response
 
         except Exception as e:
             logger.error(f"[WEBHOOK_ERROR] Error handling webhook: {e}", exc_info=True)
+            return None
 
     def to_blacksheep_app(
         self,
@@ -1194,7 +1210,7 @@ class WhatsAppBot(BaseModel):
 
         return final_messages
 
-    async def _handle_message_upsert(self, payload: WhatsAppWebhookPayload) -> None:
+    async def _handle_message_upsert(self, payload: WhatsAppWebhookPayload) -> str | None:
         """Handle new message event."""
         logger.debug("[MESSAGE_UPSERT] Processing message upsert event")
 
@@ -1203,7 +1219,7 @@ class WhatsAppBot(BaseModel):
             logger.warning(
                 "[MESSAGE_UPSERT] Bot is not running, skipping message processing"
             )
-            return
+            return None
 
         # Check if this is Evolution API format
         if payload.event == "messages.upsert" and payload.data:
@@ -1213,7 +1229,7 @@ class WhatsAppBot(BaseModel):
             # Skip outgoing messages
             if data["key"].get("fromMe", False):
                 logger.debug("[MESSAGE_UPSERT] Skipping outgoing message")
-                return
+                return None
 
             # Parse message directly from data (which contains the message info)
             message = self._parse_evolution_message_from_data(data)
@@ -1221,19 +1237,22 @@ class WhatsAppBot(BaseModel):
                 logger.info(
                     f"[MESSAGE_UPSERT] Parsed message: {message.id} from {message.from_number}"
                 )
-                await self.handle_message(message)
+                return await self.handle_message(message)
             else:
                 logger.warning(
                     "[MESSAGE_UPSERT] Failed to parse message from Evolution API data"
                 )
+                return None
 
         # Check if this is Meta API format
         elif payload.entry:
             # Meta API format - handle through provider
             logger.debug("[MESSAGE_UPSERT] Processing Meta API message upsert")
             await self.provider.validate_webhook(payload)
+            return None
         else:
             logger.warning("[MESSAGE_UPSERT] Unknown webhook format in message upsert")
+            return None
 
     async def _handle_message_update(self, payload: WhatsAppWebhookPayload) -> None:
         """Handle message update event (status changes)."""
@@ -1409,15 +1428,17 @@ class WhatsAppBot(BaseModel):
 
         return None
 
-    async def _handle_meta_webhook(self, payload: WhatsAppWebhookPayload) -> None:
+    async def _handle_meta_webhook(self, payload: WhatsAppWebhookPayload) -> str | None:
         """Handle Meta WhatsApp Business API webhooks."""
         logger.debug("[META_WEBHOOK] Processing Meta webhook")
 
         try:
             if not payload.entry:
                 logger.warning("[META_WEBHOOK] No entry data in Meta webhook")
-                return
+                return None
 
+            response = None
+            
             for entry_item in payload.entry:
                 changes = entry_item.get("changes", [])
                 for change in changes:
@@ -1442,12 +1463,16 @@ class WhatsAppBot(BaseModel):
                                 logger.info(
                                     f"[META_WEBHOOK] Parsed message: {message.id} from {message.from_number}"
                                 )
-                                await self.handle_message(message)
+                                # Return the response from the last processed message
+                                response = await self.handle_message(message)
+                                
+            return response
 
         except Exception as e:
             logger.error(
                 f"[META_WEBHOOK_ERROR] Error handling Meta webhook: {e}", exc_info=True
             )
+            return None
 
     async def _parse_meta_message(
         self, msg_data: dict[str, Any]
