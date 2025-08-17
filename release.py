@@ -328,8 +328,8 @@ def main():
         with open(changelog_path, "r") as f:
             content = f.read()
 
-        # Regex pattern to match version strings like v0.1.2 or v0.2.1
-        match = re.search(r"#* v?(\d+\.\d+\.\d+)", content)
+        # Regex pattern to match version strings like v0.1.2 or v0.2.1, including emojis and other characters
+        match = re.search(r"#+\s*[^\s]*\s*v?(\d+\.\d+\.\d+)", content)
 
         if match:
             current_version = match.group(1).strip()
