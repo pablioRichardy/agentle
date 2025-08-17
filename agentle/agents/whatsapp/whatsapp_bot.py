@@ -242,7 +242,7 @@ class WhatsAppBot(BaseModel):
                 await cast(
                     ConversationStore, self.agent.conversation_store
                 ).get_conversation_history_length(message.from_number)
-                == 0
+                == 0 # TODO(arthur): fix potential duplicate of first message
                 and self.config.welcome_message
             ):
                 logger.info(
