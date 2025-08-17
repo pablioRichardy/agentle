@@ -12,6 +12,7 @@ from agentle.agents.whatsapp.models.whatsapp_contact import WhatsAppContact
 logger = logging.getLogger(__name__)
 
 
+# In whatsapp_session.py - Remove agent_context_id field
 class WhatsAppSession(BaseModel):
     """WhatsApp conversation session with improved message batching and spam protection."""
 
@@ -23,7 +24,6 @@ class WhatsAppSession(BaseModel):
     message_count: int = 0
     is_active: bool = True
     context_data: MutableMapping[str, Any] = Field(default_factory=dict)
-    agent_context_id: str | None = None
 
     # Message batching and spam protection fields
     is_processing: bool = Field(
@@ -235,10 +235,10 @@ class WhatsAppSession(BaseModel):
     def start_batch_processing(self, max_wait_seconds: float) -> str:
         """
         Start batch processing with improved state management.
-        
+
         Args:
             max_wait_seconds: Maximum seconds to wait before forcing processing
-            
+
         Returns:
             Processing token for this batch
         """
@@ -268,16 +268,16 @@ class WhatsAppSession(BaseModel):
             + f"pending_messages={len(self.pending_messages)}, "
             + f"token={processing_token}"
         )
-        
+
         return processing_token
 
     def finish_batch_processing(self, processing_token: str | None = None) -> bool:
         """
         Finish batch processing with token validation.
-        
+
         Args:
             processing_token: Token from start_batch_processing
-            
+
         Returns:
             True if processing was finished, False if token mismatch
         """
@@ -306,50 +306,50 @@ class WhatsAppSession(BaseModel):
             + f"is_processing={self.is_processing}, "
             + f"pending_messages={len(self.pending_messages)}"
         )
-        
+
         return True
 
     def is_batch_expired(self, max_wait_seconds: float) -> bool:
         """
         Check if the current batch has expired and should be force-processed.
-        
+
         Args:
             max_wait_seconds: Maximum seconds to wait
-            
+
         Returns:
             True if batch has expired
         """
         if not self.is_processing or not self.batch_started_at:
             return False
-            
+
         now = datetime.now()
         time_since_start = (now - self.batch_started_at).total_seconds()
-        
+
         return time_since_start >= max_wait_seconds
 
     def get_batch_age_seconds(self) -> float:
         """Get the age of the current batch in seconds."""
         if not self.batch_started_at:
             return 0.0
-        
+
         return (datetime.now() - self.batch_started_at).total_seconds()
 
     def reset_session(self) -> None:
         """Reset session to initial state."""
         logger.info(f"[SESSION_RESET] Resetting session for {self.phone_number}")
-        
+
         self.is_processing = False
         self.pending_messages.clear()
         self.batch_started_at = None
         self.batch_timeout_at = None
         self.processing_token = None
-        
+
         # Reset rate limiting
         self.is_rate_limited = False
         self.rate_limit_until = None
         self.messages_in_current_minute = 0
         self.current_minute_start = None
-        
+
         # Update timestamps
         self.last_activity = datetime.now()
         self.last_state_change = datetime.now()
@@ -361,11 +361,17 @@ class WhatsAppSession(BaseModel):
             "phone_number": self.phone_number,
             "is_processing": self.is_processing,
             "pending_messages_count": len(self.pending_messages),
-            "batch_started_at": self.batch_started_at.isoformat() if self.batch_started_at else None,
-            "batch_timeout_at": self.batch_timeout_at.isoformat() if self.batch_timeout_at else None,
+            "batch_started_at": self.batch_started_at.isoformat()
+            if self.batch_started_at
+            else None,
+            "batch_timeout_at": self.batch_timeout_at.isoformat()
+            if self.batch_timeout_at
+            else None,
             "processing_token": self.processing_token,
             "is_rate_limited": self.is_rate_limited,
-            "rate_limit_until": self.rate_limit_until.isoformat() if self.rate_limit_until else None,
+            "rate_limit_until": self.rate_limit_until.isoformat()
+            if self.rate_limit_until
+            else None,
             "messages_in_current_minute": self.messages_in_current_minute,
             "last_activity": self.last_activity.isoformat(),
             "last_state_change": self.last_state_change.isoformat(),

@@ -101,7 +101,7 @@ class EvolutionAPIProvider(WhatsAppProvider):
     config: EvolutionAPIConfig
     session_manager: SessionManager[WhatsAppSession]
     session_ttl_seconds: int
-    _session: aiohttp.ClientSession | None
+    _http_session: aiohttp.ClientSession | None
     _circuit_breaker: InMemoryCircuitBreaker | None
     _rate_limiter: InMemoryRateLimiter | None
     _request_metrics: MutableMapping[str, Any]
@@ -145,10 +145,10 @@ class EvolutionAPIProvider(WhatsAppProvider):
 
         self.config = config
         self.session_ttl_seconds = session_ttl_seconds
-        self._session: aiohttp.ClientSession | None = None
         self._max_retries = max_retries
         self._base_retry_delay = base_retry_delay
         self._connection_pool_size = connection_pool_size
+        self._http_session = None
 
         # Initialize session manager
         if session_manager is None:
@@ -215,7 +215,7 @@ class EvolutionAPIProvider(WhatsAppProvider):
     @property
     def session(self) -> aiohttp.ClientSession:
         """Get or create HTTP session with optimized configuration."""
-        if self._session is None:
+        if self._http_session is None:
             logger.debug("Creating new aiohttp session for Evolution API")
             headers = {
                 "apikey": self.config.api_key,
@@ -239,7 +239,7 @@ class EvolutionAPIProvider(WhatsAppProvider):
                 sock_read=self.config.timeout - 10,  # Remaining time for reading
             )
 
-            self._session = aiohttp.ClientSession(
+            self._http_session = aiohttp.ClientSession(
                 headers=headers,
                 timeout=timeout,
                 connector=connector,
@@ -248,7 +248,7 @@ class EvolutionAPIProvider(WhatsAppProvider):
             logger.debug(
                 f"HTTP session created with timeout={self.config.timeout}s, pool_size={self._connection_pool_size}"
             )
-        return self._session
+        return self._http_session
 
     def _build_url(self, endpoint: str, use_message_prefix: bool = True) -> str:
         """
@@ -620,7 +620,7 @@ class EvolutionAPIProvider(WhatsAppProvider):
                 if isinstance(instance_data, dict):
                     instance_name = instance_data.get("name")
 
-                    if instance_name:
+                    if instance_name and isinstance(instance_name, str):
                         available_instances.append(instance_name)
                         logger.debug(f"Found instance: {instance_name}")
 
@@ -677,10 +677,10 @@ class EvolutionAPIProvider(WhatsAppProvider):
 
         try:
             # Close HTTP session
-            if self._session:
+            if self._http_session:
                 logger.debug("Closing aiohttp session")
-                await self._session.close()
-                self._session = None
+                await self._http_session.close()
+                self._http_session = None
 
             # Close resilience components
             if self._circuit_breaker:
@@ -1352,7 +1352,7 @@ class EvolutionAPIProvider(WhatsAppProvider):
             "webhook_url": self.config.webhook_url,
             "timeout": self.config.timeout,
             "session_ttl_seconds": self.session_ttl_seconds,
-            "has_active_session": self._session is not None,
+            "has_active_session": self._http_session is not None,
             "max_retries": self._max_retries,
             "base_retry_delay": self._base_retry_delay,
             "connection_pool_size": self._connection_pool_size,

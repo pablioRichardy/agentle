@@ -24,6 +24,18 @@ class ConversationStore(abc.ABC):
         self.message_limit = message_limit
         self.override_old_messages = override_old_messages
 
+    async def get_conversation_history_length(self, chat_id: str) -> int:
+        """get_conversation_history_length
+
+        Args:
+            chat_id (str): the id of the chat to get the history from.
+
+        Returns:
+            int: the length of the conversation history.
+        """
+        chat_history = await self.get_conversation_history_async(chat_id)
+        return len(chat_history)
+
     @abc.abstractmethod
     async def get_conversation_history_async(
         self, chat_id: str

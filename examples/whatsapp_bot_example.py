@@ -11,6 +11,9 @@ from blacksheep import Application
 from dotenv import load_dotenv
 
 from agentle.agents.agent import Agent
+from agentle.agents.conversations.json_file_conversation_store import (
+    JSONFileConversationStore,
+)
 from agentle.agents.whatsapp.models.whatsapp_bot_config import WhatsAppBotConfig
 from agentle.agents.whatsapp.models.whatsapp_session import WhatsAppSession
 from agentle.agents.whatsapp.providers.evolution.evolution_api_config import (
@@ -70,6 +73,7 @@ def create_production_bot() -> Application:
 
     agent = Agent(
         instructions="Você é um assistente profissional. Seja útil, cortês e eficiente.",
+        conversation_store=JSONFileConversationStore(),
     )
 
     session_manager = SessionManager[WhatsAppSession](

@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from typing import Any
+
 from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
 
@@ -305,7 +308,7 @@ class WhatsAppBotConfig(BaseModel):
         welcome_message: str | None = None,
         quote_messages: bool = False,
         enable_spam_protection: bool = True,
-    ) -> "WhatsAppBotConfig":
+    ) -> WhatsAppBotConfig:
         """
         Create a configuration optimized for production.
 
@@ -324,9 +327,9 @@ class WhatsAppBotConfig(BaseModel):
             welcome_message=welcome_message,
             # Efficient batching
             enable_message_batching=True,
-            batch_delay_seconds=3.0,
+            batch_delay_seconds=10.0,
             max_batch_size=10,
-            max_batch_timeout_seconds=15.0,
+            max_batch_timeout_seconds=60,
             # Strong spam protection
             spam_protection_enabled=enable_spam_protection,
             max_messages_per_minute=20,

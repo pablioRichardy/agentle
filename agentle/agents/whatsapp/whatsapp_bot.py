@@ -14,7 +14,7 @@ from rsb.models.private_attr import PrivateAttr
 
 from agentle.agents.agent import Agent
 from agentle.agents.agent_input import AgentInput
-from agentle.agents.context import Context
+from agentle.agents.conversations.conversation_store import ConversationStore
 from agentle.agents.whatsapp.models.data import Data
 from agentle.agents.whatsapp.models.message import Message
 from agentle.agents.whatsapp.models.whatsapp_audio_message import WhatsAppAudioMessage
@@ -40,8 +40,7 @@ from agentle.generations.models.message_parts.tool_execution_suggestion import (
 from agentle.generations.models.messages.user_message import UserMessage
 from agentle.generations.tools.tool import Tool
 from agentle.generations.tools.tool_execution_result import ToolExecutionResult
-from agentle.sessions.in_memory_session_store import InMemorySessionStore
-from agentle.sessions.session_manager import SessionManager
+
 
 if TYPE_CHECKING:
     from blacksheep import Application
@@ -61,26 +60,14 @@ class WhatsAppBot(BaseModel):
     """
     WhatsApp bot that wraps an Agentle agent with enhanced message batching and spam protection.
 
-    This class handles the integration between WhatsApp messages
-    and the Agentle agent, managing sessions, message batching, and spam protection.
-
-    Key improvements:
-    - Fixed infinite loop in batch processor
-    - Better session state management
-    - Support for quote_messages configuration
-    - Enhanced error handling and recovery
-    - Proper cleanup of background tasks
+    Now uses the Agent's conversation store directly instead of managing contexts separately.
     """
 
     agent: Agent[Any]
     provider: WhatsAppProvider
     config: WhatsAppBotConfig = Field(default_factory=WhatsAppBotConfig)
-    context_manager: SessionManager[Context] = Field(
-        default_factory=lambda: SessionManager(
-            session_store=InMemorySessionStore[Context](),
-            default_ttl_seconds=1800,  # 30 minutes default for conversations
-        )
-    )
+
+    # REMOVED: context_manager field - no longer needed
 
     _running: bool = PrivateAttr(default=False)
     _webhook_handlers: MutableSequence[Callable[..., Any]] = PrivateAttr(
@@ -95,6 +82,14 @@ class WhatsAppBot(BaseModel):
     _cleanup_task: Optional[asyncio.Task[Any]] = PrivateAttr(default=None)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    def __post_init__(self):
+        """Validate that agent has conversation store configured."""
+        if self.agent.conversation_store is None:
+            raise ValueError(
+                "Agent must have a conversation_store configured for WhatsApp integration. "
+                + "Please set agent.conversation_store before creating WhatsAppBot."
+            )
 
     def start(self) -> None:
         """Start the WhatsApp bot."""
@@ -142,8 +137,7 @@ class WhatsAppBot(BaseModel):
         self._processing_locks.clear()
 
         await self.provider.shutdown()
-        if self.context_manager:
-            await self.context_manager.close()
+        # REMOVED: context_manager.close() - no longer needed
         logger.info("WhatsApp bot stopped")
 
     async def _cleanup_loop(self) -> None:
@@ -244,7 +238,13 @@ class WhatsAppBot(BaseModel):
                     return
 
             # Check welcome message for first interaction
-            if session.message_count == 0 and self.config.welcome_message:
+            if (
+                await cast(
+                    ConversationStore, self.agent.conversation_store
+                ).get_conversation_history_length(message.from_number)
+                == 0
+                and self.config.welcome_message
+            ):
                 logger.info(
                     f"[WELCOME] Sending welcome message to {message.from_number}"
                 )
@@ -762,7 +762,7 @@ class WhatsAppBot(BaseModel):
     async def _convert_message_batch_to_input(
         self, message_batch: Sequence[dict[str, Any]], session: WhatsAppSession
     ) -> Any:
-        """Convert a batch of messages to agent input with proper context loading."""
+        """Convert a batch of messages to agent input using phone number as chat_id."""
         logger.info(
             f"[BATCH_CONVERSION] Converting batch of {len(message_batch)} messages to agent input"
         )
@@ -810,7 +810,6 @@ class WhatsAppBot(BaseModel):
                     logger.debug(
                         f"[BATCH_CONVERSION] Downloading media for message {msg_data['id']}"
                     )
-                    # Download media using the original message ID
                     media_data = await self.provider.download_media(msg_data["id"])
                     parts.append(
                         FilePart(data=media_data.data, mime_type=media_data.mime_type)
@@ -844,60 +843,8 @@ class WhatsAppBot(BaseModel):
         user_message = UserMessage.create_named(parts=parts, name=push_name)
         logger.debug(f"[BATCH_CONVERSION] Created user message with name: {push_name}")
 
-        # Get or create agent context with proper persistence
-        context: Context
-        if session.agent_context_id:
-            logger.debug(
-                f"[BATCH_CONVERSION] Loading existing context: {session.agent_context_id}"
-            )
-            # Load existing context from storage
-            if self.context_manager:
-                existing_context = await self.context_manager.get_session(
-                    session.agent_context_id, refresh_ttl=True
-                )
-                if existing_context:
-                    context = existing_context
-                    logger.debug(
-                        f"[BATCH_CONVERSION] Loaded existing context: {session.agent_context_id}"
-                    )
-                else:
-                    # Context expired or not found, create new one
-                    context = Context()
-                    context.context_id = session.agent_context_id
-                    logger.debug(
-                        f"[BATCH_CONVERSION] Context not found, created new: {session.agent_context_id}"
-                    )
-            else:
-                # Context manager not available, create new context
-                context = Context()
-                context.context_id = session.agent_context_id
-                logger.debug(
-                    f"[BATCH_CONVERSION] Created new context: {session.agent_context_id}"
-                )
-        else:
-            # Create new context
-            context = Context()
-            session.agent_context_id = context.context_id
-            logger.debug(
-                f"[BATCH_CONVERSION] Created new context: {context.context_id}"
-            )
-
-        # Add message to context
-        context.message_history.append(user_message)
-        logger.debug(
-            f"[BATCH_CONVERSION] Added message to context, total messages: {len(context.message_history)}"
-        )
-
-        # Save context to storage
-        if self.context_manager:
-            await self.context_manager.update_session(
-                context.context_id, context, create_if_missing=True
-            )
-            logger.debug(
-                f"[BATCH_CONVERSION] Saved context to storage: {context.context_id}"
-            )
-
-        return context
+        # Simply return the user message - Agent will handle conversation history via chat_id
+        return user_message
 
     async def handle_webhook(self, payload: WhatsAppWebhookPayload) -> None:
         """
@@ -1028,7 +975,7 @@ class WhatsAppBot(BaseModel):
     async def _convert_message_to_input(
         self, message: WhatsAppMessage, session: WhatsAppSession
     ) -> Any:
-        """Convert WhatsApp message to agent input with proper context loading."""
+        """Convert WhatsApp message to agent input using phone number as chat_id."""
         logger.info(
             f"[SINGLE_CONVERSION] Converting single message to agent input for {message.from_number}"
         )
@@ -1048,7 +995,6 @@ class WhatsAppBot(BaseModel):
 
         # Handle media messages
         elif isinstance(message, WhatsAppMediaMessage):
-            # Download media
             try:
                 logger.debug(
                     f"[SINGLE_CONVERSION] Downloading media for message {message.id}"
@@ -1078,84 +1024,25 @@ class WhatsAppBot(BaseModel):
             f"[SINGLE_CONVERSION] Created user message with name: {message.push_name}"
         )
 
-        # Get or create agent context with proper persistence
-        context: Context
-        if session.agent_context_id:
-            logger.debug(
-                f"[SINGLE_CONVERSION] Loading existing context: {session.agent_context_id}"
-            )
-            # Load existing context from storage
-            if self.context_manager:
-                existing_context = await self.context_manager.get_session(
-                    session.agent_context_id, refresh_ttl=True
-                )
-                if existing_context:
-                    context = existing_context
-                    logger.debug(
-                        f"[SINGLE_CONVERSION] Loaded existing context: {session.agent_context_id}"
-                    )
-                else:
-                    # Context expired or not found, create new one
-                    context = Context()
-                    context.context_id = session.agent_context_id
-                    logger.debug(
-                        f"[SINGLE_CONVERSION] Context not found, created new: {session.agent_context_id}"
-                    )
-            else:
-                # Context manager not available, create new context
-                context = Context()
-                context.context_id = session.agent_context_id
-                logger.debug(
-                    f"[SINGLE_CONVERSION] Created new context: {session.agent_context_id}"
-                )
-        else:
-            # Create new context
-            context = Context()
-            session.agent_context_id = context.context_id
-            logger.debug(
-                f"[SINGLE_CONVERSION] Created new context: {context.context_id}"
-            )
-
-        # Add message to context
-        context.message_history.append(user_message)
-        logger.debug(
-            f"[SINGLE_CONVERSION] Added message to context, total messages: {len(context.message_history)}"
-        )
-
-        # Save context to storage
-        if self.context_manager:
-            await self.context_manager.update_session(
-                context.context_id, context, create_if_missing=True
-            )
-            logger.debug(
-                f"[SINGLE_CONVERSION] Saved context to storage: {context.context_id}"
-            )
-
-        return context
+        # Simply return the user message - Agent will handle conversation history via chat_id
+        return user_message
 
     async def _process_with_agent(
         self, agent_input: AgentInput, session: WhatsAppSession
     ) -> str:
-        """Process input with agent and return response text."""
+        """Process input with agent using phone number as chat_id for conversation persistence."""
         logger.info("[AGENT_PROCESSING] Starting agent processing")
 
         try:
             async with self.agent.start_mcp_servers_async():
                 logger.debug("[AGENT_PROCESSING] Started MCP servers")
-                # Run agent with the full context
-                result = await self.agent.run_async(agent_input)
-                logger.info("[AGENT_PROCESSING] Agent run completed successfully")
 
-            # Save the updated context after agent processing
-            if result.context and hasattr(agent_input, "context_id"):
-                await self.context_manager.update_session(
-                    cast(Context, agent_input).context_id,
-                    result.context,  # The updated context from agent execution
-                    create_if_missing=True,
+                # Run agent with phone number as chat_id for conversation persistence
+                result = await self.agent.run_async(
+                    agent_input,
+                    chat_id=session.phone_number,  # Use phone number as conversation ID
                 )
-                logger.debug(
-                    f"[AGENT_PROCESSING] Saved updated context: {cast(Context, agent_input).context_id}"
-                )
+                logger.info("[AGENT_PROCESSING] Agent run completed successfully")
 
             if result.generation:
                 response_text = result.text
@@ -1660,6 +1547,7 @@ class WhatsAppBot(BaseModel):
             "running": self._running,
             "active_batch_processors": len(self._batch_processors),
             "processing_locks": len(self._processing_locks),
+            "agent_has_conversation_store": self.agent.conversation_store is not None,
             "config": {
                 "message_batching_enabled": self.config.enable_message_batching,
                 "spam_protection_enabled": self.config.spam_protection_enabled,
