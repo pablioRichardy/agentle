@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.1
+refactor(whatsapp): modify message handling to return responses
+refactor(whatsapp_bot): update message handling to use GeneratedAssistantMessage
+
+Replace string return types with GeneratedAssistantMessage for better type safety and structured responses
+
 ## 🚀 v0.8.0 - Enhanced Tools & Streaming
 ### ✨ Major Features
 
