@@ -9,7 +9,6 @@ from agentle.agents.agent import Agent
 from agentle.agents.conversations.local_conversation_store import LocalConversationStore
 from agentle.generations.models.message_parts.text import TextPart
 from agentle.generations.models.messages.assistant_message import AssistantMessage
-from agentle.generations.models.messages.user_message import UserMessage
 from agentle.mcp.servers.stdio_mcp_server import StdioMCPServer
 
 logging.basicConfig(level=logging.DEBUG)
@@ -43,12 +42,9 @@ with agent.start_mcp_servers():
             if not user_input:
                 continue
 
-            # Create user message
-            user_message = UserMessage(parts=[TextPart(text=user_input)])
-
             # Run the agent
             print("🤔 Agent is thinking...")
-            result = agent.run(user_message, chat_id="example")
+            result = agent.run(user_input, chat_id="example")
 
             # Get the text response
             response_text = result.text
