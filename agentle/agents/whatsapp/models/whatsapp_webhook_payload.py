@@ -30,3 +30,9 @@ class WhatsAppWebhookPayload(BaseModel):
     metadata: Mapping[str, Any] | None = Field(default=None)
     status: str | None = Field(default=None)
     status_code: int | None = Field(default=None)
+
+    def model_post_init(self, context: Any, /) -> None:
+        if self.phone_number_id is None:
+            self.phone_number_id = (
+                (self.data or {}).get("key", {}).get("remoteJid").split("@")[0]
+            )
