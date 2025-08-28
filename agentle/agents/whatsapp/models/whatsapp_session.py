@@ -1,6 +1,6 @@
 from collections.abc import MutableMapping, MutableSequence
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, override
 import logging
 import uuid
 
@@ -63,6 +63,12 @@ class WhatsAppSession(BaseModel):
     last_state_change: datetime = Field(
         default_factory=datetime.now, description="Last time session state changed"
     )
+
+    @override
+    def model_post_init(self, context: Any, /) -> None:
+        """Post-initialize the model."""
+        if "@" in self.phone_number:
+            self.phone_number = self.phone_number.split("@")[0]
 
     def add_pending_message(self, message_data: dict[str, Any]) -> None:
         """Add a message to the pending queue with improved logging."""
