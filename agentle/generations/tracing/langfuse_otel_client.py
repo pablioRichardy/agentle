@@ -5,6 +5,7 @@ Este módulo contém toda a lógica específica do Langfuse, isolada da interfac
 Utiliza o novo SDK V3 que é baseado em OpenTelemetry para melhor performance e
 compatibilidade com o ecossistema OTEL.
 """
+
 from __future__ import annotations
 
 import logging

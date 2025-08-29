@@ -17,6 +17,11 @@ from rsb.models.field import Field
 from agentle.parsing.document_parser import DocumentParser
 from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
+from agentle.utils.file_validation import (
+    FileValidationError,
+    resolve_file_path,
+    validate_file_exists,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -101,22 +106,85 @@ class XMLFileParser(DocumentParser):
             asyncio.run(process_xml_file())
             ```
         """
-        file = Path(document_path)
-        raw_xml = file.read_bytes().decode("utf-8", errors="replace")
-        md_content = self.xml_to_md(raw_xml)
+        try:
+            # Validate and resolve the file path
+            resolved_path = resolve_file_path(document_path)
+            validate_file_exists(resolved_path)
 
-        section_content = SectionContent(
-            number=1,
-            text=raw_xml,
-            md=md_content,
-            images=[],
-            items=[],
-        )
+            file = Path(resolved_path)
+            logger.debug(f"Reading XML file: {resolved_path}")
 
-        return ParsedFile(
-            name=file.name,
-            sections=[section_content],
-        )
+            # Read file bytes with comprehensive error handling
+            try:
+                raw_bytes = file.read_bytes()
+            except PermissionError as e:
+                logger.error(f"Permission denied reading XML file: {resolved_path}")
+                raise ValueError(
+                    f"Permission denied: Cannot read XML file '{document_path}'. Please check file permissions."
+                ) from e
+            except OSError as e:
+                logger.error(f"OS error reading XML file: {resolved_path} - {e}")
+                raise ValueError(
+                    f"Failed to read XML file '{document_path}': {e}"
+                ) from e
+
+            # Decode bytes to string with encoding fallback
+            try:
+                raw_xml = raw_bytes.decode("utf-8", errors="replace")
+            except UnicodeDecodeError as e:
+                logger.warning(
+                    f"Unicode decode error in XML file: {resolved_path} - {e}"
+                )
+                # Try with different encodings as fallback
+                try:
+                    raw_xml = raw_bytes.decode("latin-1", errors="replace")
+                    logger.info(
+                        f"Successfully read XML file using latin-1 encoding: {resolved_path}"
+                    )
+                except Exception as fallback_error:
+                    logger.error(
+                        f"Failed to decode XML file with fallback encoding: {fallback_error}"
+                    )
+                    raise ValueError(
+                        f"Cannot decode XML file '{document_path}': {e}"
+                    ) from e
+
+            if not raw_xml.strip():
+                logger.warning(f"XML file appears to be empty: {resolved_path}")
+
+            # Convert XML to markdown with error handling
+            try:
+                md_content = self.xml_to_md(raw_xml)
+            except Exception as e:
+                logger.error(
+                    f"Failed to convert XML to markdown: {resolved_path} - {e}"
+                )
+                # Fallback to raw XML if conversion fails
+                md_content = f"```xml\n{raw_xml}\n```"
+                logger.info(
+                    f"Using raw XML as fallback for markdown conversion: {resolved_path}"
+                )
+
+            section_content = SectionContent(
+                number=1,
+                text=raw_xml,
+                md=md_content,
+                images=[],
+                items=[],
+            )
+
+            logger.debug(
+                f"Successfully parsed XML file: {resolved_path} ({len(raw_xml)} characters)"
+            )
+
+            return ParsedFile(
+                name=file.name,
+                sections=[section_content],
+            )
+
+        except FileValidationError as e:
+            logger.error(f"File validation failed for XML file: {e}")
+            raise ValueError(f"XML file validation failed: {e}") from e
 
     def xml_to_md(self, xml_str: str) -> str:
         """

@@ -2129,6 +2129,184 @@ result = agent.run(messages)
 
 ## 📚 Full Feature Documentation
 
+### 📁 File Path Handling Best Practices
+
+When using `static_knowledge` with local files, proper path handling is crucial for reliability and security. Agentle provides robust file validation and error handling to ensure your agents work consistently across different environments.
+
+#### ✅ Recommended Approaches
+
+```python
+from pathlib import Path
+from agentle.agents.agent import Agent
+from agentle.agents.knowledge.static_knowledge import StaticKnowledge
+from agentle.generations.providers.google.google_generation_provider import GoogleGenerationProvider
+
+# 1. Use absolute paths with pathlib.Path (RECOMMENDED)
+script_dir = Path(__file__).parent
+document_path = script_dir / "data" / "curriculum.pdf"
+
+# Check file existence before creating agent
+if document_path.exists():
+    agent = Agent(
+        name="Document Expert",
+        generation_provider=GoogleGenerationProvider(),
+        model="gemini-2.5-flash",
+        static_knowledge=[
+            StaticKnowledge(
+                content=str(document_path),  # Convert Path to string
+                cache=3600,  # Cache for 1 hour
+                parse_timeout=60
+            )
+        ],
+        instructions="You are a helpful assistant with access to curriculum documents."
+    )
+else:
+    print(f"Document not found: {document_path}")
+
+# 2. Handle multiple sources with validation
+mixed_knowledge = []
+
+# Local file with validation
+local_doc = script_dir / "important_document.pdf"
+if local_doc.exists():
+    mixed_knowledge.append(
+        StaticKnowledge(
+            content=str(local_doc),
+            cache=7200,  # Cache for 2 hours
+            parse_timeout=90
+        )
+    )
+
+# URL (no validation needed)
+mixed_knowledge.append(
+    StaticKnowledge(
+        content="https://example.com/public-document.pdf",
+        cache=3600,
+        parse_timeout=120
+    )
+)
+
+# Raw text content
+mixed_knowledge.append(
+    StaticKnowledge(
+        content="Important context: Always validate file paths.",
+        cache="infinite"
+    )
+)
+
+# 3. Proper error handling
+try:
+    agent = Agent(
+        name="Multi-Source Agent",
+        generation_provider=GoogleGenerationProvider(),
+        model="gemini-2.5-flash",
+        static_knowledge=mixed_knowledge,
+        instructions="You have access to multiple knowledge sources."
+    )
+except ValueError as e:
+    print(f"File validation error: {e}")
+    # Handle the error appropriately
+```
+
+#### 🚨 Common Pitfalls to Avoid
+
+```python
+# ❌ DON'T: Use relative paths without validation
+static_knowledge=[
+    StaticKnowledge(content="./document.pdf")  # May fail in different working directories
+]
+
+# ❌ DON'T: Ignore file existence
+static_knowledge=[
+    StaticKnowledge(content="/path/to/nonexistent.pdf")  # Will raise ValueError
+]
+
+# ❌ DON'T: Use hardcoded absolute paths
+static_knowledge=[
+    StaticKnowledge(content="/Users/john/documents/file.pdf")  # Won't work on other machines
+]
+
+# ✅ DO: Use proper validation and error handling
+from pathlib import Path
+
+def create_agent_with_documents(document_paths: List[str]) -> Agent:
+    """Create an agent with validated document paths."""
+    validated_knowledge = []
+    
+    for path_str in document_paths:
+        path = Path(path_str)
+        if path.exists():
+            validated_knowledge.append(
+                StaticKnowledge(
+                    content=str(path.resolve()),  # Use absolute path
+                    cache=3600
+                )
+            )
+        else:
+            print(f"Warning: Document not found: {path}")
+    
+    if not validated_knowledge:
+        raise ValueError("No valid documents found")
+    
+    return Agent(
+        name="Document Agent",
+        generation_provider=GoogleGenerationProvider(),
+        model="gemini-2.5-flash",
+        static_knowledge=validated_knowledge,
+        instructions="You are a document analysis assistant."
+    )
+```
+
+#### 🔧 Advanced Path Utilities
+
+```python
+from pathlib import Path
+from typing import List, Optional
+
+def find_documents_in_directory(directory: Path, extensions: List[str] = None) -> List[Path]:
+    """Find all documents with specified extensions in a directory."""
+    if extensions is None:
+        extensions = [".pdf", ".txt", ".docx", ".md"]
+    
+    documents = []
+    if directory.exists() and directory.is_dir():
+        for ext in extensions:
+            documents.extend(directory.glob(f"**/*{ext}"))
+    
+    return documents
+
+def create_knowledge_from_directory(directory_path: str) -> List[StaticKnowledge]:
+    """Create StaticKnowledge objects from all documents in a directory."""
+    directory = Path(directory_path)
+    documents = find_documents_in_directory(directory)
+    
+    knowledge = []
+    for doc_path in documents:
+        knowledge.append(
+            StaticKnowledge(
+                content=str(doc_path),
+                cache=3600,  # Cache for 1 hour
+                parse_timeout=120  # 2 minutes timeout
+            )
+        )
+    
+    return knowledge
+
+# Usage
+data_dir = Path(__file__).parent / "data"
+knowledge_base = create_knowledge_from_directory(str(data_dir))
+
+agent = Agent(
+    name="Knowledge Base Agent",
+    generation_provider=GoogleGenerationProvider(),
+    model="gemini-2.5-flash",
+    static_knowledge=knowledge_base,
+    instructions="You have access to a comprehensive knowledge base."
+)
+```
+
+> 💡 **Pro Tip**: Check out the complete example at [`examples/file_path_best_practices.py`](examples/file_path_best_practices.py) for a comprehensive demonstration of file path handling patterns.
+
 ### 🔗 Agent-to-Agent (A2A) Protocol
 
 Agentle provides built-in support for Google's [A2A Protocol](https://google.github.io/A2A/):

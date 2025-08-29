@@ -5,6 +5,8 @@ This module provides functionality for parsing PDF documents into structured rep
 It can extract text content, process embedded images, and organize the document by pages.
 """
 
+import hashlib
+import logging
 import os
 import tempfile
 from collections.abc import MutableSequence
@@ -23,6 +25,13 @@ from agentle.parsing.document_parser import DocumentParser
 from agentle.parsing.image import Image
 from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
+from agentle.utils.file_validation import (
+    FileValidationError,
+    resolve_file_path,
+    validate_file_exists,
+)
+
+logger = logging.getLogger(__name__)
 
 
 class PDFFileParser(DocumentParser):
@@ -153,19 +162,63 @@ class PDFFileParser(DocumentParser):
             asyncio.run(process_pdf())
             ```
         """
-        import hashlib
+        try:
+            from pypdf import PdfReader
+        except ImportError as e:
+            logger.error("pypdf library not available for PDF parsing")
+            raise ValueError(
+                "PDF parsing requires the 'pypdf' library. Please install it with: pip install pypdf"
+            ) from e
 
-        from pypdf import PdfReader
+        try:
+            # Validate and resolve the file path
+            resolved_path = resolve_file_path(document_path)
+            validate_file_exists(resolved_path)
 
-        _bytes = Path(document_path).read_bytes()
-        with tempfile.TemporaryDirectory() as temp_dir:
-            file_path = os.path.join(temp_dir, document_path)
-            with open(file_path, "wb") as f:
-                f.write(_bytes)
+            logger.debug(f"Reading PDF file: {resolved_path}")
 
-            reader = PdfReader(file_path)
-            section_contents: MutableSequence[SectionContent] = []
-            image_cache: dict[str, tuple[str, str]] = {}
+            # Read file bytes with error handling
+            try:
+                _bytes = Path(resolved_path).read_bytes()
+            except PermissionError as e:
+                logger.error(f"Permission denied reading PDF file: {resolved_path}")
+                raise ValueError(
+                    f"Permission denied: Cannot read PDF file '{document_path}'. Please check file permissions."
+                ) from e
+            except OSError as e:
+                logger.error(f"OS error reading PDF file: {resolved_path} - {e}")
+                raise ValueError(
+                    f"Failed to read PDF file '{document_path}': {e}"
+                ) from e
+
+            if not _bytes:
+                logger.warning(f"PDF file appears to be empty: {resolved_path}")
+                raise ValueError(f"PDF file '{document_path}' is empty")
+
+            with tempfile.TemporaryDirectory() as temp_dir:
+                file_path = os.path.join(temp_dir, Path(resolved_path).name)
+                try:
+                    with open(file_path, "wb") as f:
+                        f.write(_bytes)
+                except OSError as e:
+                    logger.error(f"Failed to write temporary PDF file: {e}")
+                    raise ValueError(
+                        f"Failed to process PDF file '{document_path}': {e}"
+                    ) from e
+
+                try:
+                    reader = PdfReader(file_path)
+                except Exception as e:
+                    logger.error(f"Failed to parse PDF file: {resolved_path} - {e}")
+                    raise ValueError(
+                        f"Invalid or corrupted PDF file '{document_path}': {e}"
+                    ) from e
+
+                if len(reader.pages) == 0:
+                    logger.warning(f"PDF file has no pages: {resolved_path}")
+
+                section_contents: MutableSequence[SectionContent] = []
+                image_cache: dict[str, tuple[str, str]] = {}
 
             for page_num, page in enumerate(reader.pages):
                 page_images: MutableSequence[Image] = []
@@ -217,7 +270,15 @@ class PDFFileParser(DocumentParser):
                 )
                 section_contents.append(section_content)
 
+            logger.debug(
+                f"Successfully parsed PDF file: {resolved_path} ({len(section_contents)} pages)"
+            )
+
             return ParsedFile(
-                name=document_path,
+                name=Path(resolved_path).name,
                 sections=section_contents,
             )
+
+        except FileValidationError as e:
+            logger.error(f"File validation failed for PDF file: {e}")
+            raise ValueError(f"PDF file validation failed: {e}") from e

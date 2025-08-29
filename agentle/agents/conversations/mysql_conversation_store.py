@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 class MySQLConversationStore(ConversationStore):
     """
     A conversation store that uses MySQL database for persistence.
-    
+
     This class provides a MySQL-based implementation of the ConversationStore
     abstract base class, using aiomysql for asynchronous database operations.
-    
+
     Args:
         pool: An aiomysql connection pool for database operations
         table_name: Name of the table to store conversations (default: "conversations")
@@ -33,7 +33,7 @@ class MySQLConversationStore(ConversationStore):
         message_limit: Maximum number of messages to keep per conversation
         override_old_messages: Whether to override old messages when limit is reached
     """
-    
+
     def __init__(
         self,
         pool: Pool,
@@ -52,7 +52,7 @@ class MySQLConversationStore(ConversationStore):
         self.message_data_column = message_data_column
         self.timestamp_column = timestamp_column
         self.id_column = id_column
-        
+
     async def _ensure_table_exists(self) -> None:
         """
         Ensure the conversations table exists, create it if it doesn't.
@@ -67,19 +67,21 @@ class MySQLConversationStore(ConversationStore):
             INDEX idx_timestamp ({self.timestamp_column})
         )
         """
-        
+
         async with self.pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute(create_table_query)
                 await conn.commit()
-                
-    def _message_to_dict(self, message: DeveloperMessage | UserMessage | AssistantMessage) -> dict[str, Any]:
+
+    def _message_to_dict(
+        self, message: DeveloperMessage | UserMessage | AssistantMessage
+    ) -> dict[str, Any]:
         """
         Convert a Message object to a dictionary for JSON serialization.
-        
+
         Args:
             message: The Message object to convert
-            
+
         Returns:
             A dictionary representation of the message
         """
@@ -87,19 +89,21 @@ class MySQLConversationStore(ConversationStore):
         # Add message type for proper deserialization
         message_dict["_message_type"] = type(message).__name__
         return message_dict
-        
-    def _dict_to_message(self, message_dict: dict[str, Any]) -> DeveloperMessage | UserMessage | AssistantMessage:
+
+    def _dict_to_message(
+        self, message_dict: dict[str, Any]
+    ) -> DeveloperMessage | UserMessage | AssistantMessage:
         """
         Convert a dictionary back to a Message object.
-        
+
         Args:
             message_dict: The dictionary representation of the message
-            
+
         Returns:
             A Message object
         """
         message_type = message_dict.pop("_message_type", None)
-        
+
         if message_type == "DeveloperMessage":
             return DeveloperMessage.model_validate(message_dict)
         elif message_type == "UserMessage":
@@ -116,25 +120,27 @@ class MySQLConversationStore(ConversationStore):
                     return UserMessage.model_validate(message_dict)
                 elif role == "assistant":
                     return AssistantMessage.model_validate(message_dict)
-            
+
             # Default fallback to UserMessage
             return UserMessage.model_validate(message_dict)
-        
+
     @override
-    async def add_message_async(self, chat_id: str, message: DeveloperMessage | UserMessage | AssistantMessage) -> None:
+    async def add_message_async(
+        self, chat_id: str, message: DeveloperMessage | UserMessage | AssistantMessage
+    ) -> None:
         """
         Add a message to the conversation store.
-        
+
         Args:
             chat_id: The unique identifier for the conversation
             message: The message to add
         """
         await self._ensure_table_exists()
-        
+
         # Convert message to dictionary for JSON storage
         message_dict = self._message_to_dict(message)
         message_json = json.dumps(message_dict)
-        
+
         async with self.pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 # Insert the new message
@@ -144,7 +150,7 @@ class MySQLConversationStore(ConversationStore):
                 VALUES (%s, %s)
                 """
                 await cursor.execute(insert_query, (chat_id, message_json))
-                
+
                 # Handle message limit if specified
                 if self.message_limit is not None:
                     # Count current messages for this chat
@@ -155,7 +161,7 @@ class MySQLConversationStore(ConversationStore):
                     await cursor.execute(count_query, (chat_id,))
                     count_result = await cursor.fetchone()
                     message_count = count_result[0] if count_result else 0
-                    
+
                     # If we exceed the limit, remove old messages
                     if message_count > self.message_limit:
                         if self.override_old_messages:
@@ -176,24 +182,24 @@ class MySQLConversationStore(ConversationStore):
                             LIMIT 1
                             """
                             await cursor.execute(delete_query, (chat_id,))
-                            
+
                 await conn.commit()
-                
+
     @override
     async def get_conversation_history_async(
         self, chat_id: str
     ) -> Sequence[DeveloperMessage | UserMessage | AssistantMessage]:
         """
         Retrieve the conversation history for a given chat ID.
-        
+
         Args:
             chat_id: The unique identifier for the conversation
-            
+
         Returns:
             A list of Message objects representing the conversation history
         """
         await self._ensure_table_exists()
-        
+
         async with self.pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 select_query = f"""
@@ -203,11 +209,11 @@ class MySQLConversationStore(ConversationStore):
                 """
                 await cursor.execute(select_query, (chat_id,))
                 rows = await cursor.fetchall()
-                
+
                 messages = []
                 for row in rows:
                     raw_data = row[0]
-                    
+
                     # Handle both string and dict cases
                     if isinstance(raw_data, str):
                         message_dict: dict[str, Any] = json.loads(raw_data)
@@ -216,22 +222,22 @@ class MySQLConversationStore(ConversationStore):
                     else:
                         # Skip invalid data
                         continue
-                        
+
                     message = self._dict_to_message(message_dict)
                     messages.append(message)
-                    
+
                 return messages
-                
+
     @override
     async def clear_conversation_async(self, chat_id: str) -> None:
         """
         Clear all messages for a given chat ID.
-        
+
         Args:
             chat_id: The unique identifier for the conversation to clear
         """
         await self._ensure_table_exists()
-        
+
         async with self.pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 delete_query = f"""
@@ -240,16 +246,16 @@ class MySQLConversationStore(ConversationStore):
                 """
                 await cursor.execute(delete_query, (chat_id,))
                 await conn.commit()
-                
+
     async def get_all_chat_ids(self) -> list[str]:
         """
         Get all unique chat IDs from the store.
-        
+
         Returns:
             A list of all unique chat IDs
         """
         await self._ensure_table_exists()
-        
+
         async with self.pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 select_query = f"""
@@ -258,19 +264,19 @@ class MySQLConversationStore(ConversationStore):
                 await cursor.execute(select_query)
                 rows = await cursor.fetchall()
                 return [row[0] for row in rows]
-                
+
     async def get_conversation_count(self, chat_id: str) -> int:
         """
         Get the number of messages in a conversation.
-        
+
         Args:
             chat_id: The unique identifier for the conversation
-            
+
         Returns:
             The number of messages in the conversation
         """
         await self._ensure_table_exists()
-        
+
         async with self.pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 count_query = f"""
@@ -280,7 +286,7 @@ class MySQLConversationStore(ConversationStore):
                 await cursor.execute(count_query, (chat_id,))
                 result = await cursor.fetchone()
                 return result[0] if result else 0
-                
+
     async def close(self) -> None:
         """
         Close the database connection pool.

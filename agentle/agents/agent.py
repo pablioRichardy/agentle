@@ -82,6 +82,7 @@ from agentle.agents.errors.max_tool_calls_exceeded_error import (
 )
 from agentle.agents.errors.tool_suspension_error import ToolSuspensionError
 from agentle.agents.knowledge.static_knowledge import NO_CACHE, StaticKnowledge
+from agentle.utils.file_validation import FileValidationError
 from agentle.agents.message_history_fixer import MessageHistoryFixer
 from agentle.agents.performance_metrics import PerformanceMetrics
 from agentle.agents.step import Step
@@ -1217,8 +1218,27 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                 # Convert string to StaticKnowledge with NO_CACHE
                 if isinstance(knowledge_item, str):
                     knowledge_item = StaticKnowledge(
-                        content=knowledge_item, cache=NO_CACHE, parse_timeout=30
+                        content=knowledge_item, cache=NO_CACHE, parse_timeout=60
                     )
+
+                # Early validation for file paths to provide clear error messages
+                try:
+                    if knowledge_item.is_file_path():
+                        # This will raise FileValidationError if file doesn't exist or path is invalid
+                        knowledge_item.validate_and_resolve()
+                        _logger.bind_optional(
+                            lambda log: log.debug(
+                                "File validation passed for: %s", str(knowledge_item)
+                            )
+                        )
+                except FileValidationError as e:
+                    error_msg = str(e)
+                    _logger.bind_optional(
+                        lambda log: log.error("File validation failed: %s", error_msg)
+                    )
+                    raise ValueError(
+                        f"Static knowledge file validation failed: {error_msg}"
+                    ) from e
 
                 # Process the knowledge item based on its content type
                 content_to_parse = knowledge_item.content

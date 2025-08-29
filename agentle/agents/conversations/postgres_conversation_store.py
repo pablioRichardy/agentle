@@ -15,11 +15,11 @@ if TYPE_CHECKING:
 
 class PostgresConversationStore(ConversationStore):
     """A conversation store that persists conversations to PostgreSQL using asyncpg.
-    
+
     This implementation stores messages in a PostgreSQL table with configurable
     table name and connection parameters.
     """
-    
+
     _pool: asyncpg.Pool
     _table_name: str
     _chat_id_column: str
@@ -39,7 +39,7 @@ class PostgresConversationStore(ConversationStore):
         override_old_messages: bool | None = None,
     ) -> None:
         """Initialize the PostgreSQL conversation store.
-        
+
         Args:
             pool: asyncpg connection pool
             table_name: Name of the table to store conversations
@@ -60,7 +60,7 @@ class PostgresConversationStore(ConversationStore):
 
     async def ensure_table_exists(self) -> None:
         """Create the conversations table if it doesn't exist.
-        
+
         This method creates a table with the following structure:
         - id: SERIAL PRIMARY KEY
         - chat_id: TEXT (configurable column name)
@@ -83,17 +83,21 @@ class PostgresConversationStore(ConversationStore):
                 ON {self._table_name} ({self._chat_id_column}, {self._timestamp_column});
             """)
 
-    def _message_to_dict(self, message: DeveloperMessage | UserMessage | AssistantMessage) -> dict[str, Any]:
+    def _message_to_dict(
+        self, message: DeveloperMessage | UserMessage | AssistantMessage
+    ) -> dict[str, Any]:
         """Convert a message object to a dictionary for JSON serialization."""
         message_dict = message.model_dump()
         # Add message type for proper deserialization
         message_dict["_message_type"] = type(message).__name__
         return message_dict
 
-    def _dict_to_message(self, message_dict: dict[str, Any]) -> DeveloperMessage | UserMessage | AssistantMessage:
+    def _dict_to_message(
+        self, message_dict: dict[str, Any]
+    ) -> DeveloperMessage | UserMessage | AssistantMessage:
         """Convert a dictionary back to a message object."""
         message_type = message_dict.pop("_message_type", None)
-        
+
         if message_type == "DeveloperMessage":
             return DeveloperMessage.model_validate(message_dict)
         elif message_type == "UserMessage":
@@ -110,7 +114,7 @@ class PostgresConversationStore(ConversationStore):
                     return UserMessage.model_validate(message_dict)
                 elif role == "assistant":
                     return AssistantMessage.model_validate(message_dict)
-            
+
             # Default fallback to UserMessage
             return UserMessage.model_validate(message_dict)
 
@@ -128,7 +132,7 @@ class PostgresConversationStore(ConversationStore):
                     WHERE {self._chat_id_column} = $1
                 """
                 current_count = await conn.fetchval(count_query, chat_id)
-                
+
                 if current_count >= self.message_limit:
                     if self.override_old_messages:
                         # Remove oldest messages to make room
@@ -146,7 +150,7 @@ class PostgresConversationStore(ConversationStore):
                     else:
                         # Don't add message if limit reached and not overriding
                         return
-            
+
             # Add the new message
             message_dict = self._message_to_dict(message)
             insert_query = f"""
@@ -167,13 +171,13 @@ class PostgresConversationStore(ConversationStore):
                 ORDER BY {self._timestamp_column} ASC
             """
             rows = await conn.fetch(query, chat_id)
-            
+
             messages = []
             for row in rows:
                 try:
                     # Get the message data from the row
                     raw_data = row[self._message_data_column]
-                    
+
                     # Handle both string and dict types from JSONB column
                     if isinstance(raw_data, str):
                         message_dict: dict[str, Any] = json.loads(raw_data)
@@ -182,13 +186,13 @@ class PostgresConversationStore(ConversationStore):
                     else:
                         # Skip if data type is unexpected
                         continue
-                    
+
                     message = self._dict_to_message(message_dict.copy())
                     messages.append(message)
                 except Exception:
                     # Skip malformed messages
                     continue
-            
+
             return messages
 
     @override

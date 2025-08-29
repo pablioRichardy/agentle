@@ -21,9 +21,7 @@ async def sum(a: float, b: float) -> float:
 async def main():
     provider = GoogleGenerationProvider()
     stream = provider.stream_async(
-        messages=[
-            UserMessage(parts=[TextPart(text="quanto é 2+2?")])
-        ],
+        messages=[UserMessage(parts=[TextPart(text="quanto é 2+2?")])],
         tools=[Tool.from_callable(sum)],
     )
 

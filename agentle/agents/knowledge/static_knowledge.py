@@ -1,8 +1,13 @@
-from pathlib import Path
-from urllib.parse import urlparse
 from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
-from typing import Literal
+from typing import Literal, Optional
+
+from agentle.utils.file_validation import (
+    is_url,
+    is_file_path,
+    validate_content_type,
+    FileValidationError,
+)
 
 NO_CACHE = None
 
@@ -28,14 +33,55 @@ class StaticKnowledge(BaseModel):
     """The timeout for the parse operation in seconds."""
 
     def is_url(self) -> bool:
-        parsed_url = urlparse(self.content)
-        return parsed_url.scheme in ["http", "https"]
+        """Check if the content is a URL.
 
-    def is_file_path(self) -> bool:
-        return Path(self.content).exists()
+        Returns:
+            True if content is a valid URL, False otherwise
+        """
+        return is_url(self.content)
 
-    def is_raw_text(self) -> bool:
-        return not self.is_url() and not self.is_file_path()
+    def is_file_path(self, base_path: Optional[str] = None) -> bool:
+        """Check if the content is a valid file path that exists.
+
+        Args:
+            base_path: Optional base path for resolving relative paths
+
+        Returns:
+            True if content is a valid existing file path, False otherwise
+        """
+        return is_file_path(self.content, base_path)
+
+    def is_raw_text(self, base_path: Optional[str] = None) -> bool:
+        """Check if the content is raw text (not a URL or file path).
+
+        Args:
+            base_path: Optional base path for resolving relative paths
+
+        Returns:
+            True if content is raw text, False otherwise
+        """
+        return not self.is_url() and not self.is_file_path(base_path)
+
+    def validate_and_resolve(self, base_path: Optional[str] = None) -> tuple[str, str]:
+        """Validate the content and return its type and resolved form.
+
+        Args:
+            base_path: Optional base path for resolving relative file paths
+
+        Returns:
+            Tuple of (content_type, resolved_content) where:
+            - content_type is one of: 'url', 'file_path', 'raw_text'
+            - resolved_content is the original content or resolved file path
+
+        Raises:
+            FileNotFoundError: If content appears to be a file path but doesn't exist
+            InvalidPathError: If content appears to be a file path but is invalid
+        """
+        try:
+            return validate_content_type(self.content, base_path)
+        except FileValidationError as e:
+            # Re-raise with additional context about the StaticKnowledge instance
+            raise type(e)(f"StaticKnowledge validation failed: {str(e)}", e.path) from e
 
     def __str__(self) -> str:
         return self.content

@@ -3,6 +3,13 @@ from pathlib import Path
 from typing import Any, Literal, MutableMapping, cast
 from urllib.parse import urlparse
 
+from agentle.utils.file_validation import (
+    FileValidationError,
+    resolve_file_path,
+    validate_file_exists,
+    is_url as is_valid_url,
+)
+
 from rsb.functions.create_instance_dynamically import create_instance_dynamically
 from rsb.models.field import Field
 
@@ -190,12 +197,40 @@ class FileParser(DocumentParser):
         from agentle.parsing.parsers.link import LinkParser
         from agentle.parsing.parses import parser_registry
 
-        path = Path(document_path)
+        # Enhanced path validation and resolution
+        try:
+            # Check if it's a URL first
+            if is_valid_url(document_path):
+                parser_cls = cast(
+                    type[DocumentParser],
+                    LinkParser,
+                )
+
+                return await create_instance_dynamically(
+                    parser_cls,
+                    visual_description_provider=self.visual_description_provider,
+                    audio_description_provider=self.audio_description_provider,
+                    parse_timeout=self.parse_timeout,
+                ).parse_async(document_path=document_path)
+
+            # For file paths, resolve and validate
+            resolved_path = resolve_file_path(document_path)
+            validate_file_exists(resolved_path)
+
+            # Use resolved path for further processing
+            path = Path(resolved_path)
+
+        except FileValidationError as e:
+            raise ValueError(
+                f"File validation failed for '{document_path}': {e}"
+            ) from e
+
         parser_cls: type[DocumentParser] | None = parser_registry.get(
             path.suffix.lstrip(".")
         )
 
         if not parser_cls:
+            # Double-check URL handling (fallback)
             parsed_url = urlparse(document_path)
             is_url = parsed_url.scheme in ["http", "https"]
 
@@ -205,14 +240,16 @@ class FileParser(DocumentParser):
                     LinkParser,
                 )
 
-                return await create_instance_dynamically(  # used because mypy complained about the type of the parser_cls
+                return await create_instance_dynamically(
                     parser_cls,
                     visual_description_provider=self.visual_description_provider,
                     audio_description_provider=self.audio_description_provider,
                     parse_timeout=self.parse_timeout,
                 ).parse_async(document_path=document_path)
             else:
-                raise ValueError(f"Unsupported extension: {path.suffix}")
+                raise ValueError(
+                    f"Unsupported file extension '{path.suffix}' for file: {resolved_path}"
+                )
 
         # Get the signature of the parser constructor
         parser_signature = inspect.signature(parser_cls.__init__)
@@ -230,4 +267,5 @@ class FileParser(DocumentParser):
             if arg_name in valid_params:
                 kwargs[arg_name] = arg_value
 
-        return await parser_cls(**kwargs).parse_async(document_path)
+        # Use resolved path for parsing to ensure absolute path is used
+        return await parser_cls(**kwargs).parse_async(str(resolved_path))
