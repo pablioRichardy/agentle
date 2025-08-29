@@ -1,5 +1,6 @@
-from typing import Any, NotRequired, TypedDict
+from typing import NotRequired, TypedDict
 
+from agentle.agents.whatsapp.models.context_info import ContextInfo
 from agentle.agents.whatsapp.models.key import Key
 from agentle.agents.whatsapp.models.message import Message
 
@@ -27,4 +28,4 @@ class Data(TypedDict):
     messageTimestamp: NotRequired[int]
     instanceId: NotRequired[str]
     source: NotRequired[str]
-    contextInfo: NotRequired[dict[str, Any] | None]
+    contextInfo: NotRequired[ContextInfo | None]
