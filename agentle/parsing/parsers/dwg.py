@@ -12,18 +12,16 @@ from collections.abc import MutableSequence
 from pathlib import Path
 from typing import Literal
 
-from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
 
-from agentle.generations.providers.base.generation_provider_type import (
-    GenerationProviderType,
-)
+from agentle.generations.providers.base.generation_provider import GenerationProvider
+from agentle.parsing.document_parser import DocumentParser
 from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.parsers.static_image import StaticImageParser
 from agentle.parsing.section_content import SectionContent
 
 
-class DWGFileParser(BaseModel):
+class DWGFileParser(DocumentParser):
     """
     Parser for processing AutoCAD DWG files.
 
@@ -96,7 +94,7 @@ class DWGFileParser(BaseModel):
 
     type: Literal["dwg"] = "dwg"
 
-    visual_description_provider: GenerationProviderType = Field(
+    visual_description_provider: GenerationProvider = Field(
         default=...,
     )
     """

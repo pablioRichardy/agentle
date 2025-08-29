@@ -10,16 +10,15 @@ from collections.abc import MutableSequence
 from pathlib import Path
 from typing import Literal, cast
 
-from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
 
-from agentle.generations.providers.base.generation_provider_type import (
-    GenerationProviderType,
-)
+
+from agentle.generations.providers.base.generation_provider import GenerationProvider
+from agentle.parsing.document_parser import DocumentParser
 from agentle.parsing.parsed_file import ParsedFile
 
 
-class CompressedFileParser(BaseModel):
+class CompressedFileParser(DocumentParser):
     """
     Parser for processing compressed archive files (ZIP, RAR, PKZ).
 
@@ -67,7 +66,7 @@ class CompressedFileParser(BaseModel):
         parser = CompressedFileParser(visual_description_agent=custom_agent)
         ```
 
-    *   `multi_modal_provider` (GenerationProviderType):
+    *   `multi_modal_provider` (GenerationProvider):
         An alternative to using a visual_description_agent. This is a generation
         provider capable of handling multi-modal content (text and images).
         Defaults to GoogleGenerationProvider().
@@ -112,7 +111,7 @@ class CompressedFileParser(BaseModel):
 
     type: Literal["compressed"] = "compressed"
 
-    visual_description_provider: GenerationProviderType | None = Field(
+    visual_description_provider: GenerationProvider | None = Field(
         default=None,
     )
     """
@@ -120,7 +119,7 @@ class CompressedFileParser(BaseModel):
     Useful when you want to customize the prompt for the visual description.
     """
 
-    audio_description_provider: GenerationProviderType | None = Field(
+    audio_description_provider: GenerationProvider | None = Field(
         default=None,
     )
     """

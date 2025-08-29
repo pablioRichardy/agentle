@@ -11,17 +11,17 @@ from pathlib import Path
 from typing import Literal
 from xml.etree.ElementTree import Element
 
-from rsb.models.base_model import BaseModel
 from rsb.models.config_dict import ConfigDict
 from rsb.models.field import Field
 
+from agentle.parsing.document_parser import DocumentParser
 from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
 
 logger = logging.getLogger(__name__)
 
 
-class XMLFileParser(BaseModel):
+class XMLFileParser(DocumentParser):
     """
     Parser for processing XML files into structured document representations.
 

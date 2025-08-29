@@ -4,16 +4,14 @@ from typing import Any, Literal, MutableMapping, cast
 from urllib.parse import urlparse
 
 from rsb.functions.create_instance_dynamically import create_instance_dynamically
-from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
 
-from agentle.generations.providers.base.generation_provider_type import (
-    GenerationProviderType,
-)
+from agentle.generations.providers.base.generation_provider import GenerationProvider
+from agentle.parsing.document_parser import DocumentParser
 from agentle.parsing.parsed_file import ParsedFile
 
 
-class FileParser(BaseModel):
+class FileParser(DocumentParser):
     """
     A facade parser that automatically selects the appropriate parser based on file extension.
 
@@ -131,7 +129,7 @@ class FileParser(BaseModel):
 
     type: Literal["file"] = "file"
     strategy: Literal["low", "high"] = Field(default="high")
-    visual_description_provider: GenerationProviderType | None = Field(
+    visual_description_provider: GenerationProvider | None = Field(
         default=None,
     )
     """
@@ -139,7 +137,7 @@ class FileParser(BaseModel):
     Useful when you want to customize the prompt for the visual description.
     """
 
-    audio_description_provider: GenerationProviderType | None = Field(
+    audio_description_provider: GenerationProvider | None = Field(
         default=None,
     )
     """
@@ -191,10 +189,9 @@ class FileParser(BaseModel):
         """
         from agentle.parsing.parsers.link import LinkParser
         from agentle.parsing.parses import parser_registry
-        from agentle.parsing.parsers.document_parser_type import DocumentParserType
 
         path = Path(document_path)
-        parser_cls: type[DocumentParserType] | None = parser_registry.get(
+        parser_cls: type[DocumentParser] | None = parser_registry.get(
             path.suffix.lstrip(".")
         )
 
@@ -204,7 +201,7 @@ class FileParser(BaseModel):
 
             if is_url:
                 parser_cls = cast(
-                    type[DocumentParserType],
+                    type[DocumentParser],
                     LinkParser,
                 )
 

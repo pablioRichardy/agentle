@@ -13,22 +13,21 @@ from pathlib import Path
 from typing import Literal
 
 from rsb.functions.ext2mime import ext2mime
-from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
 
 from agentle.generations.models.message_parts.file import FilePart
 from agentle.generations.models.structured_outputs_store.visual_media_description import (
     VisualMediaDescription,
 )
-from agentle.generations.providers.base.generation_provider_type import (
-    GenerationProviderType,
-)
+
+from agentle.generations.providers.base.generation_provider import GenerationProvider
+from agentle.parsing.document_parser import DocumentParser
 from agentle.parsing.image import Image
 from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
 
 
-class HTMLParser(BaseModel):
+class HTMLParser(DocumentParser):
     """
     Parser for processing HTML files.
 
@@ -108,7 +107,7 @@ class HTMLParser(BaseModel):
     """if high, the parser will use the visual_description_agent to
     describe the images present in the html"""
 
-    visual_description_provider: GenerationProviderType | None = Field(default=None)
+    visual_description_provider: GenerationProvider | None = Field(default=None)
 
     async def parse_async(self, document_path: str) -> ParsedFile:
         """

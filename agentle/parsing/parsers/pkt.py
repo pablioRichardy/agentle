@@ -11,13 +11,12 @@ import tempfile
 from pathlib import Path
 from typing import Literal
 
-from rsb.models.base_model import BaseModel
-
+from agentle.parsing.document_parser import DocumentParser
 from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
 
 
-class PKTFileParser(BaseModel):
+class PKTFileParser(DocumentParser):
     """
     Parser for processing Cisco Packet Tracer files (.pkt).
 

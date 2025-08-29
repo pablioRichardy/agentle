@@ -11,22 +11,20 @@ from pathlib import Path
 from typing import Literal
 
 from rsb.functions.ext2mime import ext2mime
-from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
 
 from agentle.generations.models.message_parts.file import FilePart
 from agentle.generations.models.structured_outputs_store.visual_media_description import (
     VisualMediaDescription,
 )
+from agentle.generations.providers.base.generation_provider import GenerationProvider
+from agentle.parsing.document_parser import DocumentParser
 from agentle.parsing.image import Image
 from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
-from agentle.generations.providers.base.generation_provider_type import (
-    GenerationProviderType,
-)
 
 
-class StaticImageParser(BaseModel):
+class StaticImageParser(DocumentParser):
     """
     Parser for processing static image files in various formats.
 
@@ -98,7 +96,7 @@ class StaticImageParser(BaseModel):
 
     type: Literal["static_image"] = "static_image"
 
-    visual_description_provider: GenerationProviderType = Field(...)
+    visual_description_provider: GenerationProvider = Field(...)
     """
     The agent to use for generating the visual description of the document.
     Useful when you want to customize the prompt for the visual description.

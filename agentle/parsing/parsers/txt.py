@@ -8,12 +8,12 @@ into structured document representations.
 from pathlib import Path
 from typing import Literal
 
+from agentle.parsing.document_parser import DocumentParser
 from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
-from rsb.models.base_model import BaseModel
 
 
-class TxtFileParser(BaseModel):
+class TxtFileParser(DocumentParser):
     """
     Parser for processing plain text files (.txt, .alg).
 

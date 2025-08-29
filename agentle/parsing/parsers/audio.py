@@ -14,23 +14,22 @@ from pathlib import Path
 from typing import Literal, Never
 
 from rsb.functions.ext2mime import ext2mime
-from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
 
 from agentle.generations.models.message_parts.file import FilePart
 from agentle.generations.models.structured_outputs_store.audio_description import (
     AudioDescription,
 )
-from agentle.generations.providers.base.generation_provider_type import (
-    GenerationProviderType,
-)
+
+from agentle.generations.providers.base.generation_provider import GenerationProvider
+from agentle.parsing.document_parser import DocumentParser
 from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
 
 logger = logging.getLogger(__name__)
 
 
-class AudioFileParser(BaseModel):
+class AudioFileParser(DocumentParser):
     """
     Parser for processing various audio file formats.
 
@@ -101,7 +100,7 @@ class AudioFileParser(BaseModel):
 
     type: Literal["audio"] = "audio"
 
-    audio_description_provider: GenerationProviderType = Field(...)
+    audio_description_provider: GenerationProvider = Field(...)
 
     async def parse_async(self, document_path: str) -> ParsedFile:
         """

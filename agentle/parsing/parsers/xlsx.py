@@ -11,23 +11,21 @@ from pathlib import Path
 from typing import Literal
 
 from rsb.functions.ext2mime import ext2mime
-from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
 
 from agentle.generations.models.message_parts.file import FilePart
 from agentle.generations.models.structured_outputs_store.visual_media_description import (
     VisualMediaDescription,
 )
-from agentle.generations.providers.base.generation_provider_type import (
-    GenerationProviderType,
-)
+from agentle.generations.providers.base.generation_provider import GenerationProvider
+from agentle.parsing.document_parser import DocumentParser
 from agentle.parsing.image import Image
 from agentle.parsing.page_item.table_page_item import TablePageItem
 from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
 
 
-class XlsxFileParser(BaseModel):
+class XlsxFileParser(DocumentParser):
     """
     Parser for processing Excel spreadsheet files (.xls, .xlsx).
 
@@ -126,7 +124,7 @@ class XlsxFileParser(BaseModel):
 
     strategy: Literal["high", "low"] = Field(default="high")
 
-    visual_description_provider: GenerationProviderType | None = Field(
+    visual_description_provider: GenerationProvider | None = Field(
         default=None,
     )
     """

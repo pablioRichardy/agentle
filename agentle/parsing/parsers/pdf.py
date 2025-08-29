@@ -14,21 +14,18 @@ from typing import Literal
 from rsb.functions.ext2mime import ext2mime
 from rsb.models.field import Field
 
-
 from agentle.generations.models.message_parts.file import FilePart
 from agentle.generations.models.structured_outputs_store.visual_media_description import (
     VisualMediaDescription,
 )
-from rsb.models.base_model import BaseModel
-from agentle.generations.providers.base.generation_provider_type import (
-    GenerationProviderType,
-)
+from agentle.generations.providers.base.generation_provider import GenerationProvider
+from agentle.parsing.document_parser import DocumentParser
 from agentle.parsing.image import Image
 from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
 
 
-class PDFFileParser(BaseModel):
+class PDFFileParser(DocumentParser):
     """
     Parser for processing PDF documents into structured representations.
 
@@ -110,7 +107,7 @@ class PDFFileParser(BaseModel):
 
     type: Literal["pdf"] = "pdf"
     strategy: Literal["high", "low"] = Field(default="high")
-    visual_description_provider: GenerationProviderType | None = Field(default=None)
+    visual_description_provider: GenerationProvider | None = Field(default=None)
     """
     The provider to use for generating the visual description of the document.
     Useful when you want to customize the prompt for the visual description.
