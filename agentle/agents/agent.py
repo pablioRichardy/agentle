@@ -433,6 +433,11 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
     ) -> None:
         self.endpoints = endpoints or self.endpoints
 
+    def change_static_knowledge(
+        self, knowledge: Sequence[StaticKnowledge | str]
+    ) -> None:
+        self.static_knowledge = knowledge
+
     def change_instructions(
         self,
         instructions: str
