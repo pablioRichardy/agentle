@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.14
+- feat(static_knowledge): add from_parsed_file method for creating from ParsedFile
+
+Add convenience method to create StaticKnowledge instance directly from a ParsedFile object
+
 ## v0.8.13
 refactor(models): remove example fields from structured output models
 
