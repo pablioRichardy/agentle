@@ -30,36 +30,18 @@ class MediaStructure(BaseModel):
         default=None,
         title="Overall Layout and Organization",
         description="A description of how the elements are arranged and organized within the media. Describe the overall structure, flow, or pattern, considering both spatial and temporal aspects. Is it linear, grid-based, hierarchical, sequential, or something else? How are the different parts connected or separated? Examples: 'A top-down flowchart', 'A grid of data points', 'A chronological sequence of scenes', 'A central diagram with surrounding labels'.",
-        examples=[
-            "A step-by-step diagram",
-            "A clustered arrangement of shapes",
-            "A formula presented on a single line",
-            "A narrative with distinct acts",
-        ],
     )
 
     groupings: Optional[Sequence[str]] = Field(
         default=None,
         title="Significant Groupings of Elements",
         description="Describe any notable groupings or clusters of elements that appear to function together or have a shared context, considering both visual and temporal coherence. Explain what binds these elements together visually, aurally, or conceptually. Examples: 'The terms on the left side of the equation', 'The interconnected components of the circuit diagram', 'A montage of related images', 'A musical theme associated with a character'.",
-        examples=[
-            "The main body of the text",
-            "The elements forming the control panel",
-            "The interconnected nodes of the network",
-            "A series of shots depicting the same event",
-        ],
     )
 
     focal_point: Optional[str] = Field(
         default=None,
         title="Primary Focal Point",
         description="Identify the most prominent or central element or area that draws attention, considering visual, auditory, and temporal emphasis. Explain why this element stands out (e.g., size, color, position, duration, sound intensity). If there isn't a clear focal point, describe the distribution of emphasis. Examples: 'The main title of the document', 'The central component of the machine', 'The climax of the scene', 'The loudest sound'.",
-        examples=[
-            "The large heading at the top",
-            "The brightly colored area in the center",
-            "The main subject of the drawing",
-            "The key moment of impact",
-        ],
     )
 
     def md(self, indent_level: int = 1) -> str:

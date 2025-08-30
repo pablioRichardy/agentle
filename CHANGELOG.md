@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.13
+refactor(models): remove example fields from structured output models
+
+Simplify model definitions by removing redundant example fields from Field descriptors
+
 ## v0.8.12
 - refactor(models): remove examples from audio element description fields
 
