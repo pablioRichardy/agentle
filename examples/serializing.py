@@ -1,6 +1,7 @@
 import pprint
 from typing import Any
 
+import dill.detect
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
@@ -156,6 +157,20 @@ agent = Agent(
     ],
 )
 
+# Test serializability
+if not dill.pickles(agent):
+    # Find problematic objects
+    bad_objects = dill.detect.badobjects(agent, depth=0)
+    bad_items = dill.detect.baditems(agent)
+    
+    # Save bad objects and items to file
+    with open("serialization_issues.txt", "w") as f:
+        f.write(f"Bad items: {bad_items}\n")
+    
+    print(f"Problematic objects: {bad_objects}")
+    print(f"Bad items: {bad_items}")
+    print("Serialization issues saved to serialization_issues.txt")
+    exit(1)
 
 encoded: str = agent.serialize()
 print(len(encoded))
