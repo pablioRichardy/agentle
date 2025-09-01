@@ -180,7 +180,7 @@ class WhatsAppBot(BaseModel):
         logger.info("WhatsApp bot stopped")
 
     async def handle_message(
-        self, message: WhatsAppMessage
+        self, message: WhatsAppMessage, chat_id: str | None = None
     ) -> GeneratedAssistantMessage[Any] | None:
         """
         Handle incoming WhatsApp message with enhanced error handling and batching.
@@ -271,12 +271,16 @@ class WhatsAppBot(BaseModel):
                 logger.info(
                     f"[BATCHING] Batching config: delay={self.config.batch_delay_seconds}s, max_size={self.config.max_batch_size}, max_timeout={self.config.max_batch_timeout_seconds}s"
                 )
-                response = await self._handle_message_with_batching(message, session)
+                response = await self._handle_message_with_batching(
+                    message, session, chat_id=chat_id
+                )
             else:
                 logger.info(
                     f"[IMMEDIATE] ⚡ Processing message immediately for {message.from_number}"
                 )
-                response = await self._process_single_message(message, session)
+                response = await self._process_single_message(
+                    message, session, chat_id=chat_id
+                )
 
             logger.info(
                 f"[MESSAGE_HANDLER] ✅ Message handling completed. Response generated: {response is not None}"
@@ -319,6 +323,7 @@ class WhatsAppBot(BaseModel):
         ]
         | None = None,
         callback_context: dict[str, Any] | None = None,
+        chat_id: str | None = None,
     ) -> GeneratedAssistantMessage[Any] | None:
         """
         Handle incoming webhook from WhatsApp.
@@ -370,7 +375,7 @@ class WhatsAppBot(BaseModel):
             # Handle Evolution API events
             if payload.event == "messages.upsert":
                 logger.info("[WEBHOOK] 🔄 Handling messages.upsert event")
-                response = await self._handle_message_upsert(payload)
+                response = await self._handle_message_upsert(payload, chat_id=chat_id)
                 logger.info(
                     f"[WEBHOOK] Message upsert response: {response is not None}"
                 )
@@ -650,7 +655,10 @@ class WhatsAppBot(BaseModel):
             )
 
     async def _handle_message_with_batching(
-        self, message: WhatsAppMessage, session: WhatsAppSession
+        self,
+        message: WhatsAppMessage,
+        session: WhatsAppSession,
+        chat_id: str | None = None,
     ) -> GeneratedAssistantMessage[Any] | None:
         """Handle message with improved batching logic and atomic state management."""
         phone_number = message.from_number
@@ -663,6 +671,9 @@ class WhatsAppBot(BaseModel):
         logger.info(
             f"[BATCHING] Current response callbacks count: {len(self._response_callbacks)}"
         )
+
+        if chat_id:
+            session.context_data["custom_chat_id"] = chat_id
 
         try:
             # Get or create processing lock for this user
@@ -1004,6 +1015,8 @@ class WhatsAppBot(BaseModel):
             f"[BATCH_PROCESSING] Phone: {phone_number}, Token: {processing_token}"
         )
 
+        chat_id = session.context_data.get("custom_chat_id")
+
         if not session.pending_messages:
             logger.warning(
                 f"[BATCH_PROCESSING] ⚠️ No pending messages for {phone_number}, finishing batch processing"
@@ -1043,7 +1056,9 @@ class WhatsAppBot(BaseModel):
 
             # Process with agent
             logger.info(f"[BATCH_PROCESSING] 🤖 Running agent for {phone_number}")
-            response = await self._process_with_agent(agent_input, session)
+            response = await self._process_with_agent(
+                agent_input, session, chat_id=chat_id
+            )
             logger.info(
                 f"[BATCH_PROCESSING] ✅ Agent processing complete for {phone_number}"
             )
@@ -1109,7 +1124,10 @@ class WhatsAppBot(BaseModel):
             raise
 
     async def _process_single_message(
-        self, message: WhatsAppMessage, session: WhatsAppSession
+        self,
+        message: WhatsAppMessage,
+        session: WhatsAppSession,
+        chat_id: str | None = None,
     ) -> GeneratedAssistantMessage[Any]:
         """Process a single message immediately with quote message support."""
         logger.info(
@@ -1138,7 +1156,9 @@ class WhatsAppBot(BaseModel):
 
             # Process with agent
             logger.info(f"[SINGLE_MESSAGE] 🤖 Running agent for {message.from_number}")
-            response = await self._process_with_agent(agent_input, session)
+            response = await self._process_with_agent(
+                agent_input, session, chat_id=chat_id
+            )
             logger.info(
                 f"[SINGLE_MESSAGE] ✅ Agent processing complete for {message.from_number}"
             )
@@ -1422,7 +1442,10 @@ class WhatsAppBot(BaseModel):
         return user_message
 
     async def _process_with_agent(
-        self, agent_input: AgentInput, session: WhatsAppSession
+        self,
+        agent_input: AgentInput,
+        session: WhatsAppSession,
+        chat_id: str | None = None,
     ) -> GeneratedAssistantMessage[Any]:
         """Process input with agent using phone number as chat_id for conversation persistence."""
         logger.info("[AGENT_PROCESSING] Starting agent processing")
@@ -1434,7 +1457,7 @@ class WhatsAppBot(BaseModel):
                 # Run agent with phone number as chat_id for conversation persistence
                 result = await self.agent.run_async(
                     agent_input,
-                    chat_id=session.phone_number,  # Use phone number as conversation ID
+                    chat_id=chat_id or session.phone_number,
                 )
                 logger.info("[AGENT_PROCESSING] Agent run completed successfully")
 
@@ -1817,7 +1840,7 @@ class WhatsAppBot(BaseModel):
         return final_messages
 
     async def _handle_message_upsert(
-        self, payload: WhatsAppWebhookPayload
+        self, payload: WhatsAppWebhookPayload, chat_id: str | None = None
     ) -> GeneratedAssistantMessage[Any] | None:
         """Handle new message event."""
         logger.info("[MESSAGE_UPSERT] ═══════════ MESSAGE UPSERT START ═══════════")
@@ -1856,7 +1879,7 @@ class WhatsAppBot(BaseModel):
                     f"[MESSAGE_UPSERT] About to call handle_message with {len(self._response_callbacks)} callbacks"
                 )
 
-                result = await self.handle_message(message)
+                result = await self.handle_message(message, chat_id=chat_id)
 
                 logger.info(
                     f"[MESSAGE_UPSERT] ✅ handle_message completed. Result: {result is not None}"
