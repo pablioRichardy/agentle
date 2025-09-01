@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.8.15
+- feat(whatsapp): add chat_id support for message handling
+
+Add optional chat_id parameter to message handling methods to allow custom conversation IDs
+Implement chat_id propagation through message processing pipeline
+Add callback-based conversation store for flexible persistence
+
 ## v0.8.14
 - feat(static_knowledge): add from_parsed_file method for creating from ParsedFile
 
