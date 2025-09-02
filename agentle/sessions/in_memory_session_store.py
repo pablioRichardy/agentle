@@ -247,6 +247,7 @@ class InMemorySessionStore[T_Session: BaseModel](SessionStore[T_Session]):
 
             # Set expiry time
             if ttl_seconds is not None:
+                ttl_seconds = int(ttl_seconds)  # Ensure it's an integer
                 self._expiry_times[session_id] = current_time + ttl_seconds
             elif session_id in self._expiry_times:
                 # Remove expiry if TTL is None
