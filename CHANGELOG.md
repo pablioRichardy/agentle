@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.17
+feat(whatsapp): add markdown formatting for WhatsApp messages
+
+Implement WhatsApp-compatible markdown formatting for all outgoing messages. Convert standard markdown syntax to WhatsApp's supported format (*bold*, _italic_, ~strikethrough~, ```code```) to ensure consistent rendering in WhatsApp client.
+
 ## v0.8.16
 fix(in_memory_session_store): ensure ttl_seconds is converted to integer
 
