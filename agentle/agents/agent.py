@@ -82,6 +82,10 @@ from agentle.agents.errors.max_tool_calls_exceeded_error import (
 )
 from agentle.agents.errors.tool_suspension_error import ToolSuspensionError
 from agentle.agents.knowledge.static_knowledge import NO_CACHE, StaticKnowledge
+from agentle.guardrails.core.guardrail_config import GuardrailConfig
+from agentle.guardrails.core.guardrail_manager import GuardrailManager
+from agentle.guardrails.core.input_guardrail_validator import InputGuardrailValidator
+from agentle.guardrails.core.output_guardrail_validator import OutputGuardrailValidator
 from agentle.utils.file_validation import FileValidationError
 from agentle.agents.message_history_fixer import MessageHistoryFixer
 from agentle.agents.performance_metrics import PerformanceMetrics
@@ -419,6 +423,35 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         description="Complete APIs with multiple endpoints that the agent can use. All endpoints in these APIs will be automatically converted to tools.",
     )
 
+    guardrail_manager: GuardrailManager | None = Field(default=None)
+    """
+    Gerenciador de guardrails para validação de entrada e saída.
+    Se None, nenhuma validação será realizada.
+    """
+
+    input_guardrails: MutableSequence[InputGuardrailValidator] = Field(
+        default_factory=list
+    )
+    """
+    Lista de validadores de entrada a serem aplicados ao input do usuário.
+    """
+
+    output_guardrails: MutableSequence[OutputGuardrailValidator] = Field(
+        default_factory=list
+    )
+    """
+    Lista de validadores de saída a serem aplicados à resposta do modelo.
+    """
+
+    guardrail_config: GuardrailConfig = Field(default_factory=GuardrailConfig)
+    """
+    Configurações específicas para guardrails:
+    - 'fail_on_input_violation': bool (default: True) - Falha se input violar guardrails
+    - 'fail_on_output_violation': bool (default: False) - Falha se output violar guardrails  
+    - 'log_violations': bool (default: True) - Log violações
+    - 'include_metrics': bool (default: True) - Inclui métricas de guardrails no resultado
+    """
+
     # Internal fields
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -503,6 +536,27 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
     @override
     def model_post_init(self, context: Any) -> None:
         super().model_post_init(context)
+
+        # Inicializar guardrail manager se não foi fornecido
+        if self.guardrail_manager is None and (
+            self.input_guardrails or self.output_guardrails
+        ):
+            self.guardrail_manager = GuardrailManager(
+                fail_fast=self.guardrail_config.get("fail_fast", True),
+                parallel_execution=self.guardrail_config.get(
+                    "parallel_execution", True
+                ),
+                cache_enabled=self.guardrail_config.get("cache_enabled", True),
+            )
+
+        # Adicionar validadores ao manager
+        if self.guardrail_manager:
+            for validator in self.input_guardrails:
+                self.guardrail_manager.add_input_validator(validator)
+
+            for validator in self.output_guardrails:
+                self.guardrail_manager.add_output_validator(validator)
+
         _vs = self.vector_stores or []
         for vector_store in _vs:
             self.tools.append(vector_store.as_search_tool())

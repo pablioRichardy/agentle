@@ -688,6 +688,11 @@ class WhatsAppBot(BaseModel):
 
         if chat_id:
             session.context_data["custom_chat_id"] = chat_id
+            logger.info(f"[BATCHING] ✅ Stored custom_chat_id in session: {chat_id}")
+        else:
+            logger.warning(f"[BATCHING] ⚠️ No chat_id provided to store in session")
+            
+        logger.info(f"[BATCHING] Session context_data after chat_id update: {session.context_data}")
 
         try:
             # Get or create processing lock for this user
@@ -705,6 +710,17 @@ class WhatsAppBot(BaseModel):
                 if not current_session:
                     logger.error(f"[BATCHING] ❌ Lost session for {phone_number}")
                     return None
+                    
+                # CRITICAL FIX: Preserve custom_chat_id from original session
+                original_chat_id = session.context_data.get("custom_chat_id")
+                if original_chat_id and not current_session.context_data.get("custom_chat_id"):
+                    logger.warning(f"[BATCHING] ⚠️ custom_chat_id lost during session re-fetch, restoring: {original_chat_id}")
+                    current_session.context_data["custom_chat_id"] = original_chat_id
+                    logger.info(f"[BATCHING] ✅ Restored custom_chat_id: {original_chat_id}")
+                elif original_chat_id:
+                    logger.info(f"[BATCHING] ✅ custom_chat_id preserved during re-fetch: {original_chat_id}")
+                else:
+                    logger.info(f"[BATCHING] No custom_chat_id to preserve")
 
                 # Convert message to storable format
                 message_data = await self._message_to_dict(message)
@@ -731,6 +747,17 @@ class WhatsAppBot(BaseModel):
                         f"[BATCHING] ❌ Lost session after update for {phone_number}"
                     )
                     return None
+                    
+                # CRITICAL FIX: Ensure custom_chat_id is preserved after update
+                expected_chat_id = current_session.context_data.get("custom_chat_id")
+                actual_chat_id = updated_session.context_data.get("custom_chat_id")
+                if expected_chat_id and not actual_chat_id:
+                    logger.error(f"[BATCHING] ❌ custom_chat_id lost after session update! Expected: {expected_chat_id}, Got: {actual_chat_id}")
+                    updated_session.context_data["custom_chat_id"] = expected_chat_id
+                    await self.provider.update_session(updated_session)
+                    logger.info(f"[BATCHING] ✅ Restored custom_chat_id after update: {expected_chat_id}")
+                elif expected_chat_id:
+                    logger.info(f"[BATCHING] ✅ custom_chat_id preserved after update: {expected_chat_id}")
 
                 logger.info(
                     f"[BATCHING] Updated session state: processing={updated_session.is_processing}, token={updated_session.processing_token}, pending={len(updated_session.pending_messages)}"
@@ -812,6 +839,9 @@ class WhatsAppBot(BaseModel):
                     f"[ATOMIC_UPDATE] Started processing for {phone_number} with token {processing_token}"
                 )
 
+            # Log context_data before persisting
+            logger.info(f"[ATOMIC_UPDATE] Context data before update: {session.context_data}")
+            
             # Persist the updated session
             await self.provider.update_session(session)
 
@@ -820,6 +850,16 @@ class WhatsAppBot(BaseModel):
             if not verification_session:
                 logger.error(
                     f"[ATOMIC_UPDATE] Session disappeared after update for {phone_number}"
+                )
+                return False
+                
+            # Log context_data after persisting
+            logger.info(f"[ATOMIC_UPDATE] Context data after update: {verification_session.context_data}")
+            
+            # Verify context_data is preserved
+            if verification_session.context_data.get("custom_chat_id") != session.context_data.get("custom_chat_id"):
+                logger.error(
+                    f"[ATOMIC_UPDATE] ❌ custom_chat_id not preserved! Before: {session.context_data.get('custom_chat_id')}, After: {verification_session.context_data.get('custom_chat_id')}"
                 )
                 return False
 
@@ -1030,6 +1070,14 @@ class WhatsAppBot(BaseModel):
         )
 
         chat_id = session.context_data.get("custom_chat_id")
+        logger.info(f"[BATCH_PROCESSING] Retrieved chat_id from session: {chat_id}")
+        logger.info(f"[BATCH_PROCESSING] Session context_data keys: {list(session.context_data.keys())}")
+        
+        # DEBUG: Log all context data for troubleshooting
+        if chat_id is None:
+            logger.warning(f"[BATCH_PROCESSING] ⚠️ custom_chat_id is None! Full context_data: {session.context_data}")
+        else:
+            logger.info(f"[BATCH_PROCESSING] ✅ Using custom chat_id: {chat_id}")
 
         if not session.pending_messages:
             logger.warning(
