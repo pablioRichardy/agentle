@@ -62,7 +62,7 @@ class ContentSafetyValidator(InputGuardrailValidator, OutputGuardrailValidator):
             r"\binstructions?\s+(?:to|for|on)\s+(?:make|create|build)\s+(?:bomb|weapon|explosive)\b",
         ]
 
-    async def _perform_validation(
+    async def perform_validation(
         self, content: str, context: Optional[Dict[str, Any]] = None
     ) -> GuardrailResult:
         """

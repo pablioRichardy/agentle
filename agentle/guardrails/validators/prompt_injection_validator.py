@@ -938,7 +938,7 @@ class PromptInjectionValidator(InputGuardrailValidator):
         """Generate cache key for content."""
         return hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
 
-    async def _perform_validation(
+    async def perform_validation(
         self, content: str, context: Optional[Dict[str, Any]] = None
     ) -> GuardrailResult:
         """Execute comprehensive prompt injection detection with robust error handling."""
@@ -1340,7 +1340,7 @@ if __name__ == "__main__":
 
             for i, test_input in enumerate(inputs, 1):
                 try:
-                    result = await validator._perform_validation(test_input)
+                    result = await validator.perform_validation(test_input)
                     total_tests += 1
 
                     # Determine if test passed based on expectation
@@ -1393,7 +1393,7 @@ if __name__ == "__main__":
 
         for i, test_input in enumerate(performance_inputs, 1):
             start_time = time.time()
-            result = await validator._perform_validation(test_input)
+            result = await validator.perform_validation(test_input)
             processing_time = (time.time() - start_time) * 1000
 
             print(

@@ -46,7 +46,7 @@ class PIIDetectionValidator(InputGuardrailValidator, OutputGuardrailValidator):
             "rg": r"\b\d{1,2}\.?\d{3}\.?\d{3}-?[\dX]\b",
         }
 
-    async def _perform_validation(
+    async def perform_validation(
         self, content: str, context: dict[str, Any] | None = None
     ) -> GuardrailResult:
         """

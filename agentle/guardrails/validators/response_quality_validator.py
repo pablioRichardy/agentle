@@ -38,7 +38,7 @@ class ResponseQualityValidator(OutputGuardrailValidator):
         self.max_length = max_length
         self.require_punctuation = require_punctuation
 
-    async def _perform_validation(
+    async def perform_validation(
         self, content: str, context: Optional[Dict[str, Any]] = None
     ) -> GuardrailResult:
         """

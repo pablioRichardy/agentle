@@ -46,7 +46,7 @@ class ToxicityValidator(InputGuardrailValidator, OutputGuardrailValidator):
         # Padrões tóxicos
         self.toxic_patterns = ["você é um", "you are so", "vai se", "go kill yourself"]
 
-    async def _perform_validation(
+    async def perform_validation(
         self, content: str, context: dict[str, Any] | None = None
     ) -> GuardrailResult:
         """

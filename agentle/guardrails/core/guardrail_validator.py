@@ -65,7 +65,7 @@ class GuardrailValidator(ABC):
         """
         start_time = time.perf_counter()
         try:
-            result = await self._perform_validation(content, context)
+            result = await self.perform_validation(content, context)
             result.processing_time_ms = (time.perf_counter() - start_time) * 1000
             result.validator_name = self.name
             return result
@@ -81,7 +81,7 @@ class GuardrailValidator(ABC):
             )
 
     @abstractmethod
-    async def _perform_validation(
+    async def perform_validation(
         self, content: str, context: Optional[Dict[str, Any]] = None
     ) -> GuardrailResult:
         """
