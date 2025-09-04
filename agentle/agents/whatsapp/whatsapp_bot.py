@@ -262,7 +262,9 @@ class WhatsAppBot(BaseModel):
                 logger.info(
                     f"[WELCOME] Sending welcome message to {message.from_number}"
                 )
-                formatted_welcome = self._format_whatsapp_markdown(self.config.welcome_message)
+                formatted_welcome = self._format_whatsapp_markdown(
+                    self.config.welcome_message
+                )
                 await self.provider.send_text_message(
                     message.from_number, formatted_welcome
                 )
@@ -692,9 +694,11 @@ class WhatsAppBot(BaseModel):
             session.context_data["custom_chat_id"] = chat_id
             logger.info(f"[BATCHING] ✅ Stored custom_chat_id in session: {chat_id}")
         else:
-            logger.warning(f"[BATCHING] ⚠️ No chat_id provided to store in session")
-            
-        logger.info(f"[BATCHING] Session context_data after chat_id update: {session.context_data}")
+            logger.warning("[BATCHING] ⚠️ No chat_id provided to store in session")
+
+        logger.info(
+            f"[BATCHING] Session context_data after chat_id update: {session.context_data}"
+        )
 
         try:
             # Get or create processing lock for this user
@@ -712,17 +716,25 @@ class WhatsAppBot(BaseModel):
                 if not current_session:
                     logger.error(f"[BATCHING] ❌ Lost session for {phone_number}")
                     return None
-                    
+
                 # CRITICAL FIX: Preserve custom_chat_id from original session
                 original_chat_id = session.context_data.get("custom_chat_id")
-                if original_chat_id and not current_session.context_data.get("custom_chat_id"):
-                    logger.warning(f"[BATCHING] ⚠️ custom_chat_id lost during session re-fetch, restoring: {original_chat_id}")
+                if original_chat_id and not current_session.context_data.get(
+                    "custom_chat_id"
+                ):
+                    logger.warning(
+                        f"[BATCHING] ⚠️ custom_chat_id lost during session re-fetch, restoring: {original_chat_id}"
+                    )
                     current_session.context_data["custom_chat_id"] = original_chat_id
-                    logger.info(f"[BATCHING] ✅ Restored custom_chat_id: {original_chat_id}")
+                    logger.info(
+                        f"[BATCHING] ✅ Restored custom_chat_id: {original_chat_id}"
+                    )
                 elif original_chat_id:
-                    logger.info(f"[BATCHING] ✅ custom_chat_id preserved during re-fetch: {original_chat_id}")
+                    logger.info(
+                        f"[BATCHING] ✅ custom_chat_id preserved during re-fetch: {original_chat_id}"
+                    )
                 else:
-                    logger.info(f"[BATCHING] No custom_chat_id to preserve")
+                    logger.info("[BATCHING] No custom_chat_id to preserve")
 
                 # Convert message to storable format
                 message_data = await self._message_to_dict(message)
@@ -749,17 +761,23 @@ class WhatsAppBot(BaseModel):
                         f"[BATCHING] ❌ Lost session after update for {phone_number}"
                     )
                     return None
-                    
+
                 # CRITICAL FIX: Ensure custom_chat_id is preserved after update
                 expected_chat_id = current_session.context_data.get("custom_chat_id")
                 actual_chat_id = updated_session.context_data.get("custom_chat_id")
                 if expected_chat_id and not actual_chat_id:
-                    logger.error(f"[BATCHING] ❌ custom_chat_id lost after session update! Expected: {expected_chat_id}, Got: {actual_chat_id}")
+                    logger.error(
+                        f"[BATCHING] ❌ custom_chat_id lost after session update! Expected: {expected_chat_id}, Got: {actual_chat_id}"
+                    )
                     updated_session.context_data["custom_chat_id"] = expected_chat_id
                     await self.provider.update_session(updated_session)
-                    logger.info(f"[BATCHING] ✅ Restored custom_chat_id after update: {expected_chat_id}")
+                    logger.info(
+                        f"[BATCHING] ✅ Restored custom_chat_id after update: {expected_chat_id}"
+                    )
                 elif expected_chat_id:
-                    logger.info(f"[BATCHING] ✅ custom_chat_id preserved after update: {expected_chat_id}")
+                    logger.info(
+                        f"[BATCHING] ✅ custom_chat_id preserved after update: {expected_chat_id}"
+                    )
 
                 logger.info(
                     f"[BATCHING] Updated session state: processing={updated_session.is_processing}, token={updated_session.processing_token}, pending={len(updated_session.pending_messages)}"
@@ -842,8 +860,10 @@ class WhatsAppBot(BaseModel):
                 )
 
             # Log context_data before persisting
-            logger.info(f"[ATOMIC_UPDATE] Context data before update: {session.context_data}")
-            
+            logger.info(
+                f"[ATOMIC_UPDATE] Context data before update: {session.context_data}"
+            )
+
             # Persist the updated session
             await self.provider.update_session(session)
 
@@ -854,12 +874,16 @@ class WhatsAppBot(BaseModel):
                     f"[ATOMIC_UPDATE] Session disappeared after update for {phone_number}"
                 )
                 return False
-                
+
             # Log context_data after persisting
-            logger.info(f"[ATOMIC_UPDATE] Context data after update: {verification_session.context_data}")
-            
+            logger.info(
+                f"[ATOMIC_UPDATE] Context data after update: {verification_session.context_data}"
+            )
+
             # Verify context_data is preserved
-            if verification_session.context_data.get("custom_chat_id") != session.context_data.get("custom_chat_id"):
+            if verification_session.context_data.get(
+                "custom_chat_id"
+            ) != session.context_data.get("custom_chat_id"):
                 logger.error(
                     f"[ATOMIC_UPDATE] ❌ custom_chat_id not preserved! Before: {session.context_data.get('custom_chat_id')}, After: {verification_session.context_data.get('custom_chat_id')}"
                 )
@@ -1073,11 +1097,15 @@ class WhatsAppBot(BaseModel):
 
         chat_id = session.context_data.get("custom_chat_id")
         logger.info(f"[BATCH_PROCESSING] Retrieved chat_id from session: {chat_id}")
-        logger.info(f"[BATCH_PROCESSING] Session context_data keys: {list(session.context_data.keys())}")
-        
+        logger.info(
+            f"[BATCH_PROCESSING] Session context_data keys: {list(session.context_data.keys())}"
+        )
+
         # DEBUG: Log all context data for troubleshooting
         if chat_id is None:
-            logger.warning(f"[BATCH_PROCESSING] ⚠️ custom_chat_id is None! Full context_data: {session.context_data}")
+            logger.warning(
+                f"[BATCH_PROCESSING] ⚠️ custom_chat_id is None! Full context_data: {session.context_data}"
+            )
         else:
             logger.info(f"[BATCH_PROCESSING] ✅ Using custom chat_id: {chat_id}")
 
@@ -1117,7 +1145,7 @@ class WhatsAppBot(BaseModel):
             agent_input = await self._convert_message_batch_to_input(
                 pending_messages, session
             )
-            
+
             # Check if batch conversion returned None (empty batch)
             if not agent_input:
                 logger.warning(
@@ -1125,7 +1153,9 @@ class WhatsAppBot(BaseModel):
                 )
                 # Clear sending state and finish batch processing
                 session.context_data["is_sending_messages"] = False
-                session.context_data["sending_completed_at"] = datetime.now().isoformat()
+                session.context_data["sending_completed_at"] = (
+                    datetime.now().isoformat()
+                )
                 session.finish_batch_processing(processing_token)
                 await self.provider.update_session(session)
                 return None
@@ -1556,6 +1586,46 @@ class WhatsAppBot(BaseModel):
                 logger.info(
                     f"[AGENT_PROCESSING] Generated response (length: {len(generated_message.text)})"
                 )
+
+                # Remove thinking tags from the response text
+                original_text = generated_message.text
+                cleaned_text = self._remove_thinking_tags(original_text)
+
+                # Log if thinking tags were found and removed
+                if original_text != cleaned_text:
+                    logger.info(
+                        "[AGENT_PROCESSING] Removed thinking tags from response. "
+                        + f"Original length: {len(original_text)}, Cleaned length: {len(cleaned_text)}"
+                    )
+
+                # Create a new message with cleaned text if thinking tags were found
+                if original_text != cleaned_text:
+                    # Update the text parts with cleaned content
+                    cleaned_parts: list[TextPart | ToolExecutionSuggestion] = []
+                    for part in generated_message.parts:
+                        if hasattr(part, "text") and part.text:
+                            # Create new TextPart with cleaned text
+                            from agentle.generations.models.message_parts.text import (
+                                TextPart,
+                            )
+
+                            part_text = str(part.text) if part.text else ""
+                            cleaned_part = TextPart(
+                                text=self._remove_thinking_tags(part_text)
+                            )
+                            cleaned_parts.append(cleaned_part)
+                            continue
+
+                            # Keep non-text parts as they are
+                            cleaned_parts.append(part)
+
+                    # Create new message with cleaned parts
+                    cleaned_message = GeneratedAssistantMessage[Any](
+                        parts=cleaned_parts,
+                        parsed=generated_message.parsed,
+                    )
+                    return cleaned_message
+
                 return generated_message
 
             logger.warning("[AGENT_PROCESSING] No generation found in result")
@@ -1563,7 +1633,11 @@ class WhatsAppBot(BaseModel):
             from agentle.generations.models.message_parts.text import TextPart
 
             return GeneratedAssistantMessage[Any](
-                parts=[TextPart(text="Desculpe, não consegui processar sua mensagem no momento. Tente novamente.")],
+                parts=[
+                    TextPart(
+                        text="Desculpe, não consegui processar sua mensagem no momento. Tente novamente."
+                    )
+                ],
                 parsed=None,
             )
 
@@ -1573,36 +1647,67 @@ class WhatsAppBot(BaseModel):
             )
             raise
 
+    def _remove_thinking_tags(self, text: str) -> str:
+        """Remove thinking tags and their content from the response text.
+
+        This method handles:
+        - Multiple occurrences of thinking tags
+        - Tags spanning multiple lines
+        - Responses with no thinking tags
+
+        Args:
+            text: The original response text that may contain thinking tags
+
+        Returns:
+            The cleaned text with thinking tags and their content removed
+        """
+        if not text:
+            return text
+
+        # Use re.DOTALL flag to make . match newlines as well
+        # This handles thinking tags that span multiple lines
+        cleaned_text = re.sub(
+            r"<thinking>.*?</thinking>", "", text, flags=re.DOTALL | re.IGNORECASE
+        )
+
+        # Clean up any extra whitespace that might be left after removing thinking tags
+        cleaned_text = re.sub(
+            r"\n\s*\n\s*\n", "\n\n", cleaned_text
+        )  # Replace multiple newlines with double newlines
+        cleaned_text = cleaned_text.strip()  # Remove leading/trailing whitespace
+
+        return cleaned_text
+
     def _format_whatsapp_markdown(self, text: str) -> str:
         """Convert standard markdown to WhatsApp-compatible formatting.
-        
+
         WhatsApp supports:
         - *bold* for bold text
-        - _italic_ for italic text  
+        - _italic_ for italic text
         - ~strikethrough~ for strikethrough text
         - ```code``` for monospace text
         - No support for standard **bold** or __italic__ markdown
         """
         if not text:
             return text
-            
+
         # Convert **bold** to *bold* (WhatsApp format)
-        
+
         # Handle **bold** -> *bold*
-        text = re.sub(r'\*\*([^*]+)\*\*', r'*\1*', text)
-        
+        text = re.sub(r"\*\*([^*]+)\*\*", r"*\1*", text)
+
         # Handle __italic__ -> _italic_
-        text = re.sub(r'__([^_]+)__', r'_\1_', text)
-        
+        text = re.sub(r"__([^_]+)__", r"_\1_", text)
+
         # Handle ~~strikethrough~~ -> ~strikethrough~
-        text = re.sub(r'~~([^~]+)~~', r'~\1~', text)
-        
+        text = re.sub(r"~~([^~]+)~~", r"~\1~", text)
+
         # Handle `code` -> ```code``` (WhatsApp monospace)
-        text = re.sub(r'`([^`]+)`', r'```\1```', text)
-        
+        text = re.sub(r"`([^`]+)`", r"```\1```", text)
+
         # Handle code blocks ```code``` (already WhatsApp compatible)
         # No changes needed for code blocks
-        
+
         return text
 
     async def _send_response(
@@ -1618,7 +1723,7 @@ class WhatsAppBot(BaseModel):
             if isinstance(response, GeneratedAssistantMessage)
             else response
         )
-        
+
         # Apply WhatsApp-specific markdown formatting
         response_text = self._format_whatsapp_markdown(response_text)
 
@@ -1730,7 +1835,9 @@ class WhatsAppBot(BaseModel):
                 try:
                     error_msg = f"⚠️ Algumas partes da mensagem podem não ter sido enviadas devido a problemas técnicos. {len(failed_parts)} de {len(messages)} partes falharam."
                     formatted_error_msg = self._format_whatsapp_markdown(error_msg)
-                    await self.provider.send_text_message(to=to, text=formatted_error_msg)
+                    await self.provider.send_text_message(
+                        to=to, text=formatted_error_msg
+                    )
                 except Exception as e:
                     logger.warning(
                         f"[SEND_RESPONSE] Failed to send partial failure notification: {e}"
