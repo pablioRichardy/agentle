@@ -203,12 +203,7 @@ class WhatsAppBot(BaseModel):
             )
 
         try:
-            # Mark as read if configured
-            if self.config.auto_read_messages:
-                logger.debug(f"[MESSAGE_HANDLER] Marking message {message.id} as read")
-                await self.provider.mark_message_as_read(message.id)
-
-            # Get or create session
+            # Get or create session FIRST to check rate limiting
             logger.debug(f"[MESSAGE_HANDLER] Getting session for {message.from_number}")
             session = await self.provider.get_session(message.from_number)
             if not session:
@@ -217,18 +212,7 @@ class WhatsAppBot(BaseModel):
                 )
                 return
 
-            # MUDANÇA CRÍTICA: Armazenar o chat_id personalizado na sessão
-            if chat_id:
-                session.context_data["custom_chat_id"] = chat_id
-                logger.info(
-                    f"[MESSAGE_HANDLER] Stored custom chat_id in session: {chat_id}"
-                )
-
-            logger.info(
-                f"[SESSION_STATE] Session for {message.from_number}: is_processing={session.is_processing}, pending_messages={len(session.pending_messages)}, message_count={session.message_count}"
-            )
-
-            # Check rate limiting if spam protection is enabled
+            # CRITICAL FIX: Check rate limiting BEFORE any message processing
             if self.config.spam_protection_enabled:
                 logger.debug(
                     f"[SPAM_PROTECTION] Checking rate limits for {message.from_number}"
@@ -240,11 +224,29 @@ class WhatsAppBot(BaseModel):
 
                 if not can_process:
                     logger.warning(
-                        f"[SPAM_PROTECTION] Rate limited user {message.from_number}"
+                        f"[SPAM_PROTECTION] ❌ Rate limited user {message.from_number} - BLOCKING message processing"
                     )
                     if session.is_rate_limited:
                         await self._send_rate_limit_message(message.from_number)
+                    # CRITICAL: Update session to persist rate limiting state and return immediately
+                    await self.provider.update_session(session)
                     return None
+
+            # Mark as read if configured (only after rate limiting check passes)
+            if self.config.auto_read_messages:
+                logger.debug(f"[MESSAGE_HANDLER] Marking message {message.id} as read")
+                await self.provider.mark_message_as_read(message.id)
+
+            # Store custom chat_id in session
+            if chat_id:
+                session.context_data["custom_chat_id"] = chat_id
+                logger.info(
+                    f"[MESSAGE_HANDLER] Stored custom chat_id in session: {chat_id}"
+                )
+
+            logger.info(
+                f"[SESSION_STATE] Session for {message.from_number}: is_processing={session.is_processing}, pending_messages={len(session.pending_messages)}, message_count={session.message_count}"
+            )
 
             effective_chat_id = chat_id or message.from_number
             logger.info(

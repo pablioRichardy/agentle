@@ -1,10 +1,7 @@
 # Changelog
 
-## v0.8.20
+## v0.8.21
 
-- fix(whatsapp): enhance race condition protection and batch timing logic
+fix(whatsapp_bot): reorder message handling to check rate limits first
 
-- Add double-check lock pattern to prevent duplicate batch processors
-- Track last_message_added_at to improve batch timing calculations
-- Reset batch timer when new messages arrive to existing batch
-- Ensure processing_token is not None before creating processor
+Move rate limit check before message processing to prevent spam. Also ensures session state is properly updated when rate limiting occurs.
