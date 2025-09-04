@@ -1,6 +1,10 @@
 # Changelog
 
 ## v0.8.18
+refactor(base64): move safe_b64decode to separate module
+
+The safe_b64decode function was moved from fix_base64_padding.py to a new dedicated module safe_b64decode.py to improve code organization and maintainability. This separation makes the functionality more modular and easier to maintain.
+
 feat(agent): add thinking tags removal and improve message formatting
 
 Add new _remove_thinking_tags method to clean agent responses before sending
