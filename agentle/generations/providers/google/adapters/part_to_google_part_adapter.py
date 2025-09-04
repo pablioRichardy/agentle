@@ -38,7 +38,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
 
-from agentle.utils.fix_base64_padding import safe_b64decode
+from agentle.utils.safe_b64decode import safe_b64decode
 
 from rsb.adapters.adapter import Adapter
 
