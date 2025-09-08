@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.8.23
+refactor: rename protocol classes to follow single underscore convention and to fix not defined class.
+
 ## v0.8.22
 feat(file): enhance file validation with mime type and content checks
 
