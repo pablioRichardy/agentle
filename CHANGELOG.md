@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.8.24
+fix(whatsapp): thinking tags not properlly removed
+
 ## v0.8.23
 refactor: rename protocol classes to follow single underscore convention and to fix not defined class.
 
