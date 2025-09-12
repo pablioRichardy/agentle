@@ -165,36 +165,6 @@ class GoogleGenerationProvider(GenerationProvider):
         """
         return "google"
 
-    @overload
-    def stream_async[T](
-        self,
-        *,
-        model: str | ModelKind | None = None,
-        messages: Sequence[Message],
-        response_schema: type[T],
-        generation_config: GenerationConfig | GenerationConfigDict | None = None,
-    ) -> AsyncGenerator[Generation[T], None]: ...
-
-    @overload
-    def stream_async(
-        self,
-        *,
-        model: str | ModelKind | None = None,
-        messages: Sequence[Message],
-        generation_config: GenerationConfig | GenerationConfigDict | None = None,
-        tools: Sequence[Tool],
-    ) -> AsyncGenerator[Generation[WithoutStructuredOutput], None]: ...
-
-    @overload
-    def stream_async(
-        self,
-        *,
-        model: str | ModelKind | None = None,
-        messages: Sequence[Message],
-        generation_config: GenerationConfig | GenerationConfigDict | None = None,
-    ) -> AsyncGenerator[Generation[WithoutStructuredOutput], None]: ...
-
-    # Remove the explicit return type annotation from the implementation
     async def stream_async[T = WithoutStructuredOutput](
         self,
         *,
@@ -203,7 +173,7 @@ class GoogleGenerationProvider(GenerationProvider):
         response_schema: type[T] | None = None,
         generation_config: GenerationConfig | GenerationConfigDict | None = None,
         tools: Sequence[Tool] | None = None,
-    ):
+    ) -> AsyncGenerator[Generation[WithoutStructuredOutput], None]:
         from google.genai import types
 
         if self._normalize_generation_config(generation_config).n > 1:
@@ -308,8 +278,11 @@ class GoogleGenerationProvider(GenerationProvider):
             raise
 
         # Create the response
-        response = GenerateGenerateContentResponseToGenerationAdapter[T](
-            response_schema=response_schema, model=used_model
+        response = GenerateGenerateContentResponseToGenerationAdapter[
+            WithoutStructuredOutput
+        ](
+            response_schema=None,
+            model=used_model,
         ).adapt(generate_content_response_stream)
 
         # Yield from the async iterator to make this an async generator

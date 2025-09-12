@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, Sequence, override
+from collections.abc import AsyncGenerator, Mapping
+from typing import TYPE_CHECKING, Any, Sequence, cast, override
 
 from rsb.coroutines.run_async import run_async
 
@@ -16,6 +16,7 @@ from agentle.generations.models.generation.generation_config_dict import (
 )
 from agentle.generations.models.messages.assistant_message import AssistantMessage
 from agentle.generations.models.messages.developer_message import DeveloperMessage
+from agentle.generations.models.messages.message import Message
 from agentle.generations.models.messages.user_message import UserMessage
 from agentle.generations.providers.amazon.adapters.agentle_message_to_boto_message import (
     AgentleMessageToBotoMessage,
@@ -46,6 +47,9 @@ if TYPE_CHECKING:
     from agentle.generations.tracing.otel_client import OtelClient
 
 logger = logging.getLogger(__name__)
+
+
+type WithoutStructuredOutput = None
 
 
 class BedrockGenerationProvider(GenerationProvider):
@@ -86,6 +90,21 @@ class BedrockGenerationProvider(GenerationProvider):
     @override
     def organization(self) -> str:
         return "aws"
+
+    @override
+    async def stream_async[T = WithoutStructuredOutput](
+        self,
+        *,
+        model: str | ModelKind | None = None,
+        messages: Sequence[Message],
+        response_schema: type[T] | None = None,
+        generation_config: GenerationConfig | GenerationConfigDict | None = None,
+        tools: Sequence[Tool] | None = None,
+    ) -> AsyncGenerator[Generation[WithoutStructuredOutput], None]:
+        # Not implemented yet; declare as async generator to satisfy type checkers
+        raise NotImplementedError("This method is not implemented yet.")
+        if False:  # pragma: no cover
+            yield cast(Generation[WithoutStructuredOutput], None)
 
     @override
     @observe

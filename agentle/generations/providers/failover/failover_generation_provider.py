@@ -18,8 +18,8 @@ require high availability and cannot tolerate downtime from any single AI provid
 from __future__ import annotations
 
 import random
-from collections.abc import MutableSequence, Sequence
-from typing import TYPE_CHECKING, override
+from collections.abc import AsyncGenerator, MutableSequence, Sequence
+from typing import TYPE_CHECKING, cast, override
 
 
 from rsb.coroutines.fire_and_forget import fire_and_forget
@@ -103,12 +103,17 @@ class FailoverGenerationProvider(GenerationProvider):
         # Flatten nested sequences of providers
         flattened_providers: MutableSequence[GenerationProvider] = []
         for item in generation_providers:
-            if isinstance(item, Sequence) and not isinstance(item, (str, bytes)):
+            if (
+                isinstance(item, Sequence)
+                and not isinstance(item, str)
+                and not isinstance(item, bytes)
+            ):
                 # If it's a sequence (but not string/bytes), extend with its contents
                 flattened_providers.extend(item)
-            else:
-                # If it's a single provider, append it
-                flattened_providers.append(item)
+                continue
+
+            # If it's a single provider, append it
+            flattened_providers.append(cast(GenerationProvider, item))
 
         self.generation_providers = flattened_providers
         self.shuffle = shuffle
@@ -166,6 +171,21 @@ class FailoverGenerationProvider(GenerationProvider):
         self, model: str, estimate_tokens: int | None = None
     ) -> float:
         return 0.0
+
+    @override
+    async def stream_async[T = WithoutStructuredOutput](
+        self,
+        *,
+        model: str | ModelKind | None = None,
+        messages: Sequence[Message],
+        response_schema: type[T] | None = None,
+        generation_config: GenerationConfig | GenerationConfigDict | None = None,
+        tools: Sequence[Tool] | None = None,
+    ) -> AsyncGenerator[Generation[WithoutStructuredOutput], None]:
+        # Not implemented yet; declare as async generator to satisfy type checkers
+        raise NotImplementedError("This method is not implemented yet.")
+        if False:  # pragma: no cover
+            yield cast(Generation[WithoutStructuredOutput], None)
 
     @override
     async def generate_async[T = WithoutStructuredOutput](

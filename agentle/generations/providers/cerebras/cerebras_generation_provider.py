@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Mapping, Sequence
+from collections.abc import AsyncGenerator, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, cast, override
 
 import httpx
@@ -39,6 +39,7 @@ from agentle.generations.models.generation.generation_config_dict import (
 )
 from agentle.generations.models.messages.assistant_message import AssistantMessage
 from agentle.generations.models.messages.developer_message import DeveloperMessage
+from agentle.generations.models.messages.message import Message
 from agentle.generations.models.messages.user_message import UserMessage
 from agentle.generations.providers.base.generation_provider import (
     GenerationProvider,
@@ -180,6 +181,21 @@ class CerebrasGenerationProvider(GenerationProvider):
         The default model to use for generation.
         """
         return "llama-3.3-70b"
+
+    @override
+    async def stream_async[T = WithoutStructuredOutput](
+        self,
+        *,
+        model: str | ModelKind | None = None,
+        messages: Sequence[Message],
+        response_schema: type[T] | None = None,
+        generation_config: GenerationConfig | GenerationConfigDict | None = None,
+        tools: Sequence[Tool] | None = None,
+    ) -> AsyncGenerator[Generation[WithoutStructuredOutput], None]:
+        # Not implemented yet; declare as async generator to satisfy type checkers
+        raise NotImplementedError("This method is not implemented yet.")
+        if False:  # pragma: no cover
+            yield cast(Generation[WithoutStructuredOutput], None)
 
     @override
     @observe

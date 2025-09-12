@@ -118,7 +118,7 @@ class ProgressiveProfilingAgent(BaseModel):
 
     def run(
         self,
-        input: AgentInput | Any,
+        inp: AgentInput | Any,
         *,
         current_state: Mapping[str, Any] | None = None,
         timeout: float | None = None,
@@ -128,7 +128,7 @@ class ProgressiveProfilingAgent(BaseModel):
         Run the progressive profiling agent
 
         Args:
-            input: The user input (can be string, Context, sequence of messages, etc.)
+            inp: The user inp (can be string, Context, sequence of messages, etc.)
             current_state: Current collected data state (if None, starts fresh)
             timeout: Optional timeout for the operation
             trace_params: Optional trace parameters
@@ -136,8 +136,8 @@ class ProgressiveProfilingAgent(BaseModel):
         Returns:
             AgentRunOutput[CollectedData] with the updated state
         """
-        # Build the enhanced input with state context
-        enhanced_input = self._enhance_input_with_state(input, current_state or {})
+        # Build the enhanced inp with state context
+        enhanced_input = self._enhance_input_with_state(inp, current_state or {})
 
         # Run the internal agent
         result = self.agent.run(
@@ -152,7 +152,7 @@ class ProgressiveProfilingAgent(BaseModel):
 
     async def run_async(
         self,
-        input: AgentInput | Any,
+        inp: AgentInput | Any,
         *,
         current_state: Mapping[str, Any] | None = None,
         trace_params: TraceParams | None = None,
@@ -161,15 +161,15 @@ class ProgressiveProfilingAgent(BaseModel):
         Run the progressive profiling agent asynchronously
 
         Args:
-            input: The user input (can be string, Context, sequence of messages, etc.)
+            inp: The user inp (can be string, Context, sequence of messages, etc.)
             current_state: Current collected data state (if None, starts fresh)
             trace_params: Optional trace parameters
 
         Returns:
             AgentRunOutput[CollectedData] with the updated state
         """
-        # Build the enhanced input with state context
-        enhanced_input = self._enhance_input_with_state(input, current_state or {})
+        # Build the enhanced inp with state context
+        enhanced_input = self._enhance_input_with_state(inp, current_state or {})
 
         # Run the internal agent
         result = await self.agent.run_async(enhanced_input, trace_params=trace_params)
@@ -193,13 +193,13 @@ class ProgressiveProfilingAgent(BaseModel):
             yield
 
     def _enhance_input_with_state(
-        self, input: AgentInput | Any, current_state: Mapping[str, Any]
+        self, inp: AgentInput | Any, current_state: Mapping[str, Any]
     ) -> AgentInput | Any:
         """
-        Enhance the input with current state information
+        Enhance the inp with current state information
 
-        This method prepends state context to the input while preserving
-        the original input type when possible.
+        This method prepends state context to the inp while preserving
+        the original inp type when possible.
         """
         # Calculate pending fields
         pending_fields = self._get_pending_fields(current_state)
@@ -218,29 +218,29 @@ class ProgressiveProfilingAgent(BaseModel):
         ## Current Collection State:
         {json.dumps(state_summary, indent=2)}
         
-        Please analyze the user input, extract any relevant field values, 
+        Please analyze the user inp, extract any relevant field values, 
         and return the complete CollectedData object with all collected fields 
         (both previous and new).
         """)
 
-        # Check if input is a Context object
-        if hasattr(input, "message_history"):  # Duck typing for Context
+        # Check if inp is a Context object
+        if hasattr(inp, "message_history"):  # Duck typing for Context
             # Add state message to the context's message history
             state_message = UserMessage(parts=[TextPart(text=state_context)])
             try:
                 # Clone context and prepend message
                 new_messages = [state_message] + list(
-                    cast(Context, input).message_history
+                    cast(Context, inp).message_history
                 )
-                cast(Context, input).message_history = new_messages
-                return input
+                cast(Context, inp).message_history = new_messages
+                return inp
             except Exception:
                 # If we can't modify the context, convert to messages list
-                return [state_message] + list(cast(Context, input).message_history)
+                return [state_message] + list(cast(Context, inp).message_history)
 
-        # Check if input is a sequence (list or tuple)
-        if isinstance(input, (list, tuple)) and input:
-            first_item = input[0]
+        # Check if inp is a sequence (list or tuple)
+        if isinstance(inp, (list, tuple)) and inp:
+            first_item = inp[0]
 
             # Check if it's a sequence of messages
             if isinstance(
@@ -248,7 +248,7 @@ class ProgressiveProfilingAgent(BaseModel):
             ):
                 # Return a list of messages with state message prepended
                 state_message = UserMessage(parts=[TextPart(text=state_context)])
-                return [state_message] + list(input)
+                return [state_message] + list(inp)
 
             # Check if it's a sequence of parts (TextPart, FilePart, etc.)
             elif isinstance(
@@ -261,7 +261,7 @@ class ProgressiveProfilingAgent(BaseModel):
                     ToolExecutionResult,
                 ),
             ):
-                # Create a UserMessage with state part and input parts
+                # Create a UserMessage with state part and inp parts
                 state_part = TextPart(text=state_context)
                 li = list(
                     cast(
@@ -272,29 +272,29 @@ class ProgressiveProfilingAgent(BaseModel):
                             | ToolExecutionSuggestion
                             | ToolExecutionResult
                         ],
-                        input,
+                        inp,
                     )
                 )
                 return UserMessage(parts=[state_part] + li)
 
-        # Check if input is a single message
-        if isinstance(input, (UserMessage, AssistantMessage, DeveloperMessage)):
-            # Return a list with state message and the input message
+        # Check if inp is a single message
+        if isinstance(inp, (UserMessage, AssistantMessage, DeveloperMessage)):
+            # Return a list with state message and the inp message
             state_message = UserMessage(parts=[TextPart(text=state_context)])
-            return [state_message, input]
+            return [state_message, inp]
 
-        # Check if input is a single part (TextPart or FilePart)
-        if isinstance(input, (TextPart, FilePart)):
+        # Check if inp is a single part (TextPart or FilePart)
+        if isinstance(inp, (TextPart, FilePart)):
             # Create a UserMessage with both parts
             state_part = TextPart(text=state_context)
-            return UserMessage(parts=[state_part, input])
+            return UserMessage(parts=[state_part, inp])
 
         # For simple string inputs
-        if isinstance(input, str):
-            return f"{state_context}\n\n## User Input:\n{input}"
+        if isinstance(inp, str):
+            return f"{state_context}\n\n## User Input:\n{inp}"
 
         # For all other types (including non-iterable ones), convert to string
-        return f"{state_context}\n\n## User Input:\n{str(input)}"
+        return f"{state_context}\n\n## User Input:\n{str(inp)}"
 
     def _validate_collected_data(self, data: CollectedData) -> CollectedData:
         """
@@ -493,7 +493,7 @@ if __name__ == "__main__":
 
     # # Continue until all fields are collected
     # while response.parsed and not response.parsed.completed:
-    #     user_input = input("You: ")
+    #     user_input = inp("You: ")
     #     response = profiler.run(user_input, current_state=current_state)
     #     print(f"Agent: {response.text}")
 

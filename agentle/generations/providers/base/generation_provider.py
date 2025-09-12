@@ -19,8 +19,8 @@ API requirements, while maintaining the common interface for framework consumers
 from __future__ import annotations
 
 import abc
-from collections.abc import MutableSequence, Sequence
-from typing import TYPE_CHECKING, Any, Never, cast
+from collections.abc import AsyncGenerator, MutableSequence, Sequence
+from typing import TYPE_CHECKING, Any, Never, cast, overload
 
 from rsb.coroutines.run_sync import run_sync
 
@@ -116,6 +116,57 @@ class GenerationProvider(abc.ABC):
             str: The organization identifier.
         """
         ...
+
+    @overload
+    def stream_async[T](
+        self,
+        *,
+        model: str | ModelKind | None = None,
+        messages: Sequence[Message],
+        response_schema: type[T],
+        generation_config: GenerationConfig | GenerationConfigDict | None = None,
+    ) -> AsyncGenerator[Generation[T], None]: ...
+
+    @overload
+    def stream_async(
+        self,
+        *,
+        model: str | ModelKind | None = None,
+        messages: Sequence[Message],
+        response_schema: None = None,
+        generation_config: GenerationConfig | GenerationConfigDict | None = None,
+        tools: Sequence[Tool],
+    ) -> AsyncGenerator[Generation[WithoutStructuredOutput], None]: ...
+
+    @overload
+    def stream_async(
+        self,
+        *,
+        model: str | ModelKind | None = None,
+        messages: Sequence[Message],
+        response_schema: None = None,
+        generation_config: GenerationConfig | GenerationConfigDict | None = None,
+    ) -> AsyncGenerator[Generation[WithoutStructuredOutput], None]: ...
+
+    # Implementation intentionally returns an async generator to match overloads.
+
+    async def stream_async[T = None](
+        self,
+        *,
+        model: str | ModelKind | None = None,
+        messages: Sequence[Message],
+        response_schema: type[T] | None = None,
+        generation_config: GenerationConfig | GenerationConfigDict | None = None,
+        tools: Sequence[Tool] | None = None,
+    ) -> AsyncGenerator[Generation[T], None]:
+        # This is an abstract-like placeholder; subclasses should implement.
+        # Include an unreachable yield so the function is treated as an async generator by type checkers.
+        raise NotImplementedError(
+            "This method is not implemented yet. "
+            + "Subclasses should implement this."
+        )
+        if False:  # pragma: no cover
+            yield cast(Generation[T], None)
 
     def generate_by_prompt[T = WithoutStructuredOutput](
         self,
