@@ -1839,10 +1839,6 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                     if final_tool_generation is None:
                         break
 
-                    final_tool_generation = cast(
-                        Generation[WithoutStructuredOutput], final_tool_generation
-                    )
-
                     generation_time_single = (
                         time.perf_counter() - generation_start
                     ) * 1000
