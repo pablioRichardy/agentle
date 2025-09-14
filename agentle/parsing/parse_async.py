@@ -1,12 +1,6 @@
 from typing import Literal
 
-from agentle.agents.agent import Agent
-from agentle.generations.models.structured_outputs_store.audio_description import (
-    AudioDescription,
-)
-from agentle.generations.models.structured_outputs_store.visual_media_description import (
-    VisualMediaDescription,
-)
+from agentle.generations.providers.base.generation_provider import GenerationProvider
 from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.parsers.file_parser import FileParser
 
@@ -14,8 +8,8 @@ from agentle.parsing.parsers.file_parser import FileParser
 async def parse_async(
     document_path: str,
     strategy: Literal["low", "high"] = "high",
-    visual_description_agent: Agent[VisualMediaDescription] | None = None,
-    audio_description_agent: Agent[AudioDescription] | None = None,
+    visual_description_provider: GenerationProvider | None = None,
+    audio_description_provider: GenerationProvider | None = None,
 ) -> ParsedFile:
     """
     Asynchronously parse any supported document type into a structured representation.
@@ -34,12 +28,12 @@ async def parse_async(
                       and other CPU-intensive operations
             - "low": Faster parsing that skips some intensive operations
 
-        visual_description_agent (Agent[VisualMediaDescription] | None, optional):
+        visual_description_provider (Agent[VisualMediaDescription] | None, optional):
             Custom agent for analyzing visual content. If provided, this agent will be used
             instead of the default visual description agent. Useful for customizing
             the image analysis behavior. Defaults to None.
 
-        audio_description_agent (Agent[AudioDescription] | None, optional):
+        audio_description_provider (Agent[AudioDescription] | None, optional):
             Custom agent for analyzing audio content. If provided, this agent will be used
             instead of the default audio description agent. Useful for customizing
             the audio analysis behavior. Defaults to None.
@@ -96,31 +90,31 @@ async def parse_async(
             # Use both custom agents
             parsed_file = await parse_async(
                 "presentation.pptx",
-                visual_description_agent=visual_agent,
-                audio_description_agent=audio_agent
+                visual_description_provider=visual_agent,
+                audio_description_provider=audio_agent
             )
         ```
     """
-    if visual_description_agent is None and audio_description_agent is None:
+    if visual_description_provider is None and audio_description_provider is None:
         return await FileParser(
             strategy=strategy,
         ).parse_async(document_path)
-    elif visual_description_agent is not None and audio_description_agent is None:
+    elif visual_description_provider is not None and audio_description_provider is None:
         return await FileParser(
             strategy=strategy,
-            visual_description_agent=visual_description_agent,
+            visual_description_provider=visual_description_provider,
         ).parse_async(document_path)
-    elif visual_description_agent is None and audio_description_agent is not None:
+    elif visual_description_provider is None and audio_description_provider is not None:
         return await FileParser(
             strategy=strategy,
-            audio_description_agent=audio_description_agent,
+            audio_description_provider=audio_description_provider,
         ).parse_async(document_path)
 
     # At this point, both agents must be non-None
-    assert visual_description_agent is not None
-    assert audio_description_agent is not None
+    assert visual_description_provider is not None
+    assert audio_description_provider is not None
     return await FileParser(
         strategy=strategy,
-        visual_description_agent=visual_description_agent,
-        audio_description_agent=audio_description_agent,
+        visual_description_provider=visual_description_provider,
+        audio_description_provider=audio_description_provider,
     ).parse_async(document_path)

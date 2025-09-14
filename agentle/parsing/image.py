@@ -157,5 +157,3 @@ class Image(BaseModel):
         default=None,
         description="The alt text of the image.",
     )
-
-    model_config = ConfigDict(frozen=True)
