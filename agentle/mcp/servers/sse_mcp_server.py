@@ -422,7 +422,7 @@ class SSEMCPServer(MCPServerProtocol):
 
         # Handle JSON-RPC message
         if isinstance(data, dict):
-            message: MutableMapping[str, Any] = data
+            message: dict[str, Any] = data
             await self._handle_jsonrpc_message(message)
 
     async def _attempt_reconnection(self) -> None:
@@ -528,7 +528,7 @@ class SSEMCPServer(MCPServerProtocol):
                 elif field == "event":
                     event_type = value
 
-    async def _handle_jsonrpc_message(self, message: MutableMapping[str, Any]) -> None:
+    async def _handle_jsonrpc_message(self, message: dict[str, Any]) -> None:
         """Handle an incoming JSON-RPC message."""
         self._logger.debug(f"Received JSON-RPC message: {message}")
 

@@ -54,7 +54,7 @@ async def main():
         half_probe = await breaker.is_open(cid)
         print("Probe after timeout (False means admitted/half-open):", half_probe)
 
-    # Simulate concurrent calls trying to pass through during half-open
+        # Simulate concurrent calls trying to pass through during half-open
         async def check():
             return await breaker.is_open(cid)
 
@@ -65,22 +65,22 @@ async def main():
             f"Half-open admissions: allowed={allowed}, blocked={blocked} (max={breaker.half_open_max_calls})"
         )
 
-    # Reset and demonstrate a clean close flow
-    await breaker.reset_circuit(cid)
-    print("\nResetting circuit and demonstrating close flow...")
-    await breaker.record_failure(cid)
-    await breaker.record_failure(cid)
-    print("Opened. is_open:", await breaker.is_open(cid))
-    time.sleep(0.6)
-    print("Half-open probe (False means admitted):", await breaker.is_open(cid))
-    # Close with two successes
-    await breaker.record_success(cid)
-    await breaker.record_success(cid)
-    print("Closed. is_open (should be False):", await breaker.is_open(cid))
+        # Reset and demonstrate a clean close flow
+        await breaker.reset_circuit(cid)
+        print("\nResetting circuit and demonstrating close flow...")
+        await breaker.record_failure(cid)
+        await breaker.record_failure(cid)
+        print("Opened. is_open:", await breaker.is_open(cid))
+        time.sleep(0.6)
+        print("Half-open probe (False means admitted):", await breaker.is_open(cid))
+        # Close with two successes
+        await breaker.record_success(cid)
+        await breaker.record_success(cid)
+        print("Closed. is_open (should be False):", await breaker.is_open(cid))
 
-    # Show persisted failure count (should be 0 when closed)
-    print("Failure count:", await breaker.get_failure_count(cid))
-    print("Done. Inspect the DB file on disk to verify persistence.")
+        # Show persisted failure count (should be 0 when closed)
+        print("Failure count:", await breaker.get_failure_count(cid))
+        print("Done. Inspect the DB file on disk to verify persistence.")
     finally:
         await breaker.close()
 
