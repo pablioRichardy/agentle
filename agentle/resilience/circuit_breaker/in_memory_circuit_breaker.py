@@ -50,6 +50,8 @@ class InMemoryCircuitBreaker(CircuitBreakerProtocol):
     _half_open_successes: dict[str, int] = field(
         default_factory=lambda: defaultdict(int)
     )
+    # Tracks remaining permits while in half-open state
+    _half_open_permits: dict[str, int] = field(default_factory=lambda: defaultdict(int))
     _recovery_attempts: dict[str, int] = field(default_factory=lambda: defaultdict(int))
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     _metrics: dict[str, int] = field(default_factory=lambda: defaultdict(int))
@@ -65,7 +67,8 @@ class InMemoryCircuitBreaker(CircuitBreakerProtocol):
         """Start background cleanup task."""
         if self._cleanup_task is None:
             try:
-                loop = asyncio.get_event_loop()
+                # Use running loop to avoid deprecation warnings and ensure a loop exists
+                loop = asyncio.get_running_loop()
                 self._cleanup_task = loop.create_task(self._cleanup_loop())
                 logger.debug("Started circuit breaker cleanup task")
             except RuntimeError:
@@ -128,6 +131,8 @@ class InMemoryCircuitBreaker(CircuitBreakerProtocol):
                 circuit.is_open = False
                 self._half_open_calls[circuit_id] = 0
                 self._half_open_successes[circuit_id] = 0
+                # Initialize half-open permits to limit concurrent calls
+                self._half_open_permits[circuit_id] = max(0, self.half_open_max_calls)
                 logger.info(f"Circuit {circuit_id} transitioned to half-open state")
 
                 if self.enable_metrics:
@@ -138,6 +143,18 @@ class InMemoryCircuitBreaker(CircuitBreakerProtocol):
             if self.enable_metrics:
                 self._metrics["calls_blocked"] += 1
 
+            return True
+
+        # If we're in half-open state, enforce admission control
+        if circuit_id in self._half_open_calls:
+            permits = self._half_open_permits.get(circuit_id, 0)
+            if permits > 0:
+                # Consume a permit and allow this call (circuit considered closed for this call)
+                self._half_open_permits[circuit_id] = permits - 1
+                return False
+            # No permits left; block additional calls until half-open cycle ends
+            if self.enable_metrics:
+                self._metrics["calls_blocked"] += 1
             return True
 
     def _calculate_recovery_timeout(self, circuit_id: str) -> float:
@@ -182,6 +199,8 @@ class InMemoryCircuitBreaker(CircuitBreakerProtocol):
                         # Clean up half-open state
                         del self._half_open_calls[circuit_id]
                         del self._half_open_successes[circuit_id]
+                        if circuit_id in self._half_open_permits:
+                            del self._half_open_permits[circuit_id]
 
                         logger.info(
                             f"Circuit {circuit_id} closed after successful recovery"
@@ -198,6 +217,8 @@ class InMemoryCircuitBreaker(CircuitBreakerProtocol):
                         # Clean up half-open state
                         del self._half_open_calls[circuit_id]
                         del self._half_open_successes[circuit_id]
+                        if circuit_id in self._half_open_permits:
+                            del self._half_open_permits[circuit_id]
 
                         logger.warning(
                             f"Circuit {circuit_id} reopened after failed recovery attempt"
@@ -235,6 +256,8 @@ class InMemoryCircuitBreaker(CircuitBreakerProtocol):
                 del self._half_open_calls[circuit_id]
                 if circuit_id in self._half_open_successes:
                     del self._half_open_successes[circuit_id]
+                if circuit_id in self._half_open_permits:
+                    del self._half_open_permits[circuit_id]
 
                 logger.warning(
                     f"Circuit {circuit_id} reopened due to failure in half-open state"
@@ -280,6 +303,8 @@ class InMemoryCircuitBreaker(CircuitBreakerProtocol):
                 del self._half_open_calls[circuit_id]
             if circuit_id in self._half_open_successes:
                 del self._half_open_successes[circuit_id]
+            if circuit_id in self._half_open_permits:
+                del self._half_open_permits[circuit_id]
 
             logger.info(f"Circuit {circuit_id} manually reset")
 
@@ -314,6 +339,9 @@ class InMemoryCircuitBreaker(CircuitBreakerProtocol):
                     {
                         "half_open_calls": self._half_open_calls[circuit_id],
                         "half_open_successes": self._half_open_successes[circuit_id],
+                        "half_open_permits_remaining": self._half_open_permits.get(
+                            circuit_id, 0
+                        ),
                         "remaining_half_open_calls": max(
                             0,
                             self.half_open_max_calls
@@ -326,12 +354,15 @@ class InMemoryCircuitBreaker(CircuitBreakerProtocol):
 
     async def get_all_circuits(self) -> list[dict[str, Any]]:
         """Get state information for all circuits."""
+        # Avoid nested lock deadlock by snapshotting keys, then fetching each state individually
         async with self._lock:
-            circuits = []
-            for circuit_id in self._circuits.keys():
-                state = await self.get_circuit_state(circuit_id)
-                circuits.append(state)
-            return circuits
+            circuit_ids = list(self._circuits.keys())
+
+        circuits: list[dict[str, Any]] = []
+        for circuit_id in circuit_ids:
+            state = await self.get_circuit_state(circuit_id)
+            circuits.append(state)
+        return circuits
 
     async def get_metrics(self) -> dict[str, int]:
         """Get circuit breaker metrics."""
@@ -411,6 +442,7 @@ class InMemoryCircuitBreaker(CircuitBreakerProtocol):
             self._circuits.clear()
             self._half_open_calls.clear()
             self._half_open_successes.clear()
+            self._half_open_permits.clear()
             self._recovery_attempts.clear()
             self._metrics.clear()
 

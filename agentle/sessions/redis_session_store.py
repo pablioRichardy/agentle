@@ -116,10 +116,7 @@ class RedisSessionStore[T_Session: BaseModel](SessionStore[T_Session]):
         key = self._make_key(session_id)
 
         # Serialize session to JSON
-        if isinstance(session, BaseModel):
-            session_data = session.model_dump_json()
-        else:
-            session_data = json.dumps(session, default=str)
+        session_data = session.model_dump_json()
 
         # Determine TTL
         ttl = ttl_seconds if ttl_seconds is not None else self.default_ttl_seconds

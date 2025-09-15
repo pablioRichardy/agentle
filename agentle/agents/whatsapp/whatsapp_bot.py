@@ -75,13 +75,15 @@ logger = logging.getLogger(__name__)
 class CallbackWithContext:
     """Container for callback function with optional context."""
 
+    # Callbacks must accept (phone_number, chat_id, response, context) now
     callback: (
         Callable[
-            [str, GeneratedAssistantMessage[Any] | None, dict[str, Any] | None], None
+            [str, str | None, GeneratedAssistantMessage[Any] | None, dict[str, Any]],
+            Awaitable[None],
         ]
         | Callable[
-            [str, GeneratedAssistantMessage[Any] | None, dict[str, Any] | None],
-            Awaitable[None],
+            [str, str | None, GeneratedAssistantMessage[Any] | None, dict[str, Any]],
+            None,
         ]
     )
 
@@ -335,13 +337,26 @@ class WhatsAppBot(BaseModel):
     async def handle_webhook(
         self,
         payload: WhatsAppWebhookPayload,
-        callback: Callable[
-            [str, GeneratedAssistantMessage[Any] | None, dict[str, Any] | None], None
-        ]
-        | Callable[
-            [str, GeneratedAssistantMessage[Any] | None, dict[str, Any] | None],
-            Awaitable[None],
-        ]
+        callback: (
+            Callable[
+                [
+                    str,
+                    str | None,
+                    GeneratedAssistantMessage[Any] | None,
+                    dict[str, Any] | None,
+                ],
+                None,
+            ]
+            | Callable[
+                [
+                    str,
+                    str | None,
+                    GeneratedAssistantMessage[Any] | None,
+                    dict[str, Any] | None,
+                ],
+                Awaitable[None],
+            ]
+        )
         | None = None,
         callback_context: dict[str, Any] | None = None,
         chat_id: str | None = None,
@@ -536,13 +551,26 @@ class WhatsAppBot(BaseModel):
 
     def add_response_callback(
         self,
-        callback: Callable[
-            [str, GeneratedAssistantMessage[Any] | None, dict[str, Any] | None], None
-        ]
-        | Callable[
-            [str, GeneratedAssistantMessage[Any] | None, dict[str, Any] | None],
-            Awaitable[None],
-        ],
+        callback: (
+            Callable[
+                [
+                    str,
+                    str | None,
+                    GeneratedAssistantMessage[Any] | None,
+                    dict[str, Any],
+                ],
+                Awaitable[None],
+            ]
+            | Callable[
+                [
+                    str,
+                    str | None,
+                    GeneratedAssistantMessage[Any] | None,
+                    dict[str, Any],
+                ],
+                None,
+            ]
+        ),
         context: dict[str, Any] | None = None,
         allow_duplicates: bool = False,
     ) -> None:
@@ -581,9 +609,26 @@ class WhatsAppBot(BaseModel):
 
     def remove_response_callback(
         self,
-        callback: Callable[
-            [str, GeneratedAssistantMessage[Any] | None, dict[str, Any] | None], None
-        ],
+        callback: (
+            Callable[
+                [
+                    str,
+                    str | None,
+                    GeneratedAssistantMessage[Any] | None,
+                    dict[str, Any],
+                ],
+                Awaitable[None],
+            ]
+            | Callable[
+                [
+                    str,
+                    str | None,
+                    GeneratedAssistantMessage[Any] | None,
+                    dict[str, Any],
+                ],
+                None,
+            ]
+        ),
         context: dict[str, Any] | None = None,
     ) -> bool:
         """Remove a specific callback from the registered callbacks."""
@@ -701,12 +746,7 @@ class WhatsAppBot(BaseModel):
         else:
             logger.warning("[BATCHING] ⚠️ No chat_id provided to store in session")
 
-        logger.info(
-            f"[BATCHING] Session context_data after chat_id update: {session.context_data}"
-        )
-
         try:
-            # Get or create processing lock for this user
             if phone_number not in self._processing_locks:
                 logger.info(
                     f"[BATCHING] Creating new processing lock for {phone_number}"
@@ -1236,6 +1276,7 @@ class WhatsAppBot(BaseModel):
                 response,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
+                chat_id=chat_id,
             )
             return response
 
@@ -1265,6 +1306,7 @@ class WhatsAppBot(BaseModel):
                 None,
                 input_tokens=0,
                 output_tokens=0,
+                chat_id=chat_id,
             )
             raise
 
@@ -1339,6 +1381,7 @@ class WhatsAppBot(BaseModel):
                 response,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
+                chat_id=chat_id,
             )
             logger.info(
                 f"[SINGLE_MESSAGE] ✅ Response callbacks completed for {message.from_number}"
@@ -1361,6 +1404,7 @@ class WhatsAppBot(BaseModel):
                 response=None,
                 input_tokens=0,
                 output_tokens=0,
+                chat_id=chat_id,
             )
             logger.info("[SINGLE_MESSAGE] ✅ Error response callbacks completed")
             raise
@@ -1491,11 +1535,14 @@ class WhatsAppBot(BaseModel):
         response: GeneratedAssistantMessage[Any] | None,
         input_tokens: float,
         output_tokens: float,
+        *,
+        chat_id: str | None = None,
     ) -> None:
-        """Call all registered response callbacks."""
+        """Call all registered response callbacks with (phone_number, chat_id, response, context)."""
         logger.info("[CALLBACKS] ═══════════ CALLING RESPONSE CALLBACKS ═══════════")
         logger.info(f"[CALLBACKS] Phone number: {phone_number}")
         logger.info(f"[CALLBACKS] Response provided: {response is not None}")
+        logger.info(f"[CALLBACKS] chat_id: {chat_id}")
         logger.info(
             f"[CALLBACKS] Total callbacks to call: {len(self._response_callbacks)}"
         )
@@ -1508,38 +1555,26 @@ class WhatsAppBot(BaseModel):
             logger.warning("[CALLBACKS] ⚠️ No callbacks registered to call!")
             return
 
-        for i, callback_with_context in enumerate(self._response_callbacks):
+        for i, cb in enumerate(self._response_callbacks):
             logger.info(
                 f"[CALLBACKS] 🔄 Calling callback {i + 1}/{len(self._response_callbacks)}"
             )
             logger.info(
-                f"[CALLBACKS] Callback function: {callback_with_context.callback.__name__ if hasattr(callback_with_context.callback, '__name__') else 'unnamed'}"
+                f"[CALLBACKS] Callback function: {getattr(cb.callback, '__name__', 'unnamed')}"
             )
             logger.info(
-                f"[CALLBACKS] Callback context keys: {list(callback_with_context.context.keys()) if callback_with_context.context else 'None'}"
+                f"[CALLBACKS] Callback context keys: {list(cb.context.keys()) if cb.context else 'None'}"
             )
 
-            callback_with_context.context.update(
+            cb.context.update(
                 {"input_tokens": input_tokens, "output_tokens": output_tokens}
             )
 
             try:
-                if inspect.iscoroutinefunction(callback_with_context.callback):
-                    logger.info(f"[CALLBACKS] Executing async callback {i + 1}")
-                    await callback_with_context.callback(
-                        phone_number, response, callback_with_context.context
-                    )
-                    logger.info(
-                        f"[CALLBACKS] ✅ Async callback {i + 1} completed successfully"
-                    )
+                if inspect.iscoroutinefunction(cb.callback):
+                    await cb.callback(phone_number, chat_id, response, cb.context)
                 else:
-                    logger.info(f"[CALLBACKS] Executing sync callback {i + 1}")
-                    callback_with_context.callback(
-                        phone_number, response, callback_with_context.context
-                    )
-                    logger.info(
-                        f"[CALLBACKS] ✅ Sync callback {i + 1} completed successfully"
-                    )
+                    cb.callback(phone_number, chat_id, response, cb.context)
             except Exception as e:
                 logger.error(
                     f"[CALLBACKS] ❌ Error calling callback {i + 1} for {phone_number}: {e}",
