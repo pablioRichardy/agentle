@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.29
+
+- feat(providers): implementing provider ID into GenerationProvider subclasses
+
 ## v0.8.28
 - fix(logging): wrong logging call
 
