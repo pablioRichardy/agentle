@@ -124,7 +124,7 @@ class LangfuseOtelClient(OtelClient):
                 yield _LangfuseTraceContext(span)
 
         except Exception as e:
-            self._logger.error(f"Erro ao criar trace context: {e}")
+            logger.error(f"Erro ao criar trace context: {e}")
             yield None
 
     async def generation_context(
@@ -163,7 +163,7 @@ class LangfuseOtelClient(OtelClient):
                 yield _LangfuseGenerationContext(generation)
 
         except Exception as e:
-            self._logger.error(f"Erro ao criar generation context: {e}")
+            logger.error(f"Erro ao criar generation context: {e}")
             yield None
 
     async def update_generation(
@@ -256,10 +256,10 @@ class LangfuseOtelClient(OtelClient):
                     )
                     span.set_attribute("cost.currency", "USD")
                 except Exception as e:
-                    self._logger.debug(f"Could not set cost attributes: {e}")
+                    logger.debug(f"Could not set cost attributes: {e}")
 
         except Exception as e:
-            self._logger.error(f"Erro ao atualizar geração: {e}")
+            logger.error(f"Erro ao atualizar geração: {e}")
 
     async def update_trace(
         self,
@@ -336,10 +336,10 @@ class LangfuseOtelClient(OtelClient):
                                 int(trace_metadata["tokens_total"]),
                             )
                 except Exception as e:
-                    self._logger.debug(f"Could not set trace attributes: {e}")
+                    logger.debug(f"Could not set trace attributes: {e}")
 
         except Exception as e:
-            self._logger.error(f"Erro ao atualizar trace: {e}")
+            logger.error(f"Erro ao atualizar trace: {e}")
 
     async def add_trace_score(
         self,
@@ -362,7 +362,7 @@ class LangfuseOtelClient(OtelClient):
             )
 
         except Exception as e:
-            self._logger.error(f"Erro ao adicionar pontuação: {e}")
+            logger.error(f"Erro ao adicionar pontuação: {e}")
 
     async def handle_error(
         self,
@@ -427,7 +427,7 @@ class LangfuseOtelClient(OtelClient):
                 )
 
         except Exception as e:
-            self._logger.error(f"Erro ao tratar exceção: {e}")
+            logger.error(f"Erro ao tratar exceção: {e}")
 
     def _categorize_error(self, error: Exception) -> str:
         """Categoriza o tipo de erro para análise."""
@@ -453,6 +453,6 @@ class LangfuseOtelClient(OtelClient):
         """Força o envio imediato de todos os eventos pendentes."""
         try:
             self._client.flush()
-            self._logger.debug("Eventos enviados com sucesso para Langfuse")
+            logger.debug("Eventos enviados com sucesso para Langfuse")
         except Exception as e:
-            self._logger.error(f"Erro ao enviar eventos para Langfuse: {e}")
+            logger.error(f"Erro ao enviar eventos para Langfuse: {e}")
