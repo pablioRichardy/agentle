@@ -40,13 +40,14 @@ class OllamaGenerationProvider(GenerationProvider):
         self,
         *,
         otel_clients: Sequence[OtelClient] | OtelClient | None = None,
+        provider_id: str | None = None,
         options: Mapping[str, Any] | Options | None = None,
         think: bool | None = None,
         host: str | None = None,
     ) -> None:
         from ollama._client import AsyncClient
 
-        super().__init__(otel_clients=otel_clients)
+        super().__init__(otel_clients=otel_clients, provider_id=provider_id)
         self._client = AsyncClient(host=host)
         self.options = options
         self.think = think

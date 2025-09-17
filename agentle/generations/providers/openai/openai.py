@@ -58,6 +58,7 @@ class OpenaiGenerationProvider(GenerationProvider):
         api_key: str | None = None,
         *,
         otel_clients: Sequence[OtelClient] | OtelClient | None = None,
+        provider_id: str | None = None,
         organization_name: str | None = None,
         project_name: str | None = None,
         base_url: str | httpx.URL | None = None,
@@ -69,7 +70,7 @@ class OpenaiGenerationProvider(GenerationProvider):
     ) -> None:
         from openai import AsyncOpenAI
 
-        super().__init__(otel_clients=otel_clients)
+        super().__init__(otel_clients=otel_clients, provider_id=provider_id)
 
         self._client = AsyncOpenAI(
             api_key=api_key,

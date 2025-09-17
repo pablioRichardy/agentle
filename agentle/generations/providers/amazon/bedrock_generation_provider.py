@@ -63,6 +63,7 @@ class BedrockGenerationProvider(GenerationProvider):
         self,
         *,
         otel_clients: Sequence[OtelClient] | OtelClient | None = None,
+        provider_id: str | None = None,
         region_name: str = "us-east-1",
         access_key_id: str | None = None,
         secret_access_key: str | None = None,
@@ -70,7 +71,7 @@ class BedrockGenerationProvider(GenerationProvider):
     ):
         import boto3
 
-        super().__init__(otel_clients=otel_clients)
+        super().__init__(otel_clients=otel_clients, provider_id=provider_id)
 
         self._client = self._client = boto3.client(
             "bedrock-runtime",

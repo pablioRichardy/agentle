@@ -118,22 +118,61 @@ class FailoverGenerationProvider(GenerationProvider):
         self.generation_providers = flattened_providers
         self.shuffle = shuffle
         self.circuit_breaker = circuit_breaker
+        # Optional: include model into circuit scoping (useful when failures are model-specific)
+        self.include_model_in_circuit: bool = False
 
-    def _get_provider_circuit_id(self, provider: GenerationProvider) -> str:
+    def _get_provider_circuit_id(
+        self, provider: GenerationProvider, model: str | None = None
+    ) -> str:
         """
         Generate a unique identifier for a provider to use as circuit breaker key.
 
-        Uses a combination of provider class name, organization, and instance id
-        to create a reasonably unique identifier for circuit tracking.
+        Uses provider.circuit_identity for a stable identity when provided, and
+        optionally scopes by model if configured.
         """
-        # Use provider instance id as base
-        circuit_id = f"{provider.__class__.__name__}_{id(provider)}"
+        base = provider.circuit_identity
+        if self.include_model_in_circuit and model:
+            return f"{base}|model:{model}"
+        return base
 
-        # Add organization if available for better grouping
-        if hasattr(provider, "organization"):
-            circuit_id = f"{provider.organization}_{circuit_id}"
+    def _should_trip_circuit(self, error: Exception) -> bool:
+        """Classify whether a failure should contribute to opening the circuit.
 
-        return circuit_id
+        Providers often raise for user errors (4xx, validation). We try to avoid
+        tripping the circuit for those and focus on transient/system issues.
+        This heuristic can be refined per provider.
+        """
+        # Common transient categories
+        transient_markers = (
+            "timeout",
+            "timed out",
+            "connection reset",
+            "temporarily unavailable",
+            "service unavailable",
+            "rate limit",
+            "429",
+            "5xx",
+            "internal error",
+            "backend error",
+        )
+        message = str(error).lower()
+        if any(m in message for m in transient_markers):
+            return True
+
+        # Some libraries attach status codes/attrs; check common ones
+        status = getattr(error, "status", None) or getattr(error, "status_code", None)
+        try:
+            if status is not None:
+                status_int = int(status)
+                if status_int >= 500 or status_int == 429:
+                    return True
+                # 4xx other than 429: likely user/config error -> don't trip
+                return False
+        except Exception:
+            pass
+
+        # Default: don't trip on unknown (be conservative). Logging still records failure.
+        return False
 
     @property
     @override
@@ -233,7 +272,9 @@ class FailoverGenerationProvider(GenerationProvider):
         for provider in providers:
             # Check circuit breaker if configured
             if self.circuit_breaker is not None:
-                circuit_id = self._get_provider_circuit_id(provider)
+                circuit_id = self._get_provider_circuit_id(
+                    provider, model if isinstance(model, str) else None
+                )
 
                 # Check if circuit is open
                 try:
@@ -259,7 +300,9 @@ class FailoverGenerationProvider(GenerationProvider):
 
                 # Success - record it if circuit breaker is configured
                 if self.circuit_breaker is not None:
-                    circuit_id = self._get_provider_circuit_id(provider)
+                    circuit_id = self._get_provider_circuit_id(
+                        provider, model if isinstance(model, str) else None
+                    )
                     try:
                         fire_and_forget(self.circuit_breaker.record_success, circuit_id)
                     except Exception:
@@ -274,9 +317,14 @@ class FailoverGenerationProvider(GenerationProvider):
 
                 # Record failure to circuit breaker if configured
                 if self.circuit_breaker is not None:
-                    circuit_id = self._get_provider_circuit_id(provider)
+                    circuit_id = self._get_provider_circuit_id(
+                        provider, model if isinstance(model, str) else None
+                    )
                     try:
-                        fire_and_forget(self.circuit_breaker.record_failure, circuit_id)
+                        if self._should_trip_circuit(e):
+                            fire_and_forget(
+                                self.circuit_breaker.record_failure, circuit_id
+                            )
                     except Exception:
                         # Don't fail if circuit breaker has issues
                         pass
@@ -298,7 +346,9 @@ class FailoverGenerationProvider(GenerationProvider):
 
                     # Success - the circuit might be recovering
                     if self.circuit_breaker is not None:
-                        circuit_id = self._get_provider_circuit_id(provider)
+                        circuit_id = self._get_provider_circuit_id(
+                            provider, model if isinstance(model, str) else None
+                        )
                         try:
                             fire_and_forget(
                                 self.circuit_breaker.record_success, circuit_id
@@ -319,7 +369,17 @@ class FailoverGenerationProvider(GenerationProvider):
                 "No providers available. All providers were skipped due to open circuits."
             )
 
-        raise exceptions[0][1]
+        # Aggregate errors for diagnostics while preserving original exception type where possible
+        details = []
+        for prov, err in exceptions:
+            ident = prov.circuit_identity
+            summary = f"{err.__class__.__name__}: {str(err)[:200]}"
+            details.append(f"- {ident}: {summary}")
+        message = "All providers failed. Attempts:\n" + "\n".join(details)
+        # Raise the first exception but add context
+        first = exceptions[0][1]
+        first.add_note(message) if hasattr(first, "add_note") else None
+        raise first
 
     @override
     def map_model_kind_to_provider_model(

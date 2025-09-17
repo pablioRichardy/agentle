@@ -71,11 +71,15 @@ class GenerationProvider(abc.ABC):
     """
 
     otel_clients: Sequence[OtelClient]
+    # Optional stable identifier for this provider instance (used for circuit IDs, logs)
+    # Subclasses may set this (e.g., a human-readable name or a hash of stable config).
+    provider_id: str | None
 
     def __init__(
         self,
         *,
         otel_clients: Sequence[OtelClient] | OtelClient | None = None,
+        provider_id: str | None = None,
     ) -> None:
         """
         Initialize the generation provider.
@@ -94,6 +98,8 @@ class GenerationProvider(abc.ABC):
         self.otel_clients = (
             otel_clients if isinstance(otel_clients, Sequence) else [otel_clients]
         )
+        # Optional stable identifier for this provider instance (used in circuit IDs/logs)
+        self.provider_id = provider_id
 
     @property
     @abc.abstractmethod
@@ -116,6 +122,20 @@ class GenerationProvider(abc.ABC):
             str: The organization identifier.
         """
         ...
+
+    @property
+    def circuit_identity(self) -> str:
+        """
+        Return a stable-enough identity used for circuit breaker keys and diagnostics.
+
+        By default this composes organization, class name, and either a subclass-provided
+        provider_id or the in-process object id as a hex string. Subclasses are encouraged
+        to set `self.provider_id` to a stable value (e.g., a human label or hashed config)
+        so circuits can persist across restarts and be shared across processes.
+        """
+        fallback = format(id(self), "x")
+        pid = self.provider_id or fallback
+        return f"{self.organization}:{self.__class__.__name__}:{pid}"
 
     @overload
     def stream_async[T](
@@ -162,8 +182,7 @@ class GenerationProvider(abc.ABC):
         # This is an abstract-like placeholder; subclasses should implement.
         # Include an unreachable yield so the function is treated as an async generator by type checkers.
         raise NotImplementedError(
-            "This method is not implemented yet. "
-            + "Subclasses should implement this."
+            "This method is not implemented yet. " + "Subclasses should implement this."
         )
         if False:  # pragma: no cover
             yield cast(Generation[T], None)

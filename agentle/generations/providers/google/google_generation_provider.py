@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Sequence
+import hashlib
 from textwrap import dedent
 from typing import TYPE_CHECKING, cast, overload, override
 
@@ -112,6 +113,7 @@ class GoogleGenerationProvider(GenerationProvider):
         debug_config: DebugConfig | None = None,
         http_options: HttpOptions | None = None,
         function_calling_config: FunctionCallingConfig | None = None,
+        provider_name: str | None = None,
     ) -> None:
         """
         Initialize the Google Generation Provider.
@@ -131,7 +133,20 @@ class GoogleGenerationProvider(GenerationProvider):
         from google import genai
         from google.genai import types
 
-        super().__init__(otel_clients=otel_clients)
+        # Establish a stable provider identity for circuit breaker/logging
+        if provider_name:
+            computed_provider_id = provider_name
+        else:
+            mode = "vertexai" if use_vertex_ai else "genai"
+            cred_cls = credentials.__class__.__name__ if credentials else "none"
+            key_hash = (
+                hashlib.sha256(api_key.encode("utf-8")).hexdigest()[:8]
+                if (api_key and not use_vertex_ai)
+                else "nokey"
+            )
+            computed_provider_id = f"{mode}|p:{project or 'none'}|l:{location or 'none'}|c:{cred_cls}|k:{key_hash}"
+
+        super().__init__(otel_clients=otel_clients, provider_id=computed_provider_id)
         self.message_adapter = MessageToGoogleContentAdapter()
         self.function_calling_config = function_calling_config or {}
 
@@ -145,6 +160,8 @@ class GoogleGenerationProvider(GenerationProvider):
             debug_config=debug_config,
             http_options=_http_options,
         )
+
+    # provider_id already set via super().__init__
 
     @property
     @override

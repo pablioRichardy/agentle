@@ -119,6 +119,7 @@ class CerebrasGenerationProvider(GenerationProvider):
         self,
         *,
         otel_clients: Sequence[OtelClient] | OtelClient | None = None,
+        provider_id: str | None = None,
         api_key: str | None = None,
         base_url: str | httpx.URL | None = None,
         max_retries: int = 2,
@@ -150,7 +151,7 @@ class CerebrasGenerationProvider(GenerationProvider):
             warm_tcp_connection: Whether to keep the TCP connection warm.
             message_adapter: Optional adapter to convert Agentle messages to Cerebras format.
         """
-        super().__init__(otel_clients=otel_clients)
+        super().__init__(otel_clients=otel_clients, provider_id=provider_id)
         self.api_key = api_key
         self.base_url = base_url
         self.max_retries = max_retries
