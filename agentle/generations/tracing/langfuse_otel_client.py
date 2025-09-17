@@ -16,7 +16,10 @@ from typing import TYPE_CHECKING, Any, AsyncGenerator, Optional, cast
 from .otel_client import GenerationContext, OtelClient, TraceContext
 
 if TYPE_CHECKING:
+    from langfuse._client.client import Langfuse
     from langfuse._client.span import LangfuseGeneration, LangfuseSpan
+
+logger = logging.getLogger(__name__)
 
 
 class _LangfuseTraceContext:
@@ -71,14 +74,7 @@ class LangfuseOtelClient(OtelClient):
     - Tratamento robusto de erros
     """
 
-    def __init__(
-        self,
-        public_key: Optional[str] = None,
-        secret_key: Optional[str] = None,
-        host: Optional[str] = None,
-        environment: Optional[str] = None,
-        release: Optional[str] = None,
-    ):
+    def __init__(self, langfuse: Langfuse):
         """
         Inicializa o cliente Langfuse.
 
@@ -89,16 +85,7 @@ class LangfuseOtelClient(OtelClient):
             environment: Ambiente de execução
             release: Versão/release da aplicação
         """
-        from langfuse._client.client import Langfuse
-
-        self._client = Langfuse(
-            public_key=public_key,
-            secret_key=secret_key,
-            host=host,
-            environment=environment,
-            release=release,
-        )
-        self._logger = logging.getLogger(__name__)
+        self._client = langfuse
 
     async def trace_context(
         self,
