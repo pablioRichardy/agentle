@@ -9,6 +9,8 @@ organize the document content.
 import logging
 import os
 import tempfile
+import shutil
+import subprocess
 import hashlib
 from pathlib import Path
 from typing import Literal
@@ -204,31 +206,74 @@ class DocxFileParser(DocumentParser):
 
         if self.visual_description_provider and self.strategy == "high" and doc_images:
             # Optimization path: attempt to render page screenshots by converting DOCX -> PDF
-            # and then using PyMuPDF to render pages that contain images. If any step fails,
-            # fall back to individual image processing as before.
+            # using a headless converter (LibreOffice/soffice or pandoc) and then use PyMuPDF
+            # to render pages that contain images. If any step fails, fall back to individual
+            # image processing as before.
             used_page_screenshots = False
             try:
-                from docx2pdf import convert as docx2pdf_convert  # type: ignore
-
                 try:
                     import fitz as pymupdf_module  # type: ignore
                 except Exception:
                     pymupdf_module = None  # type: ignore
 
-                if pymupdf_module is not None:  # Only try if PyMuPDF is available
-                    with tempfile.TemporaryDirectory() as temp_dir:
-                        pdf_path = os.path.join(
-                            temp_dir, f"{Path(document_path).stem}.pdf"
-                        )
+                def _try_convert_docx_to_pdf_headless(
+                    input_path: str, out_dir: str
+                ) -> str | None:
+                    """Try headless DOCX->PDF using soffice/libreoffice or pandoc. Return PDF path or None."""
+                    pdf_out = os.path.join(out_dir, f"{Path(input_path).stem}.pdf")
+                    # Prefer soffice (LibreOffice)
+                    soffice = shutil.which("soffice") or shutil.which("libreoffice")
+                    if soffice:
                         try:
-                            # This requires Microsoft Word on macOS/Windows.
-                            # If not available, an exception will be raised.
-                            docx2pdf_convert(document_path, pdf_path)  # type: ignore
+                            subprocess.run(
+                                [
+                                    soffice,
+                                    "--headless",
+                                    "--convert-to",
+                                    "pdf",
+                                    "--outdir",
+                                    out_dir,
+                                    input_path,
+                                ],
+                                check=True,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                timeout=120,
+                            )
+                            if os.path.exists(pdf_out):
+                                return pdf_out
                         except Exception as e:
                             logger.warning(
-                                f"DOCX->PDF conversion failed (docx2pdf). Falling back to per-image processing: {e}"
+                                f"LibreOffice (soffice) conversion failed: {e}"
                             )
-                            raise
+
+                    # Fallback to pandoc
+                    pandoc = shutil.which("pandoc")
+                    if pandoc:
+                        try:
+                            subprocess.run(
+                                [pandoc, input_path, "-o", pdf_out],
+                                check=True,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                timeout=120,
+                            )
+                            if os.path.exists(pdf_out):
+                                return pdf_out
+                        except Exception as e:
+                            logger.warning(f"pandoc conversion failed: {e}")
+
+                    return None
+
+                if pymupdf_module is not None:  # Only try if PyMuPDF is available
+                    with tempfile.TemporaryDirectory() as temp_dir:
+                        pdf_path = _try_convert_docx_to_pdf_headless(
+                            document_path, temp_dir
+                        )
+                        if not pdf_path:
+                            raise RuntimeError(
+                                "Headless DOCX->PDF conversion not available or failed"
+                            )
 
                         try:
                             mu_doc = pymupdf_module.open(pdf_path)  # type: ignore
