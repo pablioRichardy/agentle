@@ -6,6 +6,9 @@ structured representations. It can extract text content, process embedded images
 organize the document content.
 """
 
+import logging
+import os
+import tempfile
 import hashlib
 from pathlib import Path
 from typing import Literal
@@ -24,6 +27,8 @@ from agentle.parsing.image import Image
 from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.section_content import SectionContent
 from agentle.parsing.document_parser import DocumentParser
+
+logger = logging.getLogger(__name__)
 
 
 class DocxFileParser(DocumentParser):
@@ -172,7 +177,6 @@ class DocxFileParser(DocumentParser):
 
         document = Document(document_path)
         image_cache: dict[str, tuple[str, str]] = {}  # (md, ocr_text)
-        extension = Path(document_path).suffix
 
         paragraph_texts = [p.text for p in document.paragraphs if p.text.strip()]
         doc_text = "\n".join(paragraph_texts)
@@ -188,36 +192,171 @@ class DocxFileParser(DocumentParser):
         final_images: list[Image] = []
         image_descriptions: list[str] = []
 
-        if self.visual_description_provider and self.strategy == "high":
-            for idx, (image_name, image_bytes) in enumerate(doc_images, start=1):
-                image_hash = hashlib.sha256(image_bytes).hexdigest()
-
-                if image_hash in image_cache:
-                    cached_md, cached_ocr = image_cache[image_hash]
-                    image_md = cached_md
-                    ocr_text = cached_ocr
-                else:
-                    agent_input = FilePart(
-                        mime_type=ext2mime(extension),
-                        data=image_bytes,
-                    )
-                    agent_response = await self.visual_description_provider.generate_by_prompt_async(
-                        agent_input,
-                        developer_prompt="You are a helpful assistant that deeply understands visual media.",
-                        response_schema=VisualMediaDescription,
-                    )
-                    image_md = agent_response.parsed.md
-                    ocr_text = agent_response.parsed.ocr_text or ""
-                    image_cache[image_hash] = (image_md, ocr_text or "")
-
-                image_descriptions.append(f"Docx Image {idx}: {image_md}")
-                final_images.append(
-                    Image(
-                        name=image_name,
-                        contents=image_bytes,
-                        ocr_text=ocr_text,
-                    )
+        # Always collect the Image objects first (OCR text may be filled later)
+        for image_name, image_bytes in doc_images:
+            final_images.append(
+                Image(
+                    name=image_name,
+                    contents=image_bytes,
+                    ocr_text="",
                 )
+            )
+
+        if self.visual_description_provider and self.strategy == "high" and doc_images:
+            # Optimization path: attempt to render page screenshots by converting DOCX -> PDF
+            # and then using PyMuPDF to render pages that contain images. If any step fails,
+            # fall back to individual image processing as before.
+            used_page_screenshots = False
+            try:
+                from docx2pdf import convert as docx2pdf_convert  # type: ignore
+
+                try:
+                    import fitz as pymupdf_module  # type: ignore
+                except Exception:
+                    pymupdf_module = None  # type: ignore
+
+                if pymupdf_module is not None:  # Only try if PyMuPDF is available
+                    with tempfile.TemporaryDirectory() as temp_dir:
+                        pdf_path = os.path.join(
+                            temp_dir, f"{Path(document_path).stem}.pdf"
+                        )
+                        try:
+                            # This requires Microsoft Word on macOS/Windows.
+                            # If not available, an exception will be raised.
+                            docx2pdf_convert(document_path, pdf_path)  # type: ignore
+                        except Exception as e:
+                            logger.warning(
+                                f"DOCX->PDF conversion failed (docx2pdf). Falling back to per-image processing: {e}"
+                            )
+                            raise
+
+                        try:
+                            mu_doc = pymupdf_module.open(pdf_path)  # type: ignore
+                        except Exception as e:
+                            logger.warning(
+                                f"Failed to open converted PDF with PyMuPDF. Falling back: {e}"
+                            )
+                            raise
+
+                        try:
+                            page_ocr_texts: list[str] = []
+                            for page_idx in range(mu_doc.page_count):  # type: ignore[attr-defined]
+                                page_obj = mu_doc[page_idx]  # type: ignore[index]
+
+                                # Determine if the page contains images
+                                get_images = getattr(
+                                    page_obj, "get_images", None
+                                ) or getattr(page_obj, "getImages", None)
+                                page_has_images = False
+                                if callable(get_images):
+                                    try:
+                                        img_list = get_images(full=True)  # type: ignore[call-arg]
+                                        page_has_images = bool(img_list)
+                                    except Exception:
+                                        page_has_images = (
+                                            True  # if unsure, try rendering
+                                        )
+
+                                if not page_has_images:
+                                    continue
+
+                                # Render the page at higher resolution
+                                matrix = getattr(pymupdf_module, "Matrix")(2.0, 2.0)  # type: ignore
+                                get_pixmap = getattr(
+                                    page_obj, "get_pixmap", None
+                                ) or getattr(page_obj, "getPixmap", None)
+                                if not callable(get_pixmap):
+                                    continue
+                                pix = get_pixmap(matrix=matrix)  # type: ignore[call-arg]
+                                page_image_bytes: bytes = pix.tobytes("png")  # type: ignore[attr-defined]
+
+                                # Cache by screenshot hash
+                                page_hash = hashlib.sha256(page_image_bytes).hexdigest()
+                                if page_hash in image_cache:
+                                    cached_md, cached_ocr = image_cache[page_hash]
+                                    page_description = cached_md
+                                    page_ocr_text = cached_ocr
+                                else:
+                                    agent_input = FilePart(
+                                        mime_type="image/png",
+                                        data=page_image_bytes,
+                                    )
+                                    agent_response = await self.visual_description_provider.generate_by_prompt_async(
+                                        agent_input,
+                                        developer_prompt=(
+                                            "You are a helpful assistant that deeply understands visual media. "
+                                            "Analyze this Word document page screenshot and extract all text content and "
+                                            "describe any visual elements like images, charts, diagrams, etc."
+                                        ),
+                                        response_schema=VisualMediaDescription,
+                                    )
+                                    page_description = agent_response.parsed.md
+                                    page_ocr_text = agent_response.parsed.ocr_text or ""
+                                    image_cache[page_hash] = (
+                                        page_description,
+                                        page_ocr_text,
+                                    )
+
+                                image_descriptions.append(
+                                    f"Page Visual Content: {page_description}"
+                                )
+                                if page_ocr_text:
+                                    page_ocr_texts.append(page_ocr_text)
+
+                            if image_descriptions:
+                                used_page_screenshots = True
+                                # Best-effort: distribute combined OCR text to images (page-level granularity isn't available in DOCX)
+                                if page_ocr_texts:
+                                    combined_ocr = "\n\n".join(
+                                        [
+                                            f"OCR (page {i + 1}):\n{t}"
+                                            for i, t in enumerate(page_ocr_texts)
+                                        ]
+                                    )
+                                    for img in final_images:
+                                        img.ocr_text = combined_ocr
+                        finally:
+                            try:
+                                mu_doc.close()  # type: ignore[attr-defined]
+                            except Exception:
+                                pass
+
+            except Exception:
+                # Any failure in the screenshot optimization will fall through to per-image processing
+                used_page_screenshots = False
+
+            if not used_page_screenshots:
+                # Fallback: process each embedded image individually
+                for idx, (image_name, image_bytes) in enumerate(doc_images, start=1):
+                    image_hash = hashlib.sha256(image_bytes).hexdigest()
+
+                    if image_hash in image_cache:
+                        cached_md, cached_ocr = image_cache[image_hash]
+                        image_md = cached_md
+                        ocr_text = cached_ocr
+                    else:
+                        agent_input = FilePart(
+                            mime_type=ext2mime(Path(image_name).suffix),
+                            data=image_bytes,
+                        )
+                        agent_response = await self.visual_description_provider.generate_by_prompt_async(
+                            agent_input,
+                            developer_prompt="You are a helpful assistant that deeply understands visual media.",
+                            response_schema=VisualMediaDescription,
+                        )
+                        image_md = agent_response.parsed.md
+                        ocr_text = agent_response.parsed.ocr_text or ""
+                        image_cache[image_hash] = (image_md, ocr_text or "")
+
+                    image_descriptions.append(f"Docx Image {idx}: {image_md}")
+                    # Update the corresponding Image object in final_images
+                    try:
+                        img_obj = next(
+                            img for img in final_images if img.name == image_name
+                        )
+                        img_obj.ocr_text = ocr_text
+                    except StopIteration:
+                        pass
 
             if image_descriptions:
                 doc_text += "\n\n" + "\n".join(image_descriptions)
