@@ -394,6 +394,9 @@ class VectorStore(abc.ABC):
                                                     """)
                 if self.detailed_agent_description
                 else "",
+                # Avoid serializing the callable to prevent pickling errors when closures
+                # capture non-serializable objects (e.g., thread-local state inside providers).
+                auto_serialize=False,
             )
 
         # Default behavior: cached tool with deterministic name
