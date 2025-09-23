@@ -1,12 +1,8 @@
 from pathlib import Path
 from typing import Literal
 
-from agentle.agents.agent import Agent
-from agentle.generations.models.structured_outputs_store.audio_description import (
-    AudioDescription,
-)
-from agentle.generations.models.structured_outputs_store.visual_media_description import (
-    VisualMediaDescription,
+from agentle.generations.providers.base.generation_provider import (
+    GenerationProvider,
 )
 from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.parse_async import parse_async
@@ -17,8 +13,8 @@ from rsb.coroutines.run_sync import run_sync
 def parse(
     document_path: str,
     strategy: Literal["low", "high"] = "high",
-    visual_description_agent: Agent[VisualMediaDescription] | None = None,
-    audio_description_agent: Agent[AudioDescription] | None = None,
+    visual_description_provider: GenerationProvider | None = None,
+    audio_description_provider: GenerationProvider | None = None,
 ) -> ParsedFile:
     """
     Parse any supported document type into a structured ParsedFile representation.
@@ -36,15 +32,15 @@ def parse(
                       and other CPU-intensive operations
             - "low": Faster parsing that skips some intensive operations
 
-        visual_description_agent (Agent[VisualMediaDescription] | None, optional):
-            Custom agent for analyzing visual content. If provided, this agent will be used
-            instead of the default visual description agent. Useful for customizing
-            the image analysis behavior. Defaults to None.
+        visual_description_provider (GenerationProvider | None, optional):
+            Custom provider for analyzing visual content. If provided, this provider will be used
+            instead of the default visual description provider. Useful for customizing
+            the image analysis behavior and model selection. Defaults to None.
 
-        audio_description_agent (Agent[AudioDescription] | None, optional):
-            Custom agent for analyzing audio content. If provided, this agent will be used
-            instead of the default audio description agent. Useful for customizing
-            the audio analysis behavior. Defaults to None.
+        audio_description_provider (GenerationProvider | None, optional):
+            Custom provider for analyzing audio content. If provided, this provider will be used
+            instead of the default audio description provider. Useful for customizing
+            the audio analysis behavior and model selection. Defaults to None.
 
     Returns:
         ParsedFile: A structured representation of the parsed document with:
@@ -72,22 +68,16 @@ def parse(
 
         Parse with a custom visual description agent:
         ```python
-        from agentle.agents.agent import Agent
-        from agentle.generations.models.structured_outputs_store.visual_media_description import VisualMediaDescription
         from agentle.generations.providers.google.google_generation_provider import GoogleGenerationProvider
 
-        custom_agent = Agent(
-            model="gemini-2.0-pro-vision",
-            instructions="Describe images with focus on technical details",
-            generation_provider=GoogleGenerationProvider(),
-            response_schema=VisualMediaDescription,
-        )
+        custom_provider = GoogleGenerationProvider()
 
-        parsed_image = parse("image.png", visual_description_agent=custom_agent)
+        parsed_image = parse("image.png", visual_description_provider=custom_provider)
         ```
     """
     path = Path(document_path)
-    parser_cls = parser_registry.get(path.suffix)
+    # Make extension lookup case-insensitive and dot-stripped
+    parser_cls = parser_registry.get(path.suffix.lstrip(".").lower())
 
     if not parser_cls:
         raise ValueError(f"Unsupported extension: {path.suffix}")
@@ -96,6 +86,6 @@ def parse(
         parse_async,
         document_path=document_path,
         strategy=strategy,
-        visual_description_agent=visual_description_agent,
-        audio_description_agent=audio_description_agent,
+        visual_description_provider=visual_description_provider,
+        audio_description_provider=audio_description_provider,
     )

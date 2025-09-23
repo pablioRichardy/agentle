@@ -225,8 +225,10 @@ class FileParser(DocumentParser):
                 f"File validation failed for '{document_path}': {e}"
             ) from e
 
+        # Normalize extension to be case-insensitive (e.g., .PDF -> pdf)
+        normalized_ext = path.suffix.lstrip(".").lower()
         parser_cls: type[DocumentParser] | None = parser_registry.get(
-            path.suffix.lstrip(".")
+            normalized_ext
         )
 
         if not parser_cls:

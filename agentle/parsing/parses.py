@@ -121,8 +121,8 @@ def parses[ParserT: DocumentParser](
         parser_cls: type[ParserT],
     ) -> type[ParserT]:
         for extension in extensions:
-            # Remove leading dot if present for consistency
-            clean_ext = extension.lstrip(".")
+            # Remove leading dot and normalize to lowercase for consistency
+            clean_ext = extension.lstrip(".").lower()
             parser_registry[clean_ext] = parser_cls
         return parser_cls
 
