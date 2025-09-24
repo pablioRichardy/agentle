@@ -2618,6 +2618,43 @@ class WhatsAppBot(BaseModel):
 
         return None
 
+    async def send_message(
+        self,
+        to: str,
+        message: str,
+        reply_to: str | None = None,
+    ) -> bool:
+        """
+        Send a message independently to a WhatsApp number.
+
+        Args:
+            to: The phone number to send the message to (e.g., "5511999999999")
+            message: The message text to send
+            reply_to: Optional message ID to reply to
+
+        Returns:
+            bool: True if message was sent successfully, False otherwise
+        """
+        logger.info(f"[SEND_MESSAGE] Sending independent message to {to}")
+
+        if not self._running:
+            logger.error("[SEND_MESSAGE] Bot is not running")
+            return False
+
+        if not message or not message.strip():
+            logger.error("[SEND_MESSAGE] Message is empty")
+            return False
+
+        try:
+            await self._send_response(to, message, reply_to)
+            logger.info(f"[SEND_MESSAGE] ✅ Message sent successfully to {to}")
+            return True
+        except Exception as e:
+            logger.error(
+                f"[SEND_MESSAGE] ❌ Failed to send message to {to}: {e}", exc_info=True
+            )
+            return False
+
     def get_stats(self) -> dict[str, Any]:
         """Get statistics about the bot's current state."""
         return {
