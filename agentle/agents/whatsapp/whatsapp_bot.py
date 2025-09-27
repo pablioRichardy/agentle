@@ -68,6 +68,33 @@ try:
 except ImportError:
     pass
 
+# Type aliases for cleaner type hints
+PhoneNumber = str  # WhatsApp phone number (e.g., "5511999999999")
+ChatId = str  # Chat/conversation identifier
+
+CallbackFunction = (
+    Callable[
+        [
+            PhoneNumber,
+            ChatId | None,
+            GeneratedAssistantMessage[Any] | None,
+            dict[str, Any] | None,
+        ],
+        None,
+    ]
+    | Callable[
+        [
+            PhoneNumber,
+            ChatId | None,
+            GeneratedAssistantMessage[Any] | None,
+            dict[str, Any] | None,
+        ],
+        Awaitable[None],
+    ]
+)
+
+CallbackInput = CallbackFunction | list[CallbackFunction] | None
+
 logger = logging.getLogger(__name__)
 
 
@@ -78,11 +105,21 @@ class CallbackWithContext:
     # Callbacks must accept (phone_number, chat_id, response, context) now
     callback: (
         Callable[
-            [str, str | None, GeneratedAssistantMessage[Any] | None, dict[str, Any]],
+            [
+                PhoneNumber,
+                ChatId | None,
+                GeneratedAssistantMessage[Any] | None,
+                dict[str, Any],
+            ],
             Awaitable[None],
         ]
         | Callable[
-            [str, str | None, GeneratedAssistantMessage[Any] | None, dict[str, Any]],
+            [
+                PhoneNumber,
+                ChatId | None,
+                GeneratedAssistantMessage[Any] | None,
+                dict[str, Any],
+            ],
             None,
         ]
     )
@@ -184,7 +221,7 @@ class WhatsAppBot(BaseModel):
         logger.info("WhatsApp bot stopped")
 
     async def handle_message(
-        self, message: WhatsAppMessage, chat_id: str | None = None
+        self, message: WhatsAppMessage, chat_id: ChatId | None = None
     ) -> GeneratedAssistantMessage[Any] | None:
         """
         Handle incoming WhatsApp message with enhanced error handling and batching.
@@ -337,29 +374,9 @@ class WhatsAppBot(BaseModel):
     async def handle_webhook(
         self,
         payload: WhatsAppWebhookPayload,
-        callback: (
-            Callable[
-                [
-                    str,
-                    str | None,
-                    GeneratedAssistantMessage[Any] | None,
-                    dict[str, Any] | None,
-                ],
-                None,
-            ]
-            | Callable[
-                [
-                    str,
-                    str | None,
-                    GeneratedAssistantMessage[Any] | None,
-                    dict[str, Any] | None,
-                ],
-                Awaitable[None],
-            ]
-        )
-        | None = None,
+        callback: CallbackInput = None,
         callback_context: dict[str, Any] | None = None,
-        chat_id: str | None = None,
+        chat_id: ChatId | None = None,
     ) -> GeneratedAssistantMessage[Any] | None:
         """
         Handle incoming webhook from WhatsApp.
@@ -374,32 +391,48 @@ class WhatsAppBot(BaseModel):
             f"[WEBHOOK] Current response callbacks count: {len(self._response_callbacks)}"
         )
 
-        # FOR BATCHING: Register callback permanently, don't remove it in finally block
-        # The batch processor will call it when the batch is processed
+        # FOR BATCHING: Register callback(s) permanently, don't remove them in finally block
+        # The batch processor will call them when the batch is processed
         if callback:
             logger.info("[WEBHOOK] Processing callback registration for batching...")
-            callback_with_context = CallbackWithContext(
-                callback=callback, context=callback_context or {}
-            )
 
-            # Check if this exact callback is already registered to avoid duplicates
-            callback_exists = any(
-                existing.callback == callback and existing.context == callback_context
-                for existing in self._response_callbacks
-            )
-
-            logger.info(f"[WEBHOOK] Callback already exists: {callback_exists}")
-
-            if not callback_exists:
-                self._response_callbacks.append(callback_with_context)
-                logger.info(
-                    f"[WEBHOOK] ✅ Added callback for batching. Total callbacks: {len(self._response_callbacks)}"
-                )
-                logger.info(
-                    "[WEBHOOK] ⚠️  IMPORTANT: Callback will be called when batch is processed, not removed immediately"
-                )
+            # Handle both single callback and list of callbacks
+            callbacks_to_register: list[CallbackFunction]
+            if isinstance(callback, list):
+                callbacks_to_register = callback
             else:
-                logger.warning("[WEBHOOK] ⚠️ Duplicate callback not added")
+                callbacks_to_register = [callback]
+
+            logger.info(
+                f"[WEBHOOK] Registering {len(callbacks_to_register)} callback(s)"
+            )
+
+            for i, cb in enumerate(callbacks_to_register):
+                callback_with_context = CallbackWithContext(
+                    callback=cb, context=callback_context or {}
+                )
+
+                # Check if this exact callback is already registered to avoid duplicates
+                callback_exists = any(
+                    existing.callback == cb and existing.context == callback_context
+                    for existing in self._response_callbacks
+                )
+
+                logger.info(
+                    f"[WEBHOOK] Callback {i + 1} already exists: {callback_exists}"
+                )
+
+                if not callback_exists:
+                    self._response_callbacks.append(callback_with_context)
+                    logger.info(
+                        f"[WEBHOOK] ✅ Added callback {i + 1} for batching. Total callbacks: {len(self._response_callbacks)}"
+                    )
+                else:
+                    logger.warning(f"[WEBHOOK] ⚠️ Duplicate callback {i + 1} not added")
+
+            logger.info(
+                "[WEBHOOK] ⚠️  IMPORTANT: Callback(s) will be called when batch is processed, not removed immediately"
+            )
 
         try:
             logger.info("[WEBHOOK] Starting webhook validation...")
@@ -554,8 +587,8 @@ class WhatsAppBot(BaseModel):
         callback: (
             Callable[
                 [
-                    str,
-                    str | None,
+                    PhoneNumber,
+                    ChatId | None,
                     GeneratedAssistantMessage[Any] | None,
                     dict[str, Any],
                 ],
@@ -563,8 +596,8 @@ class WhatsAppBot(BaseModel):
             ]
             | Callable[
                 [
-                    str,
-                    str | None,
+                    PhoneNumber,
+                    ChatId | None,
                     GeneratedAssistantMessage[Any] | None,
                     dict[str, Any],
                 ],
@@ -612,8 +645,8 @@ class WhatsAppBot(BaseModel):
         callback: (
             Callable[
                 [
-                    str,
-                    str | None,
+                    PhoneNumber,
+                    ChatId | None,
                     GeneratedAssistantMessage[Any] | None,
                     dict[str, Any],
                 ],
@@ -621,8 +654,8 @@ class WhatsAppBot(BaseModel):
             ]
             | Callable[
                 [
-                    str,
-                    str | None,
+                    PhoneNumber,
+                    ChatId | None,
                     GeneratedAssistantMessage[Any] | None,
                     dict[str, Any],
                 ],
@@ -672,7 +705,7 @@ class WhatsAppBot(BaseModel):
 
     async def _cleanup_abandoned_processors(self) -> None:
         """Clean up batch processors that have been running too long, but protect active message sending."""
-        abandoned_processors: MutableSequence[str] = []
+        abandoned_processors: MutableSequence[PhoneNumber] = []
 
         for phone_number, task in self._batch_processors.items():
             if task.done():
@@ -726,7 +759,7 @@ class WhatsAppBot(BaseModel):
         self,
         message: WhatsAppMessage,
         session: WhatsAppSession,
-        chat_id: str | None = None,
+        chat_id: ChatId | None = None,
     ) -> GeneratedAssistantMessage[Any] | None:
         """Handle message with improved batching logic and atomic state management."""
         phone_number = message.from_number
@@ -904,7 +937,10 @@ class WhatsAppBot(BaseModel):
             logger.info("[BATCHING] ═══════════ BATCH HANDLING END ═══════════")
 
     async def _atomic_session_update(
-        self, phone_number: str, session: WhatsAppSession, message_data: dict[str, Any]
+        self,
+        phone_number: PhoneNumber,
+        session: WhatsAppSession,
+        message_data: dict[str, Any],
     ) -> bool:
         """Atomically update session with proper state transitions."""
         try:
@@ -981,7 +1017,9 @@ class WhatsAppBot(BaseModel):
             )
             return False
 
-    async def _batch_processor(self, phone_number: str, processing_token: str) -> None:
+    async def _batch_processor(
+        self, phone_number: PhoneNumber, processing_token: str
+    ) -> None:
         """
         Background task to process batched messages for a user with improved reliability.
         """
@@ -1156,7 +1194,7 @@ class WhatsAppBot(BaseModel):
             logger.info("[BATCH_PROCESSOR] ═══════════ BATCH PROCESSOR END ═══════════")
 
     async def _process_message_batch(
-        self, phone_number: str, session: WhatsAppSession, processing_token: str
+        self, phone_number: PhoneNumber, session: WhatsAppSession, processing_token: str
     ) -> GeneratedAssistantMessage[Any] | None:
         """Process a batch of messages for a user with enhanced timeout protection."""
         logger.info("[BATCH_PROCESSING] ═══════════ BATCH PROCESSING START ═══════════")
@@ -1314,7 +1352,7 @@ class WhatsAppBot(BaseModel):
         self,
         message: WhatsAppMessage,
         session: WhatsAppSession,
-        chat_id: str | None = None,
+        chat_id: ChatId | None = None,
     ) -> GeneratedAssistantMessage[Any]:
         """Process a single message immediately with quote message support."""
         logger.info(
@@ -1531,12 +1569,12 @@ class WhatsAppBot(BaseModel):
 
     async def _call_response_callbacks(
         self,
-        phone_number: str,
+        phone_number: PhoneNumber,
         response: GeneratedAssistantMessage[Any] | None,
         input_tokens: float,
         output_tokens: float,
         *,
-        chat_id: str | None = None,
+        chat_id: ChatId | None = None,
     ) -> None:
         """Call all registered response callbacks with (phone_number, chat_id, response, context)."""
         logger.info("[CALLBACKS] ═══════════ CALLING RESPONSE CALLBACKS ═══════════")
@@ -1645,7 +1683,7 @@ class WhatsAppBot(BaseModel):
         self,
         agent_input: AgentInput,
         session: WhatsAppSession,
-        chat_id: str | None = None,
+        chat_id: ChatId | None = None,
     ) -> tuple[GeneratedAssistantMessage[Any], int, int]:
         """Process input with agent using custom chat_id for conversation persistence."""
         logger.info("[AGENT_PROCESSING] Starting agent processing")
@@ -1844,7 +1882,7 @@ class WhatsAppBot(BaseModel):
 
     async def _send_response(
         self,
-        to: str,
+        to: PhoneNumber,
         response: GeneratedAssistantMessage[Any] | str,
         reply_to: str | None = None,
     ) -> None:
@@ -2110,7 +2148,9 @@ class WhatsAppBot(BaseModel):
 
         return chunks
 
-    async def _send_error_message(self, to: str, reply_to: str | None = None) -> None:
+    async def _send_error_message(
+        self, to: PhoneNumber, reply_to: str | None = None
+    ) -> None:
         """Send error message to user."""
         logger.warning(f"[SEND_ERROR] Sending error message to {to}")
         try:
@@ -2158,7 +2198,7 @@ class WhatsAppBot(BaseModel):
         # Default to not showing the error to users
         return False
 
-    async def _send_rate_limit_message(self, to: str) -> None:
+    async def _send_rate_limit_message(self, to: PhoneNumber) -> None:
         """Send rate limit notification to user."""
         message = "You're sending messages too quickly. Please wait a moment before sending more messages."
         logger.info(f"[RATE_LIMIT] Sending rate limit message to {to}")
@@ -2207,7 +2247,7 @@ class WhatsAppBot(BaseModel):
         return final_messages
 
     async def _handle_message_upsert(
-        self, payload: WhatsAppWebhookPayload, chat_id: str | None = None
+        self, payload: WhatsAppWebhookPayload, chat_id: ChatId | None = None
     ) -> GeneratedAssistantMessage[Any] | None:
         """Handle new message event."""
         logger.info("[MESSAGE_UPSERT] ═══════════ MESSAGE UPSERT START ═══════════")
@@ -2620,7 +2660,7 @@ class WhatsAppBot(BaseModel):
 
     async def send_message(
         self,
-        to: str,
+        to: PhoneNumber,
         message: str,
         reply_to: str | None = None,
     ) -> bool:
