@@ -248,7 +248,7 @@ class ProgressiveProfilingAgent(BaseModel):
             ):
                 # Return a list of messages with state message prepended
                 state_message = UserMessage(parts=[TextPart(text=state_context)])
-                return [state_message] + list(inp)
+                return [state_message] + list(cast(list, inp))
 
             # Check if it's a sequence of parts (TextPart, FilePart, etc.)
             elif isinstance(

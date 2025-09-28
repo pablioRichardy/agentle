@@ -487,7 +487,7 @@ if __name__ == "__main__":
         print(f"Input: {repr(test_case['input'])}")
 
         try:
-            result = parse_streaming_json(test_case["input"], User)
+            result = parse_streaming_json(str(test_case["input"]), User)
             print(f"Result: {result}")
             print(f"Name extracted: {result.name}")
 
@@ -568,18 +568,20 @@ if __name__ == "__main__":
 
     for i, test_case in enumerate(text_around_json_cases, 1):
         print(f"Text Test {i}: {test_case['description']}")
+        input_str = str(test_case["input"])
         print(
-            f"Input preview: {repr(test_case['input'][:80])}{'...' if len(test_case['input']) > 80 else ''}"
+            f"Input preview: {repr(input_str[:80])}{'...' if len(input_str) > 80 else ''}"
         )
 
         try:
-            result = parse_streaming_json(test_case["input"], test_case["model"])
+            result = parse_streaming_json(input_str, test_case["model"])
             print(f"Result: {result}")
 
             # Check expected values
             if "expected" in test_case:
                 all_passed = True
-                for field, expected_value in test_case["expected"].items():
+                expected_dict = cast(dict[str, Any], test_case["expected"])
+                for field, expected_value in expected_dict.items():
                     actual_value = getattr(result, field, "MISSING_FIELD")
                     if actual_value == expected_value:
                         print(f"  ✅ {field}: {actual_value}")
@@ -592,9 +594,10 @@ if __name__ == "__main__":
                 if not test_case[
                     "expected"
                 ]:  # Empty expected dict means all should be None/default
+                    model_class = cast(type[BaseModel], test_case["model"])
                     all_default = all(
                         getattr(result, field_name, None) is None
-                        for field_name in test_case["model"].model_fields.keys()
+                        for field_name in model_class.model_fields.keys()
                     )
                     if all_default:
                         print("  ✅ All fields are default (as expected)")
@@ -735,19 +738,20 @@ if __name__ == "__main__":
 
     # Run nested model tests
     for i, test_case in enumerate(nested_test_cases, 1):
-        print(f"Nested Test {i}: {test_case['description']}")
-        print(
-            f"Input: {repr(test_case['input'][:100])}{'...' if len(test_case['input']) > 100 else ''}"
-        )
+        case_dict = cast(dict[str, Any], test_case)
+        print(f"Nested Test {i}: {case_dict['description']}")
+        input_str = str(case_dict["input"])
+        print(f"Input: {repr(input_str[:100])}{'...' if len(input_str) > 100 else ''}")
 
         try:
-            result = parse_streaming_json(test_case["input"], test_case["model"])
+            result = parse_streaming_json(input_str, case_dict["model"])
             print(f"Result: {result}")
 
             # Check expected values
-            if "expected_checks" in test_case:
+            if "expected_checks" in case_dict:
                 all_passed = True
-                for field, expected_value in test_case["expected_checks"].items():
+                expected_checks = cast(dict[str, Any], case_dict["expected_checks"])
+                for field, expected_value in expected_checks.items():
                     actual_value = getattr(result, field, "MISSING_FIELD")
                     if actual_value == expected_value:
                         print(f"  ✅ {field}: {actual_value}")

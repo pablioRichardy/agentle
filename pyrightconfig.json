@@ -49,7 +49,8 @@
         "**/venv",
         "**/.venv",
         "**/build",
-        "**/dist"
+        "**/dist",
+        "**/tests"
     ],
     // Virtual environment settings
     "venvPath": ".",

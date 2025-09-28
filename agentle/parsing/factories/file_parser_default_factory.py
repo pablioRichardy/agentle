@@ -14,20 +14,15 @@ def file_parser_default_factory(
     audio_description_provider: GenerationProvider | None = None,
     parse_timeout: float = 30,
 ) -> FileParser:
-    from agentle.parsing.factories.audio_description_agent_default_factory import (
-        audio_description_agent_default_factory,
-    )
-    from agentle.parsing.factories.visual_description_agent_default_factory import (
-        visual_description_agent_default_factory,
+    from agentle.generations.providers.google.google_generation_provider import (
+        GoogleGenerationProvider,
     )
     from agentle.parsing.parsers.file_parser import FileParser
 
     return FileParser(
-        visual_description_provider=visual_description_agent_default_factory(
-            provider=visual_description_provider
-        ),
-        audio_description_provider=audio_description_agent_default_factory(
-            provider=audio_description_provider
-        ),
+        visual_description_provider=visual_description_provider
+        or GoogleGenerationProvider(),
+        audio_description_provider=audio_description_provider
+        or GoogleGenerationProvider(),
         parse_timeout=parse_timeout,
     )
