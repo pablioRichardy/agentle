@@ -179,7 +179,10 @@ class CompressedFileParser(DocumentParser):
         from agentle.parsing.parsers.file_parser import FileParser
 
         path = Path(document_path)
-        ext = path.suffix.lower().lstrip(".")  # Normalize extension ('.zip' -> 'zip')
+        # Normalize extension robustly: lowercase, strip whitespace, remove leading dot.
+        # This guards against odd filenames like "archive.ZIP " or accidental trailing spaces.
+        raw_suffix = path.suffix
+        ext = raw_suffix.lower().strip().lstrip(".")  # '.zip' -> 'zip'
 
         # We'll accumulate ParsedFile objects from each extracted child file
         parsed_files: MutableSequence[ParsedFile] = []
@@ -265,7 +268,7 @@ class CompressedFileParser(DocumentParser):
 
             case _:
                 raise ValueError(
-                    f"CompressedFileParser does not handle extension: {path.suffix}"
+                    f"CompressedFileParser does not handle extension: '{path.suffix or '(none)'}'. Supported extensions: .zip, .pkz, .rar"
                 )
 
         # Merge all the parsed files into a single ParsedFile

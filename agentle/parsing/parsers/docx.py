@@ -238,13 +238,59 @@ class DocxFileParser(DocumentParser):
                 md_text = "\n\n".join(paragraph_texts)
 
             # Extract embedded images (kept as Image objects; OCR left empty to avoid duplication)
+            # NOTE:
+            # The original implementation iterated over document.part._rels (a private attribute)
+            # and accessed rel.target_part directly. For relationships whose target mode is
+            # External (e.g. linked images rather than embedded ones), python-docx does not
+            # expose a target_part (or may raise on access), producing the error you observed:
+            #   "target_part property on _Relationship is undefined when target mode is External".
+            # We now:
+            #   * Use the public .rels collection instead of the private ._rels
+            #   * Skip external relationships (linked images) since they have no embedded bytes
+            #   * Guard all attribute access and continue on failure, logging at debug level
             doc_images: list[tuple[str, bytes]] = []
-            for rel in document.part._rels.values():  # type: ignore[reportPrivateUsage]
-                if "image" in rel.reltype:
-                    image_part = rel.target_part
-                    image_name = image_part.partname.split("/")[-1]
-                    image_bytes = image_part.blob
-                    doc_images.append((image_name, image_bytes))
+            relationships = getattr(document.part, "rels", {})
+            for rel in relationships.values():  # type: ignore[assignment]
+                try:
+                    reltype = getattr(rel, "reltype", "") or ""
+                    if "image" not in reltype:
+                        continue
+                    # Skip external (linked) images; they are not embedded in the package
+                    if getattr(rel, "is_external", False):
+                        logger.debug(
+                            "Skipping external image relationship (linked image): %s",
+                            getattr(rel, "target_ref", None),
+                        )
+                        continue
+                    image_part = getattr(rel, "target_part", None)
+                    if image_part is None:
+                        # Defensive: if python-docx changes behavior or part missing
+                        logger.debug(
+                            "Image relationship without target_part encountered; skipping: %s",
+                            rel,
+                        )
+                        continue
+                    image_name = Path(getattr(image_part, "partname", "image")).name
+                    image_bytes = getattr(image_part, "blob", None)
+                    if not image_bytes:
+                        logger.debug(
+                            "Image part missing blob data; skipping image %s",
+                            image_name,
+                        )
+                        continue
+                    # Ensure bytes type (python-docx already gives bytes but be safe)
+                    if not isinstance(image_bytes, (bytes, bytearray)):
+                        logger.debug(
+                            "Image part blob not bytes (type=%s); skipping image %s",
+                            type(image_bytes).__name__,
+                            image_name,
+                        )
+                        continue
+                    doc_images.append((image_name, bytes(image_bytes)))
+                except Exception as e:  # pragma: no cover - defensive logging
+                    logger.debug(
+                        "Failed to extract image from relationship %s: %s", rel, e
+                    )
 
             final_images: list[Image] = [
                 Image(name=name, contents=bytes(data), ocr_text="")
