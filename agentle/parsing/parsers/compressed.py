@@ -9,6 +9,7 @@ contained files using appropriate parsers for each file type.
 from collections.abc import MutableSequence
 from pathlib import Path
 from typing import Literal, cast
+import os as _os
 
 from rsb.models.field import Field
 
@@ -197,7 +198,6 @@ class CompressedFileParser(DocumentParser):
                         # Skip unsafe traversal attempts
                         if ".." in Path(info.filename).parts:
                             continue
-                        import os as _os
 
                         with tempfile.NamedTemporaryFile(
                             delete=False, suffix=Path(member_basename).suffix
@@ -238,7 +238,6 @@ class CompressedFileParser(DocumentParser):
                         member_basename = Path(cast(str, info.filename)).name  # type: ignore
                         if not member_basename or ".." in Path(member_basename).parts:
                             continue
-                        import os as _os
 
                         with tempfile.NamedTemporaryFile(
                             delete=False, suffix=Path(member_basename).suffix
