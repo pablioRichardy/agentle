@@ -143,10 +143,16 @@ class AudioFileParser(DocumentParser):
         """
 
         path = Path(document_path)
-        file_contents: bytes = path.read_bytes()
-        file_extension = path.suffix
+        if not path.exists() or not path.is_file():
+            raise ValueError(f"Audio file not found: {document_path}")
 
-        if file_extension in {
+        # Normalize extension ('.MP3' -> 'mp3') while keeping dotted form for mime lookup
+        suffix = path.suffix.lower()
+        ext = suffix.lstrip(".")
+        file_contents: bytes = path.read_bytes()
+
+        # Formats we re-encode to mp3 for broader compatibility (exclude mp3 itself)
+        reencode_exts = {
             "flac",
             "mpeg",
             "mpga",
@@ -154,7 +160,9 @@ class AudioFileParser(DocumentParser):
             "ogg",
             "wav",
             "webm",
-        }:
+        }
+
+        if ext in reencode_exts:
             import aiofiles.os as aios
             from aiofiles import open as aio_open
 
@@ -170,31 +178,35 @@ class AudioFileParser(DocumentParser):
                 "ffmpeg",
                 "-hide_banner",
                 "-loglevel",
-                "error",  # Suppress unnecessary logs
-                "-y",  # Overwrite output file if exists
+                "error",
+                "-y",
                 "-i",
                 document_path,
                 "-codec:a",
                 "libmp3lame",
                 "-q:a",
-                "2",  # Quality preset (0-9, 0=best)
+                "2",
                 output_temp,
             ]
 
-            # Execute FFmpeg
-            process = await asyncio.create_subprocess_exec(
-                *command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-            )
-
-            _, stderr = await process.communicate()
-
-            # Handle conversion errors
-            if process.returncode != 0:
+            # Execute FFmpeg with timeout guard
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    *command,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                _, stderr = await asyncio.wait_for(process.communicate(), timeout=90.0)
+            except asyncio.TimeoutError:
                 if await aios.path.exists(output_temp):
                     await aios.remove(output_temp)
-                raise RuntimeError(
-                    f"Audio conversion failed: {stderr.decode().strip()}"
-                )
+                raise RuntimeError("FFmpeg audio conversion timed out after 90 seconds")
+
+            if process.returncode != 0:
+                err_msg = stderr.decode(errors="replace").strip()
+                if await aios.path.exists(output_temp):
+                    await aios.remove(output_temp)
+                raise RuntimeError(f"Audio conversion failed: {err_msg}")
 
             # Read converted file
             async with aio_open(output_temp, "rb") as f:
@@ -204,7 +216,7 @@ class AudioFileParser(DocumentParser):
             await aios.remove(output_temp)
 
         transcription = await self.audio_description_provider.generate_by_prompt_async(
-            FilePart(data=file_contents, mime_type=ext2mime(file_extension)),
+            FilePart(data=file_contents, mime_type=ext2mime(suffix or f".{ext}")),
             developer_prompt="You are a helpful assistant that helps understand audio files.",
             response_schema=AudioDescription,
         )
@@ -259,10 +271,13 @@ class AudioFileParser(DocumentParser):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                timeout=10,
             )
-            logger.exception("FFmpeg is not installed or not in PATH.")
-            if result.returncode != 0:
-                raise RuntimeError()
-        except FileNotFoundError:
-            logger.exception("FFmpeg is not installed or not in PATH.")
-            raise RuntimeError()
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            logger.error("FFmpeg is not installed or not in PATH.")
+            raise RuntimeError("FFmpeg is not installed or not in PATH.")
+        if result.returncode != 0:
+            logger.error(
+                "FFmpeg returned non-zero exit code: %s", result.stderr.strip()
+            )
+            raise RuntimeError("FFmpeg is not functioning correctly.")

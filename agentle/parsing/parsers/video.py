@@ -131,13 +131,18 @@ class VideoFileParser(DocumentParser):
             ```
         """
         path = Path(document_path)
-        extension = path.suffix
-        if extension != "mp4":
-            raise ValueError("VideoFileParser only supports .mp4 files.")
+        if not path.exists() or not path.is_file():
+            raise ValueError(f"Video file not found: {document_path}")
+        suffix = path.suffix.lower()
+        ext = suffix.lstrip(".")
+        if ext != "mp4":
+            raise ValueError(
+                f"VideoFileParser only supports .mp4 files (got: {path.suffix or '(none)'})."
+            )
 
         file_contents = path.read_bytes()
         visual_media_description = await self.visual_description_agent.generate_by_prompt_async(
-            FilePart(data=file_contents, mime_type=ext2mime(extension)),
+            FilePart(data=file_contents, mime_type=ext2mime(suffix or ".mp4")),
             developer_prompt="You are a helpful assistant that deeply understands visual media.",
             response_schema=VisualMediaDescription,
         )

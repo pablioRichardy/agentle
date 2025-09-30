@@ -178,7 +178,13 @@ class XlsxFileParser(DocumentParser):
 
         from openpyxl import Workbook, load_workbook
 
-        wb: Workbook = load_workbook(document_path, data_only=True)
+        path = Path(document_path)
+        if not path.exists() or not path.is_file():
+            raise ValueError(f"Excel file not found: {document_path}")
+        try:
+            wb: Workbook = load_workbook(document_path, data_only=True)
+        except Exception as e:  # pragma: no cover - diverse errors
+            raise ValueError(f"Failed to open Excel file '{document_path}': {e}") from e
         sections: MutableSequence[SectionContent] = []
 
         for sheet_index, sheet in enumerate(wb.worksheets, start=1):
@@ -201,13 +207,16 @@ class XlsxFileParser(DocumentParser):
 
             # Process images
             sheet_images: list[tuple[str, bytes]] = []
-            if hasattr(sheet, "_images"):
-                image_list = getattr(sheet, "_images", [])
+            try:
+                image_list = getattr(sheet, "_images", [])  # type: ignore[attr-defined]
                 for img_idx, img in enumerate(image_list, start=1):
                     img_data = getattr(img, "_data", None)
                     if img_data is not None:
                         image_name = f"{sheet.title}_img_{img_idx}.png"
                         sheet_images.append((image_name, img_data))
+            except Exception:
+                # openpyxl internal changed or unexpected
+                image_list = []  # ignore silently
 
             final_images: MutableSequence[Image] = []
             # Generate image descriptions if needed
@@ -239,6 +248,12 @@ class XlsxFileParser(DocumentParser):
 
                 if image_descriptions:
                     combined_text += "\n\n" + "\n".join(image_descriptions)
+            else:
+                # Low strategy: still attach raw images without descriptions
+                for image_name, image_bytes in sheet_images:
+                    final_images.append(
+                        Image(name=image_name, contents=image_bytes, ocr_text=None)
+                    )
 
             # Create table page item
             table_item = TablePageItem(rows=rows, csv=csv_str, is_perfect_table=True)

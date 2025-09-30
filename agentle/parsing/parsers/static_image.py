@@ -146,11 +146,14 @@ class StaticImageParser(DocumentParser):
         from PIL import Image as PILImage
 
         path = Path(document_path)
+        if not path.exists() or not path.is_file():
+            raise ValueError(f"Image file not found: {document_path}")
         file_bytes = path.read_bytes()
-        extension = path.suffix
+        suffix = path.suffix.lower()
+        ext = suffix.lstrip(".")
 
         # Convert to PNG if TIFF
-        if extension in {"tiff", "tif"}:
+        if ext in {"tiff", "tif"}:
             # Use Pillow to open, then convert to PNG in memory
             with io.BytesIO(file_bytes) as input_buffer:
                 with PILImage.open(input_buffer) as pil_img:
@@ -162,27 +165,25 @@ class StaticImageParser(DocumentParser):
                     output_buffer = io.BytesIO()
                     pil_img.save(output_buffer, format="PNG")
                     converted_bytes = output_buffer.getvalue()
-
-            # Use the converted PNG bytes
             image_bytes = converted_bytes
-            current_mime_type = ext2mime(extension)
+            # Converted output is PNG regardless of original
+            current_mime_type = "image/png"
         else:
-            # No conversion needed
             image_bytes = file_bytes
-
-            # For demonstration, pick your MIME by extension
-            if extension in {"png", "bmp"}:
-                current_mime_type = "image/" + extension
-            elif extension in {"jpg", "jpeg"}:
+            if ext in {"png", "bmp"}:
+                current_mime_type = f"image/{ext}"
+            elif ext in {"jpg", "jpeg"}:
                 current_mime_type = "image/jpeg"
+            elif ext in {"gif", "webp"}:
+                current_mime_type = f"image/{ext}"
             else:
-                # Fallback to PNG or raise an error if you want
-                current_mime_type = "image/png"
-
-        # Create an Image object
+                # Fallback to ext2mime; if it fails, default to octet-stream
+                try:
+                    current_mime_type = ext2mime(suffix or f".{ext}")
+                except Exception:
+                    current_mime_type = "application/octet-stream"
 
         image_ocr: str | None = None
-        # Generate a description if we have an agent + HIGH strategy
         text_content = ""
         agent_input = FilePart(
             mime_type=current_mime_type,
@@ -198,7 +199,6 @@ class StaticImageParser(DocumentParser):
         text_content = description_md
 
         image_obj = Image(name=path.name, contents=image_bytes, ocr_text=image_ocr)
-        # We treat it as a single "page" with one image
         page_content = SectionContent(
             number=1,
             text=text_content,

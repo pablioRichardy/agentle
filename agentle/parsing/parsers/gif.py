@@ -160,9 +160,12 @@ class GifFileParser(DocumentParser):
 
         # Safety check: only proceed if it's a .gif
         # or you can attempt detection based on file headers
-        extension = path.suffix
-        if extension not in {"gif"}:
-            raise ValueError("AnimatedImageFileParser only supports .gif files.")
+        suffix = path.suffix.lower()
+        ext = suffix.lstrip(".")
+        if ext != "gif":
+            raise ValueError(
+                f"GifFileParser only supports .gif files (got: {path.suffix or '(none)'})."
+            )
 
         # --- 1. Load all frames from the GIF ---
         frames: list[PILImage.Image] = []

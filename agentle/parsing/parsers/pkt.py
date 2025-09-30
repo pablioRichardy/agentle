@@ -103,11 +103,23 @@ class PKTFileParser(DocumentParser):
             cleaned up after the parsing is complete.
         """
         with tempfile.TemporaryDirectory() as temp_dir:
-            file_path = os.path.join(temp_dir, document_path)
-            # file.save_to_file(file_path)
-            # TODO: save the file to the temp directory
+            original = Path(document_path)
+            if not original.exists() or not original.is_file():
+                raise ValueError(f"Packet Tracer file not found: {document_path}")
+            suffix = original.suffix.lower()
+            if suffix not in {".pkt", ".pka"}:
+                raise ValueError(
+                    f"PKTFileParser only supports .pkt/.pka files (got: {original.suffix or '(none)'})."
+                )
+            # Basic size guard (e.g., 50MB) to avoid accidental huge loads
+            size_bytes = original.stat().st_size
+            if size_bytes > 50 * 1024 * 1024:
+                raise ValueError(
+                    f"Packet Tracer file too large ({size_bytes} bytes > 50MB limit)."
+                )
+            file_path = os.path.join(temp_dir, original.name)
             with open(file_path, "wb") as f:
-                f.write(Path(document_path).read_bytes())
+                f.write(original.read_bytes())
 
             xml_bytes = self.pkt_to_xml_bytes(file_path)
 

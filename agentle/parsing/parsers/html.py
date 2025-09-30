@@ -8,7 +8,6 @@ organize the document into a readable format.
 
 import base64
 import hashlib
-import re
 from pathlib import Path
 from typing import Literal
 
@@ -206,8 +205,10 @@ class HTMLParser(DocumentParser):
                 # Handle relative and absolute URLs - we can't process these directly
                 # but we'll keep track of them for documentation
                 else:
-                    # We can't fetch remote images, so just document their existence
-                    image_descriptions.append(f"Image {idx}: {alt or str(src)}")
+                    # We can't fetch remote images, so just document their existence clearly
+                    image_descriptions.append(
+                        f"Remote image {idx}: {alt or str(src)} (not fetched)"
+                    )
                     continue
 
                 # Process image with visual description agent
@@ -258,8 +259,8 @@ class HTMLParser(DocumentParser):
         if image_descriptions:
             markdown_content += "\n\n## Images\n\n" + "\n\n".join(image_descriptions)
 
-        # Create plain text from markdown (simple approach)
-        text_content = re.sub(r"[#*_~`]", "", markdown_content)
+        # Create plain text from HTML more faithfully using BeautifulSoup get_text
+        text_content = soup.get_text(separator="\n")
 
         # Create section content
         section = SectionContent(

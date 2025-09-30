@@ -1,17 +1,21 @@
 import os
 import tempfile
+import logging
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlparse
 
 from rsb.models.field import Field
 
-
 from agentle.generations.providers.base.generation_provider import GenerationProvider
 from agentle.parsing.document_parser import DocumentParser
 from agentle.parsing.parsed_file import ParsedFile
 from agentle.parsing.parsers.file_parser import FileParser
 from agentle.parsing.section_content import SectionContent
+
+logger = logging.getLogger(__name__)
+
+"""Link parser module."""
 
 
 class LinkParser(DocumentParser):
@@ -48,10 +52,12 @@ class LinkParser(DocumentParser):
                 # We need to import these modules here to avoid dependency issues
                 import aiohttp
 
-                # Check if the URL points to a downloadable file
-                async with aiohttp.ClientSession() as session:
+                timeout = aiohttp.ClientTimeout(total=self.parse_timeout)
+                async with aiohttp.ClientSession(timeout=timeout) as session:
                     try:
-                        async with session.head(document_path) as response:
+                        async with session.head(
+                            document_path, allow_redirects=True
+                        ) as response:
                             content_type = response.headers.get("Content-Type", "")
                             content_disposition = response.headers.get(
                                 "Content-Disposition", ""
@@ -106,9 +112,12 @@ class LinkParser(DocumentParser):
                                 return await self._download_and_parse_file(
                                     document_path
                                 )
-                    except Exception:
-                        # If HEAD request fails, try with a GET request for content-type
-                        pass
+                    except Exception as e:
+                        logger.debug(
+                            "HEAD request failed for %s (%s); will fallback to GET",
+                            document_path,
+                            e,
+                        )
             except ImportError:
                 # If aiohttp is not available, proceed with Playwright
                 pass
@@ -135,14 +144,22 @@ class LinkParser(DocumentParser):
             # Import aiohttp here to handle ImportError gracefully
             import aiohttp
 
-            # Download the file
-            async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=self.parse_timeout)
+            max_bytes = 50 * 1024 * 1024  # 50MB safety limit
+            total = 0
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.get(url) as response:
+                    response.raise_for_status()
                     with open(temp_path, "wb") as f:
                         while True:
-                            chunk = await response.content.read(1024)
+                            chunk = await response.content.read(65536)
                             if not chunk:
                                 break
+                            total += len(chunk)
+                            if total > max_bytes:
+                                raise ValueError(
+                                    f"Remote file exceeds size limit ({max_bytes} bytes)"
+                                )
                             f.write(chunk)
 
             # Parse the downloaded file
@@ -156,9 +173,14 @@ class LinkParser(DocumentParser):
             # Update the name to reflect the original URL
             original_name = Path(urlparse(url).path).name
             if original_name:
-                parsed_document = ParsedFile(
-                    name=original_name, sections=parsed_document.sections
-                )
+                # Mutate the existing ParsedFile's name (assuming attribute is writable)
+                try:
+                    parsed_document.name = original_name  # type: ignore[attr-defined]
+                except Exception:
+                    # Fallback: recreate only if constructor supports it
+                    parsed_document = ParsedFile(
+                        name=original_name, sections=parsed_document.sections
+                    )
 
             return parsed_document
         finally:

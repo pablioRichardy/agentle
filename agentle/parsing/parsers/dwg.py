@@ -154,12 +154,16 @@ class DWGFileParser(DocumentParser):
         """
         import platform
 
-        if platform.machine() == "arm64":
-            raise ValueError(
-                "ARM architecture is not supported by aspose-cad. Sorry :("
-            )
+        machine = platform.machine().lower()
+        if machine in {"arm64", "aarch64"}:
+            raise ValueError("ARM/aarch64 architecture is not supported by Aspose.CAD.")
 
-        import aspose.cad as cad  # type: ignore
+        try:  # pragma: no cover - environment dependent
+            import aspose.cad as cad  # type: ignore
+        except ModuleNotFoundError as e:
+            raise RuntimeError(
+                "Missing dependency 'aspose-cad'. Install it to parse DWG files."
+            ) from e
 
         with tempfile.TemporaryDirectory() as temp_dir:
             file_path = f"{temp_dir}/{os.path.basename(document_path)}"
@@ -230,7 +234,12 @@ class DWGFileParser(DocumentParser):
             This method requires PyMuPDF to be installed. It is used internally by
             the parse_async method and not typically called directly.
         """
-        import pymupdf
+        try:  # pragma: no cover - optional dependency
+            import pymupdf
+        except ModuleNotFoundError as e:  # pragma: no cover
+            raise RuntimeError(
+                "Missing dependency 'pymupdf'. Install it to render DWG->PDF pages."
+            ) from e
 
         image_paths: list[str] = []
         doc = pymupdf.open(pdf_path)  # type: ignore

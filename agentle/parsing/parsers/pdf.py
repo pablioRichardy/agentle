@@ -48,9 +48,6 @@ from agentle.utils.file_validation import (
 logger = logging.getLogger(__name__)
 
 
-logger = logging.getLogger(__name__)
-
-
 # ---------------------------------------------------------------------------
 # Exception Hierarchy
 # ---------------------------------------------------------------------------
