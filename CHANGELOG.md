@@ -1,6 +1,5 @@
 # Changelog
 
-## v0.8.36
+## v0.8.37
 
-- feat(pdf): enhance PDF parsing with structured exception handling, improved metrics collection, and support for encrypted files
-
+- 
