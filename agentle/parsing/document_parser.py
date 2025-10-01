@@ -72,7 +72,6 @@ class DocumentParser(BaseModel, abc.ABC):
 
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
-        frozen=True,
     )
 
     def parse(self, document_path: str) -> ParsedFile:
