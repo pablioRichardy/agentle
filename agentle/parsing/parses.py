@@ -18,6 +18,7 @@ from agentle.parsing.parsers.txt import TxtFileParser
 from agentle.parsing.parsers.video import VideoFileParser
 from agentle.parsing.parsers.xlsx import XlsxFileParser
 from agentle.parsing.parsers.xml import XMLFileParser
+from agentle.parsing.parsers.rtf import RtfFileParser
 
 if TYPE_CHECKING:
     from agentle.parsing.document_parser import DocumentParser
@@ -71,6 +72,7 @@ parser_registry: MutableMapping[str, type[DocumentParser]] = {
     "xls": XlsxFileParser,
     "xml": XMLFileParser,
     "md": TxtFileParser,
+    "rtf": RtfFileParser,
 }
 """
 Global registry mapping file extensions to their respective DocumentParser classes.

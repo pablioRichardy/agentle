@@ -9,7 +9,7 @@ resolution-markers = [
 
 [[package]]
 name = "agentle"
-version = "0.8.30"
+version = "0.8.37"
 source = { editable = "." }
 dependencies = [
     { name = "aiocache" },
@@ -99,6 +99,7 @@ dev = [
     { name = "soundfile" },
     { name = "sphinx" },
     { name = "streamlit" },
+    { name = "striprtf" },
     { name = "svg-path" },
     { name = "uvicorn" },
     { name = "weasyprint" },
@@ -236,6 +237,7 @@ dev = [
     { name = "soundfile", specifier = ">=0.13.1" },
     { name = "sphinx", specifier = ">=8.2.3" },
     { name = "streamlit", specifier = ">=1.45.0" },
+    { name = "striprtf", specifier = ">=0.0.29" },
     { name = "svg-path", specifier = ">=6.3" },
     { name = "uvicorn", specifier = ">=0.34.1" },
     { name = "weasyprint", specifier = ">=65.1" },
@@ -4278,6 +4280,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c0/52/83d46b4c5044477e9c6dee779704a9d4041610439533af9c0a5084921098/streamlit-1.45.0.tar.gz", hash = "sha256:4e99014e113a11a7163b9da5ac079efb1ae5f8575a09c5a6a9c43cd6877a2a88", size = 9462166 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/43/ff/f41cfaf1bb58223fe77ff87213a689f6c9c82f7363f9d7c879d294dbe985/streamlit-1.45.0-py3-none-any.whl", hash = "sha256:b7d03ec68a23de0f1922ec9a28fbe3fe37d9fb31ad31d6c429d262c3631c2943", size = 9856265 },
+]
+
+[[package]]
+name = "striprtf"
+version = "0.0.29"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f3/86/7154b7c625a3ff704581dab70c05389e1de90233b7a751f79f712c2ca0e9/striprtf-0.0.29.tar.gz", hash = "sha256:5a822d075e17417934ed3add6fc79b5fc8fb544fe4370b2f894cdd28f0ddd78e", size = 7533 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/08/3e/1418afacc4aae04690cff282078f22620c89a99490499878ececc3021654/striprtf-0.0.29-py3-none-any.whl", hash = "sha256:0fc6a41999d015358d19627776b616424dd501ad698105c81d76734d1e14d91b", size = 7879 },
 ]
 
 [[package]]
