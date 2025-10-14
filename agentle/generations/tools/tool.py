@@ -116,7 +116,7 @@ class Tool(BaseModel, Generic[P, T_Output]):
         description="Human-readable description of what the tool does and how to use it.",
     )
 
-    parameters: dict[str, object] = Field(
+    parameters: dict[str, Any] = Field(
         description="Dictionary of parameter specifications for the tool, including types, descriptions, and constraints.",
     )
 
