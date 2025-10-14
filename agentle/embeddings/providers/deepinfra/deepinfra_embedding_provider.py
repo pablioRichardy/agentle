@@ -116,10 +116,10 @@ class DeepinfraEmbeddingProvider(EmbeddingProvider):
 
         return EmbedContent(
             embeddings=Embedding(
-                id=id or str(uuid.uuid4()),
+                id=id if id is not None else str(uuid.uuid4()),
                 value=vectors,
                 original_text=contents,
-                metadata=metadata or {},
+                metadata=dict(metadata) if metadata is not None else {},
             )
         )
 
@@ -145,8 +145,10 @@ class DeepinfraEmbeddingProvider(EmbeddingProvider):
             A sequence of EmbedContent objects, one per input content
         """
         # Prepare metadata and ids lists with proper defaults
-        metadata_list = metadata if metadata else [None] * len(contents)
-        ids_list = ids if ids else [None] * len(contents)
+        metadata_list: Sequence[Mapping[str, Any] | None] = (
+            metadata if metadata else [None] * len(contents)
+        )
+        ids_list: Sequence[str | None] = ids if ids else [None] * len(contents)
 
         # Build request payload with batch input
         payload: dict[str, Any] = {
@@ -181,16 +183,20 @@ class DeepinfraEmbeddingProvider(EmbeddingProvider):
         # Process each embedding and pair with metadata/id
         results: MutableSequence[EmbedContent] = []
         for embedding_data in result["data"]:
-            index = embedding_data["index"]
-            vectors = embedding_data["embedding"]
-
+            index: int = embedding_data["index"]
+            vectors: list[float] = embedding_data["embedding"]
+            
+            current_id: str | None = ids_list[index]
+            current_metadata: Mapping[str, Any] | None = metadata_list[index]
+            current_text: str = contents[index]
+            
             results.append(
                 EmbedContent(
                     embeddings=Embedding(
-                        id=ids_list[index] or str(uuid.uuid4()),
+                        id=current_id if current_id is not None else str(uuid.uuid4()),
                         value=vectors,
-                        original_text=contents[index],
-                        metadata=metadata_list[index] or {},
+                        original_text=current_text,
+                        metadata=dict(current_metadata) if current_metadata is not None else {},
                     )
                 )
             )
