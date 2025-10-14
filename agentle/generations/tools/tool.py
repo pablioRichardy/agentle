@@ -298,10 +298,109 @@ class Tool(BaseModel, Generic[P, T_Output]):
         ret = run_sync(self.call_async, timeout=None, *args, **kwargs)
         return ret
 
+    def _convert_parameter_types(self, kwargs: dict[str, Any]) -> dict[str, Any]:
+        """
+        Convert parameter values to their expected types based on function signature.
+        
+        This is particularly important for complex types like BaseModel, TypedDict, 
+        dataclasses, etc., where the AI passes a dict but the function expects 
+        an instance of the type.
+        
+        Args:
+            kwargs: Keyword arguments to convert.
+            
+        Returns:
+            Converted keyword arguments.
+        """
+        if self._callable_ref is None:
+            return kwargs
+            
+        try:
+            sig = inspect.signature(self._callable_ref)
+            converted_kwargs = {}
+            
+            for param_name, param_value in kwargs.items():
+                if param_name not in sig.parameters:
+                    # Keep unknown parameters as-is
+                    converted_kwargs[param_name] = param_value
+                    continue
+                    
+                param = sig.parameters[param_name]
+                
+                # Skip if no annotation
+                if param.annotation == inspect.Parameter.empty:
+                    converted_kwargs[param_name] = param_value
+                    continue
+                    
+                param_type = param.annotation
+                
+                # Check if we need to convert from dict to a complex type
+                if isinstance(param_value, dict) and inspect.isclass(param_type):
+                    # Check if it's a BaseModel (Pydantic)
+                    if hasattr(param_type, 'model_validate'):
+                        # Pydantic v2
+                        try:
+                            converted_kwargs[param_name] = param_type.model_validate(param_value)
+                            _logger.debug(
+                                f"Converted parameter '{param_name}' from dict to {param_type.__name__} (Pydantic v2)"
+                            )
+                            continue
+                        except Exception as e:
+                            _logger.warning(
+                                f"Failed to convert '{param_name}' using Pydantic v2: {e}"
+                            )
+                    
+                    # Check if it's a Pydantic v1 model
+                    if hasattr(param_type, 'parse_obj'):
+                        try:
+                            converted_kwargs[param_name] = param_type.parse_obj(param_value)
+                            _logger.debug(
+                                f"Converted parameter '{param_name}' from dict to {param_type.__name__} (Pydantic v1)"
+                            )
+                            continue
+                        except Exception as e:
+                            _logger.warning(
+                                f"Failed to convert '{param_name}' using Pydantic v1: {e}"
+                            )
+                    
+                    # Check if it's a dataclass
+                    if hasattr(param_type, '__dataclass_fields__'):
+                        try:
+                            converted_kwargs[param_name] = param_type(**param_value)
+                            _logger.debug(
+                                f"Converted parameter '{param_name}' from dict to {param_type.__name__} (dataclass)"
+                            )
+                            continue
+                        except Exception as e:
+                            _logger.warning(
+                                f"Failed to convert '{param_name}' to dataclass: {e}"
+                            )
+                    
+                    # Check if it's a TypedDict (these stay as dicts, no conversion needed)
+                    if hasattr(param_type, '__annotations__') and hasattr(param_type, '__required_keys__'):
+                        # TypedDict is just a type hint, the value is already a dict
+                        converted_kwargs[param_name] = param_value
+                        _logger.debug(
+                            f"Parameter '{param_name}' is TypedDict, keeping as dict"
+                        )
+                        continue
+                
+                # No conversion needed or possible, keep original value
+                converted_kwargs[param_name] = param_value
+                
+            return converted_kwargs
+            
+        except Exception as e:
+            _logger.warning(
+                f"Failed to convert parameter types for tool '{self.name}': {e}. "
+                "Using original parameters."
+            )
+            return kwargs
+
     async def call_async(self, *args: P.args, **kwargs: P.kwargs) -> T_Output:
         """
         Executes the underlying function asynchronously with the provided arguments.
-        Automatically reconstructs callables if needed.
+        Automatically reconstructs callables if needed and converts parameter types.
 
         Args:
             *args: Positional arguments matching the ParamSpec P of the underlying function.
@@ -326,15 +425,18 @@ class Tool(BaseModel, Generic[P, T_Output]):
             raise ValueError(
                 f'Tool "{self.name}" is not callable because the "_callable_ref" instance variable is not set'
             )
+        
+        # Convert parameter types (e.g., dict to BaseModel)
+        converted_kwargs = self._convert_parameter_types(dict(kwargs))
 
         try:
             # Execute before_call callback - can short-circuit execution
             if self._before_call is not None:
                 _logger.debug(f"Executing before_call callback for tool '{self.name}'")
                 if inspect.iscoroutinefunction(self._before_call):
-                    before_result = await self._before_call(*args, **kwargs)
+                    before_result = await self._before_call(*args, **converted_kwargs)
                 else:
-                    before_result = self._before_call(*args, **kwargs)
+                    before_result = self._before_call(*args, **converted_kwargs)
 
                 # If before_call returns a result, use it and skip main function
                 if before_result is not None:
@@ -345,7 +447,7 @@ class Tool(BaseModel, Generic[P, T_Output]):
             _logger.debug(f"Executing main function for tool '{self.name}'")
             if inspect.iscoroutinefunction(self._callable_ref):
                 try:
-                    async_ret: T_Output = await self._callable_ref(*args, **kwargs)
+                    async_ret: T_Output = await self._callable_ref(*args, **converted_kwargs)
                 except Exception as e:
                     if self.ignore_errors:
                         _logger.error(
@@ -358,7 +460,7 @@ class Tool(BaseModel, Generic[P, T_Output]):
                 ret = async_ret
             else:
                 try:
-                    sync_ret: T_Output = self._callable_ref(*args, **kwargs)  # type: ignore[misc]
+                    sync_ret: T_Output = self._callable_ref(*args, **converted_kwargs)  # type: ignore[misc]
                 except Exception as e:
                     if self.ignore_errors:
                         _logger.error(
@@ -377,9 +479,9 @@ class Tool(BaseModel, Generic[P, T_Output]):
                 _logger.debug(f"Executing after_call callback for tool '{self.name}'")
                 if inspect.iscoroutinefunction(self._after_call):
                     # Pass result as first positional arg, then original args and kwargs
-                    modified_result = await self._after_call(ret, *args, **kwargs)
+                    modified_result = await self._after_call(ret, *args, **converted_kwargs)
                 else:
-                    modified_result = self._after_call(ret, *args, **kwargs)
+                    modified_result = self._after_call(ret, *args, **converted_kwargs)
 
                 return modified_result  # type: ignore[return-value]
 
