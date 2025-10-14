@@ -168,6 +168,22 @@ class FileParser(DocumentParser):
     - 1-2 for conservative rate limit compliance
     """
 
+    max_concurrent_pages: int = Field(default=4)
+    """Maximum number of PDF pages to process concurrently.
+    
+    Controls how many pages are processed in parallel during PDF parsing.
+    Lower values reduce memory usage and prevent overloading smaller AWS instances.
+    
+    Recommended values:
+    - 1-2 for small AWS instances (t2.micro, t2.small, t3.micro, t3.small)
+    - 2-3 for medium instances (t2.medium, t3.medium)
+    - 4-6 for large instances (t2.large, t3.large or better)
+    - 6-8+ for local development machines with good specs
+    
+    Note: Total concurrent API calls = max_concurrent_pages × max_concurrent_provider_tasks
+    Example: 2 pages × 4 provider tasks = 8 concurrent API calls
+    """
+
     async def parse_async(self, document_path: str) -> ParsedFile:
         """
         Asynchronously parse a document using the appropriate parser for its file type.
@@ -225,6 +241,7 @@ class FileParser(DocumentParser):
                     audio_description_provider=self.audio_description_provider,
                     parse_timeout=self.parse_timeout,
                     max_concurrent_provider_tasks=self.max_concurrent_provider_tasks,
+                    max_concurrent_pages=self.max_concurrent_pages,
                 ).parse_async(document_path=document_path)
 
             # For file paths, resolve and validate
@@ -263,6 +280,7 @@ class FileParser(DocumentParser):
                     audio_description_provider=self.audio_description_provider,
                     parse_timeout=self.parse_timeout,
                     max_concurrent_provider_tasks=self.max_concurrent_provider_tasks,
+                    max_concurrent_pages=self.max_concurrent_pages,
                 ).parse_async(document_path=document_path)
             else:
                 raise ValueError(
@@ -275,5 +293,6 @@ class FileParser(DocumentParser):
             audio_description_provider=self.audio_description_provider,
             parse_timeout=self.parse_timeout,
             max_concurrent_provider_tasks=self.max_concurrent_provider_tasks,
+            max_concurrent_pages=self.max_concurrent_pages,
             strategy=self.strategy,
         ).parse_async(document_path=str(resolved_path))

@@ -204,6 +204,20 @@ class PDFFileParser(DocumentParser):
     image_description_retries: int = Field(default=2)
     image_description_timeout: float = Field(default=25.0)
     max_concurrent_provider_tasks: int = Field(default=4)
+    max_concurrent_pages: int = Field(default=4)
+    """Maximum number of PDF pages to process concurrently.
+    
+    Controls how many pages are processed in parallel. Lower values reduce
+    memory usage and prevent overloading smaller AWS instances.
+    
+    Recommended values:
+    - 1-2 for small AWS instances (t2.micro, t2.small)
+    - 3-4 for medium instances (t2.medium, t3.medium)  
+    - 6-8 for large instances (t2.large, t3.large or better)
+    - Higher values for local development machines with good specs
+    
+    Note: Total concurrent API calls = max_concurrent_pages * max_concurrent_provider_tasks
+    """
     max_images_per_page: int | None = Field(default=None)
     max_total_images: int | None = Field(default=None)
     max_image_bytes: int | None = Field(default=None)
@@ -609,12 +623,17 @@ class PDFFileParser(DocumentParser):
 
             return (page_index, section, page_metrics)
 
-        # Process all pages concurrently with asyncio.gather
-        logger.debug(f"Processing {total_pages} pages concurrently...")
-        page_tasks = [
-            process_page(page_index, page)
-            for page_index, page in enumerate(reader.pages)
-        ]
+        # Process pages with bounded concurrency using a page-level semaphore
+        logger.debug(
+            f"Processing {total_pages} pages concurrently with limit={self.max_concurrent_pages}"
+        )
+        page_semaphore = asyncio.Semaphore(self.max_concurrent_pages)
+
+        async def gated_process_page(idx: int, pg: Any):
+            async with page_semaphore:
+                return await process_page(idx, pg)
+
+        page_tasks = [gated_process_page(page_index, page) for page_index, page in enumerate(reader.pages)]
         page_results = await asyncio.gather(*page_tasks, return_exceptions=False)
 
         # Sort results by page index and collect sections/metrics
