@@ -36,7 +36,6 @@ generation = provider.generate(
             ]
         )
     ],
-    tools=[Tool.from_callable(add_numbers)],
 )
 
 print(generation)
