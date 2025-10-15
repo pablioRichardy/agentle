@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.8.47
+## v0.8.48
 
-- fix(evolution) getting phone number ID from the right place
+- fix(evolution): getting from_number from sender
