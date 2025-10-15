@@ -31,6 +31,10 @@ from rsb.functions.ext2mime import ext2mime
 from rsb.models.field import Field
 
 from agentle.generations.models.message_parts.file import FilePart
+from agentle.generations.models.message_parts.text import TextPart
+from agentle.generations.models.structured_outputs_store.pdf_page_extraction import (
+    PDFPageExtraction,
+)
 from agentle.generations.models.structured_outputs_store.visual_media_description import (
     VisualMediaDescription,
 )
@@ -227,6 +231,26 @@ class PDFFileParser(DocumentParser):
     collect_metrics: bool = Field(default=True)
     progress_callback: Callable[[int, int], None] | None = Field(default=None)
     use_temp_copy: bool = Field(default=False)
+    use_native_pdf_processing: bool = Field(default=False)
+    """Enable native PDF processing by sending the entire PDF to the AI provider.
+    
+    When enabled, the parser will send the complete PDF file directly to the AI provider
+    (if it supports native PDF file processing) and request structured markdown extraction.
+    This completely eliminates backend processing and can run efficiently on AWS instances.
+    
+    Requirements:
+    - visual_description_provider must be set
+    - The provider must support FilePart with mime_type="application/pdf"
+    
+    Benefits:
+    - No PyMuPDF dependency required
+    - No memory-intensive screenshot rendering
+    - Faster processing as AI handles everything
+    - Works well on small AWS instances
+    
+    Note: When this is enabled, most other configuration options (like image_processing_mode,
+    render_scale, etc.) are ignored as the AI handles all processing.
+    """
 
     # Metrics state
     last_parse_metrics: PDFParseMetrics | None = None
@@ -271,6 +295,10 @@ class PDFFileParser(DocumentParser):
             asyncio.run(process_pdf())
             ```
         """
+        # Check if native PDF processing is enabled and we have a provider
+        if self.use_native_pdf_processing and self.visual_description_provider:
+            return await self._parse_with_native_pdf_processing(document_path)
+
         try:
             from pypdf import PdfReader
         except ImportError as e:  # pragma: no cover - dependency absent env
@@ -401,9 +429,11 @@ class PDFFileParser(DocumentParser):
         semaphore = asyncio.Semaphore(self.max_concurrent_provider_tasks)
 
         # Process pages concurrently for significant speedup
-        async def process_page(page_index: int, page: Any) -> tuple[int, SectionContent | None, PageMetrics | None]:
+        async def process_page(
+            page_index: int, page: Any
+        ) -> tuple[int, SectionContent | None, PageMetrics | None]:
             """Process a single PDF page asynchronously.
-            
+
             Returns:
                 Tuple of (page_index, section_content, metrics)
             """
@@ -427,7 +457,10 @@ class PDFFileParser(DocumentParser):
                     break
                 # Thread-safe check of global image limit
                 async with images_seen_lock:
-                    if self.max_total_images and total_images_seen >= self.max_total_images:
+                    if (
+                        self.max_total_images
+                        and total_images_seen >= self.max_total_images
+                    ):
                         logger.info(
                             "Global image limit reached (%d); skipping further images",
                             self.max_total_images,
@@ -485,11 +518,11 @@ class PDFFileParser(DocumentParser):
                     if isinstance(png_bytes, bytearray):  # normalize
                         png_bytes = bytes(png_bytes)
                     page_hash = hashlib.sha256(png_bytes).hexdigest()
-                    
+
                     # Thread-safe cache check
                     async with image_cache_lock:
                         cached_result = image_cache.get(page_hash)
-                    
+
                     if cached_result:
                         cached_md, _ = cached_result
                         image_descriptions.append(f"Page Visual Content: {cached_md}")
@@ -531,11 +564,11 @@ class PDFFileParser(DocumentParser):
                 tasks: list[Awaitable[tuple[int, str | None]]] = []
                 for img_idx, img_obj in enumerate(page_images, start=1):
                     img_hash_full = hashlib.sha256(img_obj.contents).hexdigest()
-                    
+
                     # Thread-safe cache check
                     async with image_cache_lock:
                         cached_result = image_cache.get(img_hash_full)
-                    
+
                     if cached_result:
                         cached_md, _ = cached_result
                         image_descriptions.append(
@@ -612,14 +645,18 @@ class PDFFileParser(DocumentParser):
             )
 
             # Create metrics for this page
-            page_metrics = PageMetrics(
-                page_number=page_index + 1,
-                text_chars=len(raw_text),
-                images_found=len(page_images),
-                images_described=sum(1 for _ in image_descriptions),
-                duration_s=time.time() - start_page,
-                mode=mode_used,
-            ) if self.collect_metrics else None
+            page_metrics = (
+                PageMetrics(
+                    page_number=page_index + 1,
+                    text_chars=len(raw_text),
+                    images_found=len(page_images),
+                    images_described=sum(1 for _ in image_descriptions),
+                    duration_s=time.time() - start_page,
+                    mode=mode_used,
+                )
+                if self.collect_metrics
+                else None
+            )
 
             return (page_index, section, page_metrics)
 
@@ -633,7 +670,10 @@ class PDFFileParser(DocumentParser):
             async with page_semaphore:
                 return await process_page(idx, pg)
 
-        page_tasks = [gated_process_page(page_index, page) for page_index, page in enumerate(reader.pages)]
+        page_tasks = [
+            gated_process_page(page_index, page)
+            for page_index, page in enumerate(reader.pages)
+        ]
         page_results = await asyncio.gather(*page_tasks, return_exceptions=False)
 
         # Sort results by page index and collect sections/metrics
@@ -738,3 +778,158 @@ class PDFFileParser(DocumentParser):
             return ext2mime(suffix)
         except Exception:  # pragma: no cover
             return "application/octet-stream"
+
+    async def _parse_with_native_pdf_processing(self, document_path: str) -> ParsedFile:
+        """Parse PDF using native AI provider processing.
+
+        This method sends the entire PDF to the AI provider and requests structured
+        markdown extraction. This eliminates all backend processing.
+
+        Args:
+            document_path: Path to the PDF file
+
+        Returns:
+            ParsedFile: Structured representation with AI-extracted content
+
+        Raises:
+            PDFFileValidationError: If file validation fails
+            PDFProviderError: If provider processing fails
+        """
+        # Validate path
+        try:
+            resolved_path = resolve_file_path(document_path)
+            validate_file_exists(resolved_path)
+        except FileValidationError as e:
+            logger.error("PDF file validation failed: %s", e)
+            raise PDFFileValidationError(str(e)) from e
+
+        display_path = (
+            Path(resolved_path).name if self.log_file_names_only else resolved_path
+        )
+        logger.debug("Parsing PDF with native AI processing: %s", display_path)
+
+        # Read the PDF file
+        try:
+            with open(resolved_path, "rb") as f:
+                pdf_bytes = f.read()
+        except PermissionError as e:
+            raise PDFReadError(f"Permission denied reading '{document_path}'") from e
+        except OSError as e:
+            raise PDFReadError(f"OS error reading '{document_path}': {e}") from e
+
+        if not pdf_bytes:
+            raise PDFEmptyFileError(f"PDF file '{document_path}' is empty")
+
+        # Create FilePart with the PDF
+        pdf_file_part = FilePart(mime_type="application/pdf", data=pdf_bytes)
+
+        # Create prompt for the AI
+        prompt_text = (
+            "You are a precise document extraction assistant. Extract the content from this PDF document "
+            "and return it as structured markdown. For each page:\n\n"
+            "1. Extract all text content preserving the document structure\n"
+            "2. Use markdown formatting (headings, lists, tables, etc.)\n"
+            "3. For tables, use proper markdown table syntax\n"
+            "4. If the page contains images, charts, or diagrams, describe them inline\n"
+            "5. Maintain the original reading order and hierarchy\n\n"
+            "Return the content organized by page number."
+        )
+
+        prompt = TextPart(text=prompt_text)
+
+        start_time = time.time()
+
+        try:
+            if self.visual_description_provider is None:
+                raise RuntimeError("Visual description provider must not be None.")
+
+            # Call the provider with the PDF and structured output schema
+            logger.debug("Sending PDF to AI provider for native processing")
+            response = await self.visual_description_provider.generate_by_prompt_async(
+                prompt=[pdf_file_part, prompt],
+                response_schema=PDFPageExtraction,
+            )
+ 
+            extraction: PDFPageExtraction = response.parsed
+            logger.debug(
+                "AI extracted %d pages from PDF in %.2fs",
+                extraction.total_pages,
+                time.time() - start_time,
+            )
+
+        except Exception as e:
+            logger.error("Native PDF processing failed: %s", e)
+            raise PDFProviderError(
+                f"Failed to process PDF with AI provider: {e}"
+            ) from e
+
+        # Convert the extraction to ParsedFile format
+        sections: MutableSequence[SectionContent] = []
+
+        for page_content in extraction.pages:
+            # Build the markdown for this page
+            page_md_parts = [f"## Page {page_content.page_number}"]
+
+            if page_content.markdown:
+                page_md_parts.append(page_content.markdown)
+
+            # Add image descriptions if present
+            if page_content.has_images and page_content.image_descriptions:
+                page_md_parts.append("\n### Visual Content")
+                for desc in page_content.image_descriptions:
+                    page_md_parts.append(f"- {desc}")
+
+            page_md = "\n\n".join(page_md_parts)
+
+            section = SectionContent(
+                number=page_content.page_number,
+                text=page_md,
+                md=page_md,
+                images=[],  # No raw image data with native processing
+            )
+            sections.append(section)
+
+        # Create metrics
+        if self.collect_metrics:
+            end_time = time.time()
+            self.last_parse_metrics = PDFParseMetrics(
+                total_pages=extraction.total_pages,
+                start_time_s=start_time,
+                end_time_s=end_time,
+                pages=[
+                    PageMetrics(
+                        page_number=i + 1,
+                        text_chars=len(sections[i].text) if i < len(sections) else 0,
+                        images_found=0,
+                        images_described=len(
+                            extraction.pages[i].image_descriptions or []
+                        )
+                        if i < len(extraction.pages)
+                        else 0,
+                        duration_s=0.0,  # All processed together
+                        mode="native_ai",
+                    )
+                    for i in range(extraction.total_pages)
+                ]
+                if extraction.total_pages == len(sections)
+                else None,
+                provider_calls=1,
+                provider_success=1,
+                provider_failures=0,
+            )
+
+        parsed = ParsedFile(name=Path(resolved_path).name, sections=sections)
+
+        if hasattr(parsed, "metadata") and isinstance(parsed.metadata, dict):
+            parsed.metadata.update(
+                {
+                    "parser": "pdf",
+                    "pages": extraction.total_pages,
+                    "strategy": "native_ai_processing",
+                    "visuals": True,
+                    "processing_mode": "native_ai",
+                    "document_title": extraction.document_title,
+                }
+            )
+
+        return parsed

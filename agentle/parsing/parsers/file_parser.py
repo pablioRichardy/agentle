@@ -200,6 +200,44 @@ class FileParser(DocumentParser):
                   render_scale=1.0 produces ~1-2MB screenshots per page
     """
 
+    use_native_pdf_processing: bool = Field(default=False)
+    """Enable native PDF processing by sending the entire PDF to the AI provider (PDF parsing only).
+    
+    When enabled for PDF files, the parser will send the complete PDF file directly 
+    to the AI provider (if it supports native PDF file processing) and request 
+    structured markdown extraction. This completely eliminates backend processing.
+    
+    Requirements:
+    - visual_description_provider must be set
+    - The provider must support FilePart with mime_type="application/pdf"
+    - Only applies to PDF files (ignored for other file types)
+    
+    Benefits:
+    - No PyMuPDF dependency required for PDFs
+    - No memory-intensive screenshot rendering
+    - Faster processing as AI handles everything
+    - Works well on small AWS instances
+    - Ideal for cloud deployments with minimal dependencies
+    
+    Example:
+        ```python
+        from agentle.parsing.parsers.file_parser import FileParser
+        from agentle.generations.providers.google import GoogleGenerationProvider
+        
+        provider = GoogleGenerationProvider(api_key="your-key")
+        parser = FileParser(
+            visual_description_provider=provider,
+            use_native_pdf_processing=True  # Let AI handle PDF processing
+        )
+        
+        # PDF will be sent directly to AI, no local processing
+        result = parser.parse("document.pdf")
+        ```
+    
+    Note: When enabled, most PDF-specific configuration options (like image_processing_mode,
+    render_scale, etc.) are ignored as the AI handles all processing.
+    """
+
     async def parse_async(self, document_path: str) -> ParsedFile:
         """
         Asynchronously parse a document using the appropriate parser for its file type.
@@ -313,5 +351,6 @@ class FileParser(DocumentParser):
             max_concurrent_provider_tasks=self.max_concurrent_provider_tasks,
             max_concurrent_pages=self.max_concurrent_pages,
             render_scale=self.render_scale,
+            use_native_pdf_processing=self.use_native_pdf_processing,
             strategy=self.strategy,
         ).parse_async(document_path=str(resolved_path))
