@@ -2270,7 +2270,7 @@ class WhatsAppBot(BaseModel):
             data = payload.data
 
             # Skip outgoing messages
-            if data["key"].get("fromMe", False):
+            if data.key.fromMe:
                 logger.debug("[MESSAGE_UPSERT] Skipping outgoing message")
                 return None
 
@@ -2338,9 +2338,9 @@ class WhatsAppBot(BaseModel):
 
         try:
             # Extract key information
-            key = data["key"]
-            message_id = key.get("id")
-            from_number = key.get("remoteJid")
+            key = data.key
+            message_id = key.id
+            from_number = key.remoteJid
 
             if not message_id or not from_number:
                 logger.warning("[PARSE_EVOLUTION] Missing message ID or from_number")
@@ -2351,7 +2351,7 @@ class WhatsAppBot(BaseModel):
             )
 
             # Get message type from the data
-            message_type = data.get("messageType", "")
+            message_type = data.messageType or ""
             logger.info(f"[PARSE_EVOLUTION] Message type: {message_type}")
 
             # Handle different message types
@@ -2362,42 +2362,43 @@ class WhatsAppBot(BaseModel):
                 # For edited messages, we might not have the content, but we should still process it
                 return WhatsAppTextMessage(
                     id=message_id,
-                    push_name=data.get("pushName", "Unknown"),
+                    push_name=data.pushName or "Unknown",
                     from_number=from_number,
                     to_number=self.provider.get_instance_identifier(),
                     timestamp=datetime.fromtimestamp(
-                        data.get("messageTimestamp", 0)
+                        (data.messageTimestamp or 0)
                         / 1000  # Convert from milliseconds
                     ),
                     text="[Message was edited]",  # Placeholder text for edited messages
                 )
 
             # Check if there's a message field
-            if data.get("message"):
-                msg_content = cast(Message, data.get("message"))
+            if data.message:
+                msg_content = data.message
 
                 # Handle text messages
-                if msg_content.get("conversation"):
-                    text = msg_content.get("conversation")
+                if msg_content.conversation:
+                    text = msg_content.conversation
                     logger.debug(
                         f"[PARSE_EVOLUTION] Found conversation text: {text[:50] if text else 'None'}..."
                     )
 
                     return WhatsAppTextMessage(
                         id=message_id,
-                        push_name=data.get("pushName", "Unknown"),
+                        push_name=data.pushName or "Unknown",
                         from_number=from_number,
                         to_number=self.provider.get_instance_identifier(),
                         timestamp=datetime.fromtimestamp(
-                            data.get("messageTimestamp", 0)
+                            (data.messageTimestamp or 0)
                             / 1000  # Convert from milliseconds
                         ),
                         text=text or ".",
                     )
 
-                # Handle extended text messages
-                elif msg_content.get("extendedTextMessage"):
-                    extended_text_message = msg_content.get("extendedTextMessage")
+                # Handle extended text messages (extendedTextMessage is not in Message BaseModel, needs dict access)
+                # TODO: Add extendedTextMessage to Message BaseModel if needed
+                elif hasattr(msg_content, '__dict__') and msg_content.__dict__.get("extendedTextMessage"):
+                    extended_text_message = msg_content.__dict__.get("extendedTextMessage")
                     text = (
                         extended_text_message.get("text", "")
                         if extended_text_message
@@ -2410,92 +2411,90 @@ class WhatsAppBot(BaseModel):
                     return WhatsAppTextMessage(
                         id=message_id,
                         from_number=from_number,
-                        push_name=data.get("pushName", "Unknown"),
+                        push_name=data.pushName or "Unknown",
                         to_number=self.provider.get_instance_identifier(),
                         timestamp=datetime.fromtimestamp(
-                            data.get("messageTimestamp", 0) / 1000
+                            (data.messageTimestamp or 0) / 1000
                         ),
                         text=text,
                     )
 
                 # Handle image messages
-                elif msg_content.get("imageMessage"):
+                elif msg_content.imageMessage:
                     logger.debug("[PARSE_EVOLUTION] Found image message")
-                    image_msg = msg_content.get("imageMessage")
+                    image_msg = msg_content.imageMessage
                     return WhatsAppImageMessage(
                         id=message_id,
                         from_number=from_number,
-                        push_name=data.get("pushName", "Unknown"),
+                        push_name=data.pushName or "Unknown",
                         to_number=self.provider.get_instance_identifier(),
                         timestamp=datetime.fromtimestamp(
-                            data.get("messageTimestamp", 0) / 1000
+                            (data.messageTimestamp or 0) / 1000
                         ),
-                        media_url=image_msg.get("url", "") if image_msg else "",
-                        media_mime_type=image_msg.get("mimetype", "image/jpeg")
+                        media_url=getattr(image_msg, "url", "") if image_msg else "",
+                        media_mime_type=getattr(image_msg, "mimetype", "image/jpeg")
                         if image_msg
                         else "image/jpeg",
-                        caption=image_msg.get("caption") if image_msg else "",
+                        caption=getattr(image_msg, "caption", "") if image_msg else "",
                     )
 
                 # Handle document messages
-                elif msg_content.get("documentMessage"):
+                elif msg_content.documentMessage:
                     logger.debug("[PARSE_EVOLUTION] Found document message")
-                    doc_msg = msg_content.get("documentMessage")
+                    doc_msg = msg_content.documentMessage
                     return WhatsAppDocumentMessage(
                         id=message_id,
                         from_number=from_number,
-                        push_name=data.get("pushName", "Unknown"),
+                        push_name=data.pushName or "Unknown",
                         to_number=self.provider.get_instance_identifier(),
                         timestamp=datetime.fromtimestamp(
-                            data.get("messageTimestamp", 0) / 1000
+                            (data.messageTimestamp or 0) / 1000
                         ),
-                        media_url=doc_msg.get("url", "") if doc_msg else "",
-                        media_mime_type=doc_msg.get(
-                            "mimetype", "application/octet-stream"
-                        )
+                        media_url=getattr(doc_msg, "url", "") if doc_msg else "",
+                        media_mime_type=getattr(doc_msg, "mimetype", "application/octet-stream")
                         if doc_msg
                         else "application/octet-stream",
-                        filename=doc_msg.get("fileName") if doc_msg else "",
-                        caption=doc_msg.get("caption") if doc_msg else "",
+                        filename=getattr(doc_msg, "fileName", "") if doc_msg else "",
+                        caption=getattr(doc_msg, "caption", "") if doc_msg else "",
                     )
 
                 # Handle audio messages
-                elif msg_content.get("audioMessage"):
+                elif msg_content.audioMessage:
                     logger.debug("[PARSE_EVOLUTION] Found audio message")
-                    audio_msg = msg_content.get("audioMessage")
+                    audio_msg = msg_content.audioMessage
                     return WhatsAppAudioMessage(
                         id=message_id,
                         from_number=from_number,
-                        push_name=data.get("pushName", "Unknown"),
+                        push_name=data.pushName or "Unknown",
                         to_number=self.provider.get_instance_identifier(),
                         timestamp=datetime.fromtimestamp(
-                            data.get("messageTimestamp", 0) / 1000
+                            (data.messageTimestamp or 0) / 1000
                         ),
-                        media_url=audio_msg.get("url", "") if audio_msg else "",
-                        media_mime_type=audio_msg.get("mimetype", "audio/ogg")
+                        media_url=getattr(audio_msg, "url", "") if audio_msg else "",
+                        media_mime_type=getattr(audio_msg, "mimetype", "audio/ogg")
                         if audio_msg
                         else "audio/ogg",
                     )
-                elif msg_content.get("videoMessage"):
+                elif msg_content.videoMessage:
                     logger.debug("[PARSE_EVOLUTION] Found video message")
-                    video_msg = msg_content.get("videoMessage")
+                    video_msg = msg_content.videoMessage
                     return WhatsAppVideoMessage(
                         id=message_id,
                         from_number=from_number,
-                        push_name=data.get("pushName", "Unknown"),
-                        caption=video_msg.get("caption") if video_msg else None,
+                        push_name=data.pushName or "Unknown",
+                        caption=getattr(video_msg, "caption", None) if video_msg else None,
                         to_number=self.provider.get_instance_identifier(),
                         timestamp=datetime.fromtimestamp(
-                            data.get("messageTimestamp", 0) / 1000
+                            (data.messageTimestamp or 0) / 1000
                         ),
-                        media_url=video_msg.get("url", "") if video_msg else "",
-                        media_mime_type=video_msg.get("mimetype", "")
+                        media_url=getattr(video_msg, "url", "") if video_msg else "",
+                        media_mime_type=getattr(video_msg, "mimetype", "")
                         if video_msg
                         else "",
                     )
                 else:
                     logger.warning(
-                        f"[PARSE_EVOLUTION] Unknown message type in content: {list(msg_content.keys())}"
+                        f"[PARSE_EVOLUTION] Unknown message type in content: {msg_content.__class__.__name__}"
                     )
 
             # If we get here and message is empty but we have messageType info, skip processing
