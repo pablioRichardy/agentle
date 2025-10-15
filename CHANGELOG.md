@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.8.42
+## v0.8.43
 
-- feat(provider): enhance async embedding methods to handle None values for ids and metadata
+- feat(pdf): native pdf processing
 
