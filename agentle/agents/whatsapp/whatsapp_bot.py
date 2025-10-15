@@ -25,7 +25,6 @@ from agentle.agents.agent import Agent
 from agentle.agents.agent_input import AgentInput
 from agentle.agents.conversations.conversation_store import ConversationStore
 from agentle.agents.whatsapp.models.data import Data
-from agentle.agents.whatsapp.models.message import Message
 from agentle.agents.whatsapp.models.whatsapp_audio_message import WhatsAppAudioMessage
 from agentle.agents.whatsapp.models.whatsapp_bot_config import WhatsAppBotConfig
 from agentle.agents.whatsapp.models.whatsapp_document_message import (
@@ -2276,7 +2275,14 @@ class WhatsAppBot(BaseModel):
 
             logger.info("[MESSAGE_UPSERT] Parsing message from Evolution API data")
             # Parse message directly from data (which contains the message info)
-            message = self._parse_evolution_message_from_data(data)
+            sender = payload.sender
+            if sender is None:
+                raise RuntimeError("Sender is None. Cannot proceed.")
+
+            message = self._parse_evolution_message_from_data(
+                data,
+                from_number=sender,
+            )
 
             if message:
                 logger.info(
@@ -2332,7 +2338,9 @@ class WhatsAppBot(BaseModel):
         else:
             logger.info(f"[CONNECTION_UPDATE] WhatsApp connection update: {payload}")
 
-    def _parse_evolution_message_from_data(self, data: Data) -> WhatsAppMessage | None:
+    def _parse_evolution_message_from_data(
+        self, data: Data, from_number: str
+    ) -> WhatsAppMessage | None:
         """Parse Evolution API message from webhook data field."""
         logger.debug("[PARSE_EVOLUTION] Parsing Evolution message from data")
 
@@ -2340,7 +2348,6 @@ class WhatsAppBot(BaseModel):
             # Extract key information
             key = data.key
             message_id = key.id
-            from_number = key.remoteJid
 
             if not message_id or not from_number:
                 logger.warning("[PARSE_EVOLUTION] Missing message ID or from_number")
@@ -2366,8 +2373,7 @@ class WhatsAppBot(BaseModel):
                     from_number=from_number,
                     to_number=self.provider.get_instance_identifier(),
                     timestamp=datetime.fromtimestamp(
-                        (data.messageTimestamp or 0)
-                        / 1000  # Convert from milliseconds
+                        (data.messageTimestamp or 0) / 1000  # Convert from milliseconds
                     ),
                     text="[Message was edited]",  # Placeholder text for edited messages
                 )
@@ -2397,8 +2403,12 @@ class WhatsAppBot(BaseModel):
 
                 # Handle extended text messages (extendedTextMessage is not in Message BaseModel, needs dict access)
                 # TODO: Add extendedTextMessage to Message BaseModel if needed
-                elif hasattr(msg_content, '__dict__') and msg_content.__dict__.get("extendedTextMessage"):
-                    extended_text_message = msg_content.__dict__.get("extendedTextMessage")
+                elif hasattr(msg_content, "__dict__") and msg_content.__dict__.get(
+                    "extendedTextMessage"
+                ):
+                    extended_text_message = msg_content.__dict__.get(
+                        "extendedTextMessage"
+                    )
                     text = (
                         extended_text_message.get("text", "")
                         if extended_text_message
@@ -2451,7 +2461,9 @@ class WhatsAppBot(BaseModel):
                             (data.messageTimestamp or 0) / 1000
                         ),
                         media_url=getattr(doc_msg, "url", "") if doc_msg else "",
-                        media_mime_type=getattr(doc_msg, "mimetype", "application/octet-stream")
+                        media_mime_type=getattr(
+                            doc_msg, "mimetype", "application/octet-stream"
+                        )
                         if doc_msg
                         else "application/octet-stream",
                         filename=getattr(doc_msg, "fileName", "") if doc_msg else "",
@@ -2482,7 +2494,9 @@ class WhatsAppBot(BaseModel):
                         id=message_id,
                         from_number=from_number,
                         push_name=data.pushName or "Unknown",
-                        caption=getattr(video_msg, "caption", None) if video_msg else None,
+                        caption=getattr(video_msg, "caption", None)
+                        if video_msg
+                        else None,
                         to_number=self.provider.get_instance_identifier(),
                         timestamp=datetime.fromtimestamp(
                             (data.messageTimestamp or 0) / 1000
