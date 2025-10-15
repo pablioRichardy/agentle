@@ -2278,7 +2278,9 @@ class WhatsAppBot(BaseModel):
 
             message = self._parse_evolution_message_from_data(
                 data,
-                from_number=payload.data.key.senderPn or payload.data.key.remoteJid,
+                from_number=cast(str, payload.sender)
+                if "@lid" in payload.data.key.remoteJid
+                else payload.data.key.remoteJid,
             )
 
             if message:
