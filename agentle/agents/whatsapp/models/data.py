@@ -1,11 +1,12 @@
-from typing import NotRequired, TypedDict
+from rsb.models.base_model import BaseModel
+from rsb.models.field import Field
 
 from agentle.agents.whatsapp.models.context_info import ContextInfo
 from agentle.agents.whatsapp.models.key import Key
 from agentle.agents.whatsapp.models.message import Message
 
 
-class Data(TypedDict):
+class Data(BaseModel):
     """Dados principais do webhook WhatsApp.
 
     Attributes:
@@ -23,9 +24,9 @@ class Data(TypedDict):
     key: Key
     pushName: str
     status: str
-    message: NotRequired[Message]
-    messageType: NotRequired[str]
-    messageTimestamp: NotRequired[int]
-    instanceId: NotRequired[str]
-    source: NotRequired[str]
-    contextInfo: NotRequired[ContextInfo | None]
+    message: Message | None = Field(default=None)
+    messageType: str | None = Field(default=None)
+    messageTimestamp: int | None = Field(default=None)
+    instanceId: str | None = Field(default=None)
+    source: str | None = Field(default=None)
+    contextInfo: ContextInfo | None = Field(default=None)

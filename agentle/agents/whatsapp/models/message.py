@@ -1,4 +1,5 @@
-from typing import NotRequired, TypedDict
+from rsb.models.base_model import BaseModel
+from rsb.models.field import Field
 
 from agentle.agents.whatsapp.models.audio_message import AudioMessage
 from agentle.agents.whatsapp.models.document_message import DocumentMessage
@@ -7,7 +8,7 @@ from agentle.agents.whatsapp.models.message_context_info import MessageContextIn
 from agentle.agents.whatsapp.models.video_message import VideoMessage
 
 
-class Message(TypedDict):
+class Message(BaseModel):
     """Conteúdo da mensagem WhatsApp.
 
     Attributes:
@@ -20,10 +21,10 @@ class Message(TypedDict):
         base64: Conteúdo da mídia codificado em base64 (opcional)
     """
 
-    conversation: NotRequired[str]
-    imageMessage: NotRequired[ImageMessage]
-    documentMessage: NotRequired[DocumentMessage]
-    audioMessage: NotRequired[AudioMessage]
-    videoMessage: NotRequired[VideoMessage]
-    messageContextInfo: NotRequired[MessageContextInfo]
-    base64: NotRequired[str]
+    conversation: str | None = Field(default=None)
+    imageMessage: ImageMessage | None = Field(default=None)
+    documentMessage: DocumentMessage | None = Field(default=None)
+    audioMessage: AudioMessage | None = Field(default=None)
+    videoMessage: VideoMessage | None = Field(default=None)
+    messageContextInfo: MessageContextInfo | None = Field(default=None)
+    base64: str | None = Field(default=None)

@@ -1,9 +1,12 @@
-from typing import Any, NotRequired, TypedDict
+from typing import Any
+
+from rsb.models.base_model import BaseModel
+from rsb.models.field import Field
 
 from agentle.agents.whatsapp.models.device_list_metadata import DeviceListMetadata
 
 
-class MessageContextInfo(TypedDict):
+class MessageContextInfo(BaseModel):
     """Informações de contexto da mensagem WhatsApp.
 
     Attributes:
@@ -12,6 +15,6 @@ class MessageContextInfo(TypedDict):
         messageSecret: Segredo da mensagem para criptografia (pode ser dict ou str)
     """
 
-    deviceListMetadata: NotRequired[DeviceListMetadata]
-    deviceListMetadataVersion: NotRequired[int]
-    messageSecret: NotRequired[dict[str, Any] | str]
+    deviceListMetadata: DeviceListMetadata | None = Field(default=None)
+    deviceListMetadataVersion: int | None = Field(default=None)
+    messageSecret: dict[str, Any] | str | None = Field(default=None)

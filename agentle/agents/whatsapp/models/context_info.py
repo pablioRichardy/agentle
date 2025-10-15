@@ -1,9 +1,10 @@
-from typing import NotRequired, TypedDict
+from rsb.models.base_model import BaseModel
+from rsb.models.field import Field
 
 from agentle.agents.whatsapp.models.quoted_message import QuotedMessage
 
 
-class ContextInfo(TypedDict):
+class ContextInfo(BaseModel):
     """Informações de contexto da mensagem WhatsApp.
 
     Attributes:
@@ -12,6 +13,6 @@ class ContextInfo(TypedDict):
         quotedMessage: Mensagem citada/respondida
     """
 
-    stanzaId: NotRequired[str]
-    participant: NotRequired[str]
-    quotedMessage: NotRequired[QuotedMessage]
+    stanzaId: str | None = Field(default=None)
+    participant: str | None = Field(default=None)
+    quotedMessage: QuotedMessage | None = Field(default=None)

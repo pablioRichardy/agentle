@@ -1,7 +1,7 @@
-from typing import TypedDict
+from rsb.models.base_model import BaseModel
 
 
-class Key(TypedDict):
+class Key(BaseModel):
     """Chave identificadora da mensagem WhatsApp.
 
     Attributes:
