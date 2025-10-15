@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.8.43
+## v0.8.44
 
-- feat(pdf): native pdf processing
+- fix(evolution): new input data formats
 
