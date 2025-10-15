@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.8.49
+## v0.8.50
 
-- fix(evolution): not removing @s.whatsapp.net from messages
+- 
