@@ -6,6 +6,7 @@ This example demonstrates how to use different model providers with the Agentle 
 
 from dotenv import load_dotenv
 
+from agentle.generations.models.message_parts.file import FilePart
 from agentle.generations.models.message_parts.text import TextPart
 from agentle.generations.models.messages.user_message import UserMessage
 from agentle.generations.providers.base.generation_provider import GenerationProvider
@@ -23,15 +24,21 @@ def add_numbers(a: float, b: float) -> float:
 # Example 1: Create an agent with Google's Gemini model
 provider: GenerationProvider = OpenRouterGenerationProvider()
 
+example_file = FilePart.from_local_file(
+    "/Users/arthurbrenno/Documents/Dev/Paragon/agentle/examples/curriculum.pdf",
+    "application/pdf",
+)
+
 # Run the Google agent
 generation = provider.generate(
-    model="meta-llama/llama-3.3-70b-instruct:free",
+    model="google/gemini-flash-latest",
     messages=[
         UserMessage(
             parts=[
+                example_file,
                 TextPart(
-                    text="what is 2+2?",
-                )
+                    text="Sobre o que este PDF fala?",
+                ),
             ]
         )
     ],
