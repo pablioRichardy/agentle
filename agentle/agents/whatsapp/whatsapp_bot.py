@@ -2700,7 +2700,7 @@ class WhatsAppBot(BaseModel):
 
         try:
             if "@" not in to:
-                to += "@@s.whatsapp.net"
+                to += "@s.whatsapp.net"
 
             await self._send_response(to, message, reply_to)
             logger.info(f"[SEND_MESSAGE] ✅ Message sent successfully to {to}")
