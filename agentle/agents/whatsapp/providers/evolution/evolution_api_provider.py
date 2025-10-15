@@ -1355,23 +1355,61 @@ class EvolutionAPIProvider(WhatsAppProvider):
         Normalize phone number to Evolution API format.
 
         Evolution API expects phone numbers in the format: countrycode+number@s.whatsapp.net
+        
+        Brazilian mobile format: 55 + DDD (2 digits) + 9 + 8 digits = 13 digits total
+        Example: 5534998137839@s.whatsapp.net
         """
         original_phone = phone
-
+        
+        # Remove @s.whatsapp.net suffix if present
+        if "@s.whatsapp.net" in phone:
+            phone = phone.split("@")[0]
+        
         # Remove non-numeric characters
         phone = "".join(c for c in phone if c.isdigit())
-
-        # Ensure country code is present (default to Brazil +55 if not)
-        if not phone.startswith("55") and len(phone) <= 11:
-            phone = "55" + phone
-
+        
+        # Handle different input formats
+        if not phone.startswith("55"):
+            # No country code - add it
+            if len(phone) == 11:
+                # Format: DDD (2) + 9 (1) + 8 digits = 11 digits
+                # Example: 34998137839 -> 5534998137839
+                phone = "55" + phone
+                logger.debug(f"Added country code 55 to phone: {original_phone} -> {phone}")
+            elif len(phone) == 10:
+                # Old format without the 9: DDD (2) + 8 digits = 10 digits
+                # Example: 3498137839 -> 5534998137839
+                # Insert '9' after area code (first 2 digits)
+                phone = "55" + phone[:2] + "9" + phone[2:]
+                logger.warning(f"Converted old format phone number: {original_phone} -> {phone}")
+            else:
+                # Unknown format, but add 55 anyway
+                phone = "55" + phone
+                logger.warning(f"Unknown phone format, added 55: {original_phone} -> {phone}")
+        
+        # Validate Brazilian mobile format
+        if phone.startswith("55"):
+            # Should have 13 digits total: 55 + DDD (2) + 9 + 8 digits
+            if len(phone) == 12:
+                # Missing the '9' after area code
+                # Example: 553498137839 -> 5534998137839
+                # Insert '9' after 55 + DDD (after position 4)
+                phone = phone[:4] + "9" + phone[4:]
+                logger.warning(f"Fixed missing '9' in phone number: {original_phone} -> {phone}")
+            elif len(phone) != 13:
+                logger.error(f"Invalid Brazilian mobile number length: {phone} (expected 13 digits, got {len(phone)})")
+            
+            # Validate that the 5th digit is '9' (mobile indicator)
+            if len(phone) >= 5 and phone[4] != "9":
+                logger.warning(f"Phone number may be invalid - 5th digit is not '9': {phone}")
+        
         # Add @s.whatsapp.net suffix if not present
         if not phone.endswith("@s.whatsapp.net"):
             phone = phone + "@s.whatsapp.net"
-
+        
         if original_phone != phone:
-            logger.debug(f"Phone number normalized: {original_phone} -> {phone}")
-
+            logger.info(f"Phone number normalized: {original_phone} -> {phone}")
+        
         return phone
 
     def get_stats(self) -> Mapping[str, Any]:
