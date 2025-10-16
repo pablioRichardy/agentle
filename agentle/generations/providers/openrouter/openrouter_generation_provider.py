@@ -258,7 +258,7 @@ class OpenRouterGenerationProvider(GenerationProvider):
                     "name": "response_schema",
                     "strict": True,
                     "schema": JsonSchemaBuilder(
-                        cast(type[Any], response_schema),
+                        cast(type[Any], response_schema),  # pyright: ignore[reportGeneralTypeIssues]
                         use_defs_instead_of_definitions=True,
                         clean_output=True,
                         strict_mode=True,
