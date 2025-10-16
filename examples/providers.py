@@ -31,7 +31,7 @@ example_file = FilePart.from_local_file(
 
 # Run the Google agent
 generation = provider.generate(
-    model="google/gemini-flash-latest",
+    model="google/gemini-2.5-flash",
     messages=[
         UserMessage(
             parts=[
