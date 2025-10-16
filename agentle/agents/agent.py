@@ -2244,6 +2244,12 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                         )
                         return
 
+                    # FIXED: Add assistant message with tool calls to context BEFORE processing tools
+                    # This ensures the LLM knows what tools it called in the previous iteration
+                    context.message_history.append(
+                        final_tool_generation.message.to_assistant_message()
+                    )
+
                     # FIXED: Process tools for this iteration only
                     _logger.bind_optional(
                         lambda log: log.info(
@@ -2939,6 +2945,12 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
                     context=context,
                     performance_metrics=performance_metrics,
                 )
+
+            # FIXED: Add assistant message with tool calls to context BEFORE processing tools
+            # This ensures the LLM knows what tools it called in the previous iteration
+            context.message_history.append(
+                tool_call_generation.message.to_assistant_message()
+            )
 
             # FIXED: Process tools and create clean tool results for this iteration
             _logger.bind_optional(
