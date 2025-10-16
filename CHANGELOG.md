@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.8.61
+## v0.8.62
 
-- refactor(whatsapp_bot) update table formatting to a vertical list for improved readability on WhatsApp
+- fix(agent) ensure assistant message with tool calls is added to context before processing tools
