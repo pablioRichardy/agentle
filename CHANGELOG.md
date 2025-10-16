@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.8.52
+## v0.8.53
 
-- fix(evolution) add proper formatting for brazillian numbers
+- feat(parsing) add append_content method to ParsedFile for dynamic content addition

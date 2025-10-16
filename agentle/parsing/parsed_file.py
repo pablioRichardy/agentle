@@ -15,6 +15,10 @@ from agentle.generations.providers.base.generation_provider import GenerationPro
 from agentle.parsing.chunk import Chunk
 from agentle.parsing.chunking.chunking_config import ChunkingConfig
 from agentle.parsing.chunking.chunking_strategy import ChunkingStrategy
+from agentle.parsing.image import Image
+from agentle.parsing.page_item.heading_page_item import HeadingPageItem
+from agentle.parsing.page_item.table_page_item import TablePageItem
+from agentle.parsing.page_item.text_page_item import TextPageItem
 from agentle.parsing.section_content import SectionContent
 
 
@@ -97,7 +101,7 @@ class ParsedFile(BaseModel):
         description="Name of the file",
     )
 
-    sections: Sequence[SectionContent] = Field(
+    sections: MutableSequence[SectionContent] = Field(
         description="Pages of the document",
     )
 
@@ -106,6 +110,26 @@ class ParsedFile(BaseModel):
     )
 
     def split(self) -> Sequence[Chunk]: ...
+
+    def append_content(
+        self,
+        text: str,
+        md: str | None = None,
+        images: Sequence[Image] | None = None,
+        items: Sequence[TextPageItem | HeadingPageItem | TablePageItem] | None = None,
+    ) -> None:
+        """
+        Append content to the document.
+        """
+        self.sections.append(
+            SectionContent(
+                number=len(self.sections) + 1,
+                text=text,
+                md=md,
+                images=images or [],
+                items=items or [],
+            )
+        )
 
     @cached_property
     def unique_id(self) -> str:
@@ -441,7 +465,7 @@ class ParsedFile(BaseModel):
     def from_sections(
         cls,
         name: str,
-        sections: Sequence[SectionContent],
+        sections: MutableSequence[SectionContent],
         metadata: Mapping[str, Any] | None = None,
     ) -> ParsedFile:
         """
