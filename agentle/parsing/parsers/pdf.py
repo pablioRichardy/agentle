@@ -855,6 +855,11 @@ class PDFFileParser(DocumentParser):
             )
 
             extraction: PDFPageExtraction = response.parsed
+            if not extraction or not extraction.pages:
+                raise PDFProviderError(
+                    f"No extraction returned from provider. {response}"
+                )
+
             logger.debug(
                 "AI extracted %d pages from PDF in %.2fs",
                 extraction.total_pages,
