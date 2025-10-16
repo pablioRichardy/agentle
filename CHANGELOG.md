@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.8.57
+## v0.8.58
 
-- fix(pdf) handle case where no extraction is returned from PDF provider
+- fix(pdf) improve error handling for PDF extraction failures
