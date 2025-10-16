@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.8.53
+## v0.8.54
 
-- feat(parsing) add append_content method to ParsedFile for dynamic content addition
+- feat(static_knowledge) add from_text class method for creating StaticKnowledge instances from text
