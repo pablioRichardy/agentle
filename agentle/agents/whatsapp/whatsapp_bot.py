@@ -2030,21 +2030,28 @@ class WhatsAppBot(BaseModel):
                 if not paragraph.strip():
                     continue
 
-                # Then split each paragraph by single line breaks
+                # Check if paragraph is a list (has list markers)
                 lines = paragraph.split("\n")
+                is_list_paragraph = self._is_list_content(lines)
 
-                for line in lines:
-                    line = line.strip()
-                    if not line:
-                        continue
+                if is_list_paragraph:
+                    # Group list items together instead of splitting each line
+                    grouped_list = self._group_list_items(lines)
+                    messages.extend(grouped_list)
+                else:
+                    # For non-list paragraphs, split by lines as before
+                    for line in lines:
+                        line = line.strip()
+                        if not line:
+                            continue
 
-                    # Check if this line fits within message length limits
-                    if len(line) <= self.config.max_message_length:
-                        messages.append(line)
-                    else:
-                        # Split long lines by length
-                        split_lines = self._split_long_line(line)
-                        messages.extend(split_lines)
+                        # Check if this line fits within message length limits
+                        if len(line) <= self.config.max_message_length:
+                            messages.append(line)
+                        else:
+                            # Split long lines by length
+                            split_lines = self._split_long_line(line)
+                            messages.extend(split_lines)
 
             # Filter out empty messages and validate
             final_messages = []
@@ -2065,6 +2072,15 @@ class WhatsAppBot(BaseModel):
                 final_messages = [
                     "[Não foi possível processar a mensagem]"
                 ]  # Portuguese: "Could not process message"
+
+            # Apply max split messages limit
+            if len(final_messages) > self.config.max_split_messages:
+                logger.info(
+                    f"[SPLIT_MESSAGE] Limiting messages from {len(final_messages)} to {self.config.max_split_messages}"
+                )
+                final_messages = self._apply_message_limit(
+                    final_messages, self.config.max_split_messages
+                )
 
             logger.debug(
                 f"[SPLIT_MESSAGE] Split message of {len(text)} chars into {len(final_messages)} parts"
@@ -2146,6 +2162,119 @@ class WhatsAppBot(BaseModel):
             chunks.append(current_chunk)
 
         return chunks
+
+    def _is_list_content(self, lines: Sequence[str]) -> bool:
+        """Check if lines contain list markers (numbered or bullet points)."""
+        if not lines:
+            return False
+
+        list_markers = 0
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                continue
+
+            # Check for numbered lists: "1.", "2)", "1 -", etc.
+            if re.match(r"^\d+[\.\)]\s", stripped) or re.match(
+                r"^\d+\s[-–—]\s", stripped
+            ):
+                list_markers += 1
+            # Check for bullet points: "•", "*", "-", "→", etc.
+            elif re.match(r"^[•\*\-→▪►]\s", stripped):
+                list_markers += 1
+
+        # If more than 50% of non-empty lines are list items, consider it a list
+        non_empty_lines = sum(1 for line in lines if line.strip())
+        return non_empty_lines > 0 and (list_markers / non_empty_lines) >= 0.5
+
+    def _group_list_items(self, lines: Sequence[str]) -> Sequence[str]:
+        """Group list items together to avoid splitting each item into a separate message."""
+        if not lines:
+            return []
+
+        messages: MutableSequence[str] = []
+        current_group: MutableSequence[str] = []
+        current_length = 0
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            # Calculate potential length if we add this line
+            potential_length = current_length + len(line)
+            if current_group:
+                potential_length += 1  # For the newline
+
+            # If adding this line would exceed the limit, save current group and start new one
+            if potential_length > self.config.max_message_length and current_group:
+                messages.append("\n".join(current_group))
+                current_group = [line]
+                current_length = len(line)
+            else:
+                current_group.append(line)
+                current_length = potential_length
+
+        # Add remaining group
+        if current_group:
+            messages.append("\n".join(current_group))
+
+        return messages
+
+    def _apply_message_limit(
+        self, messages: Sequence[str], max_messages: int
+    ) -> Sequence[str]:
+        """
+        Apply limit to number of split messages.
+        If exceeded, group remaining messages together.
+        """
+        if len(messages) <= max_messages:
+            return messages
+
+        # Keep first (max_messages - 1) messages as-is
+        limited_messages = list(messages[: max_messages - 1])
+
+        # Group all remaining messages into one
+        remaining = messages[max_messages - 1 :]
+
+        # Try to join remaining messages with double line breaks
+        grouped_remaining = "\n\n".join(remaining)
+
+        # If the grouped message is too long, split it more intelligently
+        if len(grouped_remaining) > self.config.max_message_length:
+            # Split by chunks that fit
+            chunks: MutableSequence[str] = []
+            current_chunk = ""
+
+            for msg in remaining:
+                test_chunk = current_chunk + ("\n\n" if current_chunk else "") + msg
+
+                if len(test_chunk) <= self.config.max_message_length:
+                    current_chunk = test_chunk
+                else:
+                    if current_chunk:
+                        chunks.append(current_chunk)
+                    current_chunk = msg
+
+                    # If single message is too long, hard split it
+                    if len(current_chunk) > self.config.max_message_length:
+                        for i in range(
+                            0, len(current_chunk), self.config.max_message_length
+                        ):
+                            chunk = current_chunk[
+                                i : i + self.config.max_message_length
+                            ]
+                            chunks.append(chunk)
+                        current_chunk = ""
+
+            if current_chunk:
+                chunks.append(current_chunk)
+
+            limited_messages.extend(chunks)
+        else:
+            limited_messages.append(grouped_remaining)
+
+        return limited_messages
 
     async def _send_error_message(
         self, to: PhoneNumber, reply_to: str | None = None

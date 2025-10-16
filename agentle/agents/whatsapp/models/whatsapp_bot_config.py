@@ -29,6 +29,10 @@ class WhatsAppBotConfig(BaseModel):
     max_message_length: int = Field(
         default=4096, description="Maximum message length (WhatsApp limit)"
     )
+    max_split_messages: int = Field(
+        default=5,
+        description="Maximum number of split messages to send (remaining will be grouped)",
+    )
     error_message: str = Field(
         default="Sorry, I encountered an error processing your message. Please try again.",
         description="Default error message",
@@ -128,6 +132,7 @@ class WhatsAppBotConfig(BaseModel):
         quote_messages: bool | None = None,
         session_timeout_minutes: int | None = None,
         max_message_length: int | None = None,
+        max_split_messages: int | None = None,
         error_message: str | None = None,
         welcome_message: str | None = None,
         # Message Batching
@@ -209,6 +214,8 @@ class WhatsAppBotConfig(BaseModel):
             overrides["session_timeout_minutes"] = session_timeout_minutes
         if max_message_length is not None:
             overrides["max_message_length"] = max_message_length
+        if max_split_messages is not None:
+            overrides["max_split_messages"] = max_split_messages
         if error_message is not None:
             overrides["error_message"] = error_message
         if welcome_message is not None:
