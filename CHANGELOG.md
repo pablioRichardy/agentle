@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.8.58
+## v0.8.59
 
-- fix(pdf) improve error handling for PDF extraction failures
+- feat(file_parser) add model field for visual description generation in FileParser
