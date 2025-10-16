@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.8.60
+## v0.8.61
 
-- fix(generation_provider) normalize model names by removing 'google/' prefix
+- refactor(whatsapp_bot) update table formatting to a vertical list for improved readability on WhatsApp
