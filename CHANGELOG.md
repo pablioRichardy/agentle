@@ -1,5 +1,6 @@
 # Changelog
 
-## v0.8.64
+## v0.8.65
 
-- feat(parsers): add use_native_docx_processing to constructor and propagate that
+- converted all TypedDict models in 
+models to BaseModel instances and updated all code that accesses them.
