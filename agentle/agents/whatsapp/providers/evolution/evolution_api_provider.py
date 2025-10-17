@@ -753,11 +753,9 @@ class EvolutionAPIProvider(WhatsAppProvider):
             # This is essential for @lid numbers (Brazilian WhatsApp contacts)
             session = await self.get_session(to)
             remote_jid = session.context_data.get("remote_jid") if session else None
-            
+
             if remote_jid:
-                logger.info(
-                    f"🔑 Using stored remoteJid for {to}: {remote_jid}"
-                )
+                logger.info(f"🔑 Using stored remoteJid for {to}: {remote_jid}")
                 normalized_to = remote_jid
             else:
                 normalized_to = self._normalize_phone(to)
@@ -958,7 +956,7 @@ class EvolutionAPIProvider(WhatsAppProvider):
             # This is essential for @lid numbers (Brazilian WhatsApp contacts)
             session = await self.get_session(to)
             remote_jid = session.context_data.get("remote_jid") if session else None
-            
+
             if remote_jid:
                 logger.debug(
                     f"🔑 Using stored remoteJid for typing indicator to {to}: {remote_jid}"
@@ -966,7 +964,7 @@ class EvolutionAPIProvider(WhatsAppProvider):
                 normalized_to = remote_jid
             else:
                 normalized_to = self._normalize_phone(to)
-            
+
             payload = {
                 "number": normalized_to,
                 "presence": "composing",
@@ -1125,8 +1123,11 @@ class EvolutionAPIProvider(WhatsAppProvider):
         logger.debug(f"Getting/creating session for {phone}")
 
         try:
-            normalized_phone = self._normalize_phone(phone)
-            session_id = f"{self.config.instance_name}_{normalized_phone}"
+            # CRITICAL FIX: Do NOT normalize phone for session management
+            # Sessions should use the original phone number to avoid duplicates
+            # Normalization should ONLY happen when making Evolution API calls
+            clean_phone = phone.split("@")[0] if "@" in phone else phone
+            session_id = f"{self.config.instance_name}_{clean_phone}"
 
             logger.debug(f"Session ID: {session_id}")
 
@@ -1156,11 +1157,11 @@ class EvolutionAPIProvider(WhatsAppProvider):
                 logger.debug(
                     f"No contact info available, creating minimal contact for {phone}"
                 )
-                contact = WhatsAppContact(phone=normalized_phone)
+                contact = WhatsAppContact(phone=clean_phone)
 
             new_session = WhatsAppSession(
                 session_id=session_id,
-                phone_number=normalized_phone,
+                phone_number=clean_phone,
                 contact=contact,
             )
 
@@ -1170,15 +1171,6 @@ class EvolutionAPIProvider(WhatsAppProvider):
             )
 
             if success:
-                logger.info(
-                    f"Created new session for {phone}",
-                    extra={
-                        "phone": phone,
-                        "normalized_phone": normalized_phone,
-                        "session_id": session_id,
-                        "ttl_seconds": self.session_ttl_seconds,
-                    },
-                )
                 return new_session
             else:
                 logger.warning(
@@ -1378,19 +1370,19 @@ class EvolutionAPIProvider(WhatsAppProvider):
         Normalize phone number to Evolution API format.
 
         Evolution API expects phone numbers in the format: countrycode+number@s.whatsapp.net
-        
+
         Brazilian mobile format: 55 + DDD (2 digits) + 9 + 8 digits = 13 digits total
         Example: 5534998137839@s.whatsapp.net
         """
         original_phone = phone
-        
+
         # Remove @s.whatsapp.net suffix if present
         if "@s.whatsapp.net" in phone:
             phone = phone.split("@")[0]
-        
+
         # Remove non-numeric characters
         phone = "".join(c for c in phone if c.isdigit())
-        
+
         # Handle different input formats
         if not phone.startswith("55"):
             # No country code - add it
@@ -1398,18 +1390,24 @@ class EvolutionAPIProvider(WhatsAppProvider):
                 # Format: DDD (2) + 9 (1) + 8 digits = 11 digits
                 # Example: 34998137839 -> 5534998137839
                 phone = "55" + phone
-                logger.debug(f"Added country code 55 to phone: {original_phone} -> {phone}")
+                logger.debug(
+                    f"Added country code 55 to phone: {original_phone} -> {phone}"
+                )
             elif len(phone) == 10:
                 # Old format without the 9: DDD (2) + 8 digits = 10 digits
                 # Example: 3498137839 -> 5534998137839
                 # Insert '9' after area code (first 2 digits)
                 phone = "55" + phone[:2] + "9" + phone[2:]
-                logger.warning(f"Converted old format phone number: {original_phone} -> {phone}")
+                logger.warning(
+                    f"Converted old format phone number: {original_phone} -> {phone}"
+                )
             else:
                 # Unknown format, but add 55 anyway
                 phone = "55" + phone
-                logger.warning(f"Unknown phone format, added 55: {original_phone} -> {phone}")
-        
+                logger.warning(
+                    f"Unknown phone format, added 55: {original_phone} -> {phone}"
+                )
+
         # Validate Brazilian mobile format
         if phone.startswith("55"):
             # Should have 13 digits total: 55 + DDD (2) + 9 + 8 digits
@@ -1418,21 +1416,27 @@ class EvolutionAPIProvider(WhatsAppProvider):
                 # Example: 553498137839 -> 5534998137839
                 # Insert '9' after 55 + DDD (after position 4)
                 phone = phone[:4] + "9" + phone[4:]
-                logger.warning(f"Fixed missing '9' in phone number: {original_phone} -> {phone}")
+                logger.warning(
+                    f"Fixed missing '9' in phone number: {original_phone} -> {phone}"
+                )
             elif len(phone) != 13:
-                logger.error(f"Invalid Brazilian mobile number length: {phone} (expected 13 digits, got {len(phone)})")
-            
+                logger.error(
+                    f"Invalid Brazilian mobile number length: {phone} (expected 13 digits, got {len(phone)})"
+                )
+
             # Validate that the 5th digit is '9' (mobile indicator)
             if len(phone) >= 5 and phone[4] != "9":
-                logger.warning(f"Phone number may be invalid - 5th digit is not '9': {phone}")
-        
+                logger.warning(
+                    f"Phone number may be invalid - 5th digit is not '9': {phone}"
+                )
+
         # Add @s.whatsapp.net suffix if not present
         if not phone.endswith("@s.whatsapp.net"):
             phone = phone + "@s.whatsapp.net"
-        
+
         if original_phone != phone:
             logger.info(f"Phone number normalized: {original_phone} -> {phone}")
-        
+
         return phone
 
     def get_stats(self) -> Mapping[str, Any]:
