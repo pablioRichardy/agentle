@@ -1,7 +1,10 @@
-from typing import Any, NotRequired, TypedDict
+from typing import Any
+
+from rsb.models.base_model import BaseModel
+from rsb.models.field import Field
 
 
-class ImageMessage(TypedDict):
+class ImageMessage(BaseModel):
     """Dados de uma mensagem com imagem do WhatsApp.
 
     Attributes:
@@ -25,20 +28,20 @@ class ImageMessage(TypedDict):
     """
 
     url: str
-    mimetype: NotRequired[str]
-    caption: NotRequired[str]
-    fileSha256: NotRequired[str]
-    fileLength: NotRequired[str]
-    height: NotRequired[int]
-    width: NotRequired[int]
-    mediaKey: NotRequired[str]
-    fileEncSha256: NotRequired[str]
-    directPath: NotRequired[str]
-    mediaKeyTimestamp: NotRequired[str]
-    jpegThumbnail: NotRequired[str]
-    contextInfo: NotRequired[dict[str, Any]]
-    firstScanSidecar: NotRequired[str]
-    firstScanLength: NotRequired[int]
-    scansSidecar: NotRequired[str]
-    scanLengths: NotRequired[list[int]]
-    midQualityFileSha256: NotRequired[str]
+    mimetype: str | None = Field(default=None)
+    caption: str | None = Field(default=None)
+    fileSha256: str | None = Field(default=None)
+    fileLength: str | None = Field(default=None)
+    height: int | None = Field(default=None)
+    width: int | None = Field(default=None)
+    mediaKey: str | None = Field(default=None)
+    fileEncSha256: str | None = Field(default=None)
+    directPath: str | None = Field(default=None)
+    mediaKeyTimestamp: str | None = Field(default=None)
+    jpegThumbnail: str | None = Field(default=None)
+    contextInfo: dict[str, Any] | None = Field(default=None)
+    firstScanSidecar: str | None = Field(default=None)
+    firstScanLength: int | None = Field(default=None)
+    scansSidecar: str | None = Field(default=None)
+    scanLengths: list[int] | None = Field(default=None)
+    midQualityFileSha256: str | None = Field(default=None)

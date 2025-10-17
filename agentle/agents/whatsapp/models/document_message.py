@@ -1,7 +1,8 @@
-from typing import NotRequired, TypedDict
+from rsb.models.base_model import BaseModel
+from rsb.models.field import Field
 
 
-class DocumentMessage(TypedDict):
+class DocumentMessage(BaseModel):
     """Dados de uma mensagem com documento do WhatsApp.
 
     Attributes:
@@ -19,13 +20,13 @@ class DocumentMessage(TypedDict):
     """
 
     url: str
-    mimetype: NotRequired[str]
-    title: NotRequired[str]
-    fileSha256: NotRequired[str]
-    fileLength: NotRequired[str]
-    mediaKey: NotRequired[str]
-    fileName: NotRequired[str]
-    fileEncSha256: NotRequired[str]
-    directPath: NotRequired[str]
-    mediaKeyTimestamp: NotRequired[str]
-    contactVcard: NotRequired[bool]
+    mimetype: str | None = Field(default=None)
+    title: str | None = Field(default=None)
+    fileSha256: str | None = Field(default=None)
+    fileLength: str | None = Field(default=None)
+    mediaKey: str | None = Field(default=None)
+    fileName: str | None = Field(default=None)
+    fileEncSha256: str | None = Field(default=None)
+    directPath: str | None = Field(default=None)
+    mediaKeyTimestamp: str | None = Field(default=None)
+    contactVcard: bool | None = Field(default=None)

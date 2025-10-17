@@ -1,21 +1,24 @@
-from typing import Any, NotRequired, TypedDict
+from typing import Any
+
+from rsb.models.base_model import BaseModel
+from rsb.models.field import Field
 
 
-class VideoMessage(TypedDict):
-    """Dados de uma mensagem com imagem do WhatsApp.
+class VideoMessage(BaseModel):
+    """Dados de uma mensagem com vídeo do WhatsApp.
 
     Attributes:
-        url: URL da imagem no servidor WhatsApp
-        mimetype: Tipo MIME da imagem (ex: "image/jpeg")
+        url: URL do vídeo no servidor WhatsApp
+        mimetype: Tipo MIME do vídeo (ex: "video/mp4")
         fileSha256: Hash SHA256 do arquivo para verificação de integridade
         fileLength: Tamanho do arquivo em bytes (como string)
-        height: Altura da imagem em pixels
-        width: Largura da imagem em pixels
+        height: Altura do vídeo em pixels
+        width: Largura do vídeo em pixels
         mediaKey: Chave de criptografia para decodificar a mídia
         fileEncSha256: Hash SHA256 do arquivo criptografado
         directPath: Caminho direto para download da mídia
         mediaKeyTimestamp: Timestamp da chave de mídia
-        jpegThumbnail: Thumbnail da imagem em base64 (opcional)
+        jpegThumbnail: Thumbnail do vídeo em base64 (opcional)
         contextInfo: Informações de contexto da mensagem (opcional)
         firstScanSidecar: Dados do primeiro scan de segurança (opcional)
         firstScanLength: Tamanho do primeiro scan (opcional)
@@ -25,20 +28,20 @@ class VideoMessage(TypedDict):
     """
 
     url: str
-    mimetype: NotRequired[str]
-    caption: NotRequired[str]
-    fileSha256: NotRequired[str]
-    fileLength: NotRequired[str]
-    height: NotRequired[int]
-    width: NotRequired[int]
-    mediaKey: NotRequired[str]
-    fileEncSha256: NotRequired[str]
-    directPath: NotRequired[str]
-    mediaKeyTimestamp: NotRequired[str]
-    jpegThumbnail: NotRequired[str]
-    contextInfo: NotRequired[dict[str, Any]]
-    firstScanSidecar: NotRequired[str]
-    firstScanLength: NotRequired[int]
-    scansSidecar: NotRequired[str]
-    scanLengths: NotRequired[list[int]]
-    midQualityFileSha256: NotRequired[str]
+    mimetype: str | None = Field(default=None)
+    caption: str | None = Field(default=None)
+    fileSha256: str | None = Field(default=None)
+    fileLength: str | None = Field(default=None)
+    height: int | None = Field(default=None)
+    width: int | None = Field(default=None)
+    mediaKey: str | None = Field(default=None)
+    fileEncSha256: str | None = Field(default=None)
+    directPath: str | None = Field(default=None)
+    mediaKeyTimestamp: str | None = Field(default=None)
+    jpegThumbnail: str | None = Field(default=None)
+    contextInfo: dict[str, Any] | None = Field(default=None)
+    firstScanSidecar: str | None = Field(default=None)
+    firstScanLength: int | None = Field(default=None)
+    scansSidecar: str | None = Field(default=None)
+    scanLengths: list[int] | None = Field(default=None)
+    midQualityFileSha256: str | None = Field(default=None)

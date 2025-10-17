@@ -1,4 +1,5 @@
-from typing import NotRequired, TypedDict
+from rsb.models.base_model import BaseModel
+from rsb.models.field import Field
 
 from agentle.agents.whatsapp.models.audio_message import AudioMessage
 from agentle.agents.whatsapp.models.document_message import DocumentMessage
@@ -6,7 +7,7 @@ from agentle.agents.whatsapp.models.image_message import ImageMessage
 from agentle.agents.whatsapp.models.video_message import VideoMessage
 
 
-class QuotedMessage(TypedDict):
+class QuotedMessage(BaseModel):
     """Mensagem citada/respondida no WhatsApp.
 
     Attributes:
@@ -17,8 +18,8 @@ class QuotedMessage(TypedDict):
         videoMessage: Dados do vídeo citado (opcional)
     """
 
-    conversation: NotRequired[str]
-    imageMessage: NotRequired[ImageMessage]
-    documentMessage: NotRequired[DocumentMessage]
-    audioMessage: NotRequired[AudioMessage]
-    videoMessage: NotRequired[VideoMessage]
+    conversation: str | None = Field(default=None)
+    imageMessage: ImageMessage | None = Field(default=None)
+    documentMessage: DocumentMessage | None = Field(default=None)
+    audioMessage: AudioMessage | None = Field(default=None)
+    videoMessage: VideoMessage | None = Field(default=None)

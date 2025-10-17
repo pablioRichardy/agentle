@@ -35,7 +35,7 @@ def create_bot() -> Application:
     """Example 2: Production bot with optimized configuration."""
 
     agent = Agent(
-        instructions="Você é um assistente profissional. Seja útil, cortês e eficiente.",
+        instructions="Você é um assistente profissional. Seja útil, cortês e eficiente. Responda todas as perguntas.",
         conversation_store=JSONFileConversationStore(),
     )
 

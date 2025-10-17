@@ -1,7 +1,8 @@
-from typing import NotRequired, TypedDict
+from rsb.models.base_model import BaseModel
+from rsb.models.field import Field
 
 
-class AudioMessage(TypedDict):
+class AudioMessage(BaseModel):
     """Dados de uma mensagem de áudio do WhatsApp.
 
     Attributes:
@@ -20,14 +21,14 @@ class AudioMessage(TypedDict):
     """
 
     url: str
-    mimetype: NotRequired[str]
-    fileSha256: NotRequired[str]
-    fileLength: NotRequired[str]
-    seconds: NotRequired[int]
-    ptt: NotRequired[bool]
-    mediaKey: NotRequired[str]
-    fileEncSha256: NotRequired[str]
-    directPath: NotRequired[str]
-    mediaKeyTimestamp: NotRequired[str]
-    streamingSidecar: NotRequired[str]
-    waveform: NotRequired[str]
+    mimetype: str | None = Field(default=None)
+    fileSha256: str | None = Field(default=None)
+    fileLength: str | None = Field(default=None)
+    seconds: int | None = Field(default=None)
+    ptt: bool | None = Field(default=None)
+    mediaKey: str | None = Field(default=None)
+    fileEncSha256: str | None = Field(default=None)
+    directPath: str | None = Field(default=None)
+    mediaKeyTimestamp: str | None = Field(default=None)
+    streamingSidecar: str | None = Field(default=None)
+    waveform: str | None = Field(default=None)

@@ -2758,11 +2758,9 @@ class WhatsAppBot(BaseModel):
                         timestamp=datetime.fromtimestamp(
                             (data.messageTimestamp or 0) / 1000
                         ),
-                        media_url=getattr(image_msg, "url", "") if image_msg else "",
-                        media_mime_type=getattr(image_msg, "mimetype", "image/jpeg")
-                        if image_msg
-                        else "image/jpeg",
-                        caption=getattr(image_msg, "caption", "") if image_msg else "",
+                        media_url=image_msg.url if image_msg else "",
+                        media_mime_type=image_msg.mimetype if image_msg and image_msg.mimetype else "image/jpeg",
+                        caption=image_msg.caption if image_msg and image_msg.caption else "",
                     )
 
                 # Handle document messages
@@ -2777,14 +2775,10 @@ class WhatsAppBot(BaseModel):
                         timestamp=datetime.fromtimestamp(
                             (data.messageTimestamp or 0) / 1000
                         ),
-                        media_url=getattr(doc_msg, "url", "") if doc_msg else "",
-                        media_mime_type=getattr(
-                            doc_msg, "mimetype", "application/octet-stream"
-                        )
-                        if doc_msg
-                        else "application/octet-stream",
-                        filename=getattr(doc_msg, "fileName", "") if doc_msg else "",
-                        caption=getattr(doc_msg, "caption", "") if doc_msg else "",
+                        media_url=doc_msg.url if doc_msg else "",
+                        media_mime_type=doc_msg.mimetype if doc_msg and doc_msg.mimetype else "application/octet-stream",
+                        filename=doc_msg.fileName if doc_msg and doc_msg.fileName else "",
+                        caption=doc_msg.caption if doc_msg and doc_msg.caption else "",
                     )
 
                 # Handle audio messages
@@ -2799,10 +2793,8 @@ class WhatsAppBot(BaseModel):
                         timestamp=datetime.fromtimestamp(
                             (data.messageTimestamp or 0) / 1000
                         ),
-                        media_url=getattr(audio_msg, "url", "") if audio_msg else "",
-                        media_mime_type=getattr(audio_msg, "mimetype", "audio/ogg")
-                        if audio_msg
-                        else "audio/ogg",
+                        media_url=audio_msg.url if audio_msg else "",
+                        media_mime_type=audio_msg.mimetype if audio_msg and audio_msg.mimetype else "audio/ogg",
                     )
                 elif msg_content.videoMessage:
                     logger.debug("[PARSE_EVOLUTION] Found video message")
@@ -2811,17 +2803,13 @@ class WhatsAppBot(BaseModel):
                         id=message_id,
                         from_number=from_number,
                         push_name=data.pushName or "Unknown",
-                        caption=getattr(video_msg, "caption", None)
-                        if video_msg
-                        else None,
+                        caption=video_msg.caption if video_msg and video_msg.caption else None,
                         to_number=self.provider.get_instance_identifier(),
                         timestamp=datetime.fromtimestamp(
                             (data.messageTimestamp or 0) / 1000
                         ),
-                        media_url=getattr(video_msg, "url", "") if video_msg else "",
-                        media_mime_type=getattr(video_msg, "mimetype", "")
-                        if video_msg
-                        else "",
+                        media_url=video_msg.url if video_msg else "",
+                        media_mime_type=video_msg.mimetype if video_msg and video_msg.mimetype else "",
                     )
                 else:
                     logger.warning(
