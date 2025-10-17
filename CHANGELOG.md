@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.8.67
+## v0.8.68
 
-- fix(whatsapp) threat some fields as buffers as evolution sends
+- feat(openrouter) streaming with structured outputs
