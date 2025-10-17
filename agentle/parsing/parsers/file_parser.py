@@ -241,6 +241,26 @@ class FileParser(DocumentParser):
     render_scale, etc.) are ignored as the AI handles all processing.
     """
 
+    use_native_docx_processing: bool = Field(default=False)
+    """Enable native DOCX processing by sending the entire DOCX to the AI provider.
+    
+    When enabled, the parser will send the complete DOCX file directly to the AI provider
+    (if it supports native DOCX file processing) and request structured markdown extraction.
+    This completely eliminates backend processing and can run efficiently on AWS instances.
+    
+    Requirements:
+    - visual_description_provider must be set
+    - The provider must support FilePart with mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    
+    Benefits:
+    - No python-docx dependency required
+    - No LibreOffice/pandoc conversion needed
+    - Faster processing as AI handles everything
+    - Works well on small AWS instances
+    
+    Note: When this is enabled, most other configuration options are ignored as the AI handles all processing.
+    """
+
     async def parse_async(self, document_path: str) -> ParsedFile:
         """
         Asynchronously parse a document using the appropriate parser for its file type.
@@ -355,6 +375,7 @@ class FileParser(DocumentParser):
             max_concurrent_pages=self.max_concurrent_pages,
             render_scale=self.render_scale,
             use_native_pdf_processing=self.use_native_pdf_processing,
+            use_native_docx_processing=self.use_native_docx_processing,
             strategy=self.strategy,
             model=self.model,
         ).parse_async(document_path=str(resolved_path))
