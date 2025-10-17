@@ -11,6 +11,12 @@ from rsb.models.field import Field
 from agentle.prompts.models.prompt import Prompt
 
 
+class CacheControl(BaseModel):
+    """Cache control for prompt caching (Anthropic-style)."""
+
+    type: Literal["ephemeral"] = Field(default="ephemeral")
+
+
 @valueobject
 class TextPart(BaseModel):
     """
@@ -25,6 +31,11 @@ class TextPart(BaseModel):
     )
 
     text: str | Prompt = Field(description="The textual content of the message part.")
+
+    cache_control: CacheControl | None = Field(
+        default=None,
+        description="Cache control for prompt caching (Anthropic-style).",
+    )
 
     def __str__(self) -> str:
         return self.text if isinstance(self.text, str) else self.text.text

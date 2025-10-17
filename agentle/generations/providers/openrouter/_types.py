@@ -23,11 +23,18 @@ class OpenRouterImageUrlPart(TypedDict):
     image_url: OpenRouterImageUrl
 
 
+class OpenRouterCacheControl(TypedDict):
+    """Cache control for prompt caching (Anthropic-style)."""
+
+    type: Literal["ephemeral"]
+
+
 class OpenRouterTextPart(TypedDict):
     """Text content part."""
 
     type: Literal["text"]
     text: str
+    cache_control: NotRequired[OpenRouterCacheControl]
 
 
 class OpenRouterFileData(TypedDict):
@@ -104,6 +111,7 @@ class OpenRouterAssistantMessage(TypedDict):
     role: Literal["assistant"]
     content: str | None
     tool_calls: NotRequired[Sequence[OpenRouterToolCall]]
+    reasoning: NotRequired[str]  # Reasoning from models that support it
 
 
 class OpenRouterToolMessage(TypedDict):
@@ -145,14 +153,28 @@ class OpenRouterTool(TypedDict):
     function: OpenRouterToolFunction
 
 
+class OpenRouterMaxPrice(TypedDict):
+    """Maximum pricing constraints."""
+
+    prompt: NotRequired[float]  # Price per million tokens
+    completion: NotRequired[float]  # Price per million tokens
+    request: NotRequired[float]  # Price per request
+    image: NotRequired[float]  # Price per image
+
+
 class OpenRouterProviderPreferences(TypedDict):
     """Provider routing preferences."""
 
     allow_fallbacks: NotRequired[bool]
     require_parameters: NotRequired[bool]
     data_collection: NotRequired[Literal["allow", "deny"]]
+    zdr: NotRequired[bool]  # Zero Data Retention enforcement
     order: NotRequired[Sequence[str]]
+    only: NotRequired[Sequence[str]]  # Only allow these providers
+    ignore: NotRequired[Sequence[str]]  # Ignore these providers
     quantizations: NotRequired[Sequence[str]]
+    sort: NotRequired[Literal["price", "throughput", "latency"]]
+    max_price: NotRequired[OpenRouterMaxPrice]
 
 
 class OpenRouterJsonSchema(TypedDict):
@@ -183,6 +205,18 @@ class OpenRouterFileParserPlugin(TypedDict):
     pdf: NotRequired[OpenRouterPdfPluginConfig]
 
 
+class OpenRouterWebSearchPlugin(TypedDict):
+    """Web search plugin configuration."""
+
+    id: Literal["web"]
+    engine: NotRequired[Literal["native", "exa"]]  # Search engine to use
+    max_results: NotRequired[int]  # Max number of search results (default 5)
+    search_prompt: NotRequired[str]  # Custom prompt for search results
+
+
+OpenRouterPlugin = OpenRouterFileParserPlugin | OpenRouterWebSearchPlugin
+
+
 class OpenRouterUsage(TypedDict):
     """Token usage information."""
 
@@ -197,6 +231,7 @@ class OpenRouterResponseMessage(TypedDict):
     role: Literal["assistant"]
     content: str | None
     tool_calls: NotRequired[Sequence[OpenRouterToolCall]]
+    reasoning: NotRequired[str]  # Reasoning from models that support it
 
 
 class OpenRouterChoice(TypedDict):
@@ -219,6 +254,37 @@ class OpenRouterResponse(TypedDict):
     usage: OpenRouterUsage
 
 
+# Streaming response types
+
+
+class OpenRouterStreamDelta(TypedDict):
+    """Delta content in streaming response."""
+
+    role: NotRequired[Literal["assistant"]]
+    content: NotRequired[str]
+    tool_calls: NotRequired[Sequence[OpenRouterToolCall]]
+    reasoning: NotRequired[str]
+
+
+class OpenRouterStreamChoice(TypedDict):
+    """Choice in streaming response."""
+
+    index: int
+    delta: OpenRouterStreamDelta
+    finish_reason: NotRequired[str | None]
+
+
+class OpenRouterStreamResponse(TypedDict):
+    """Streaming response chunk from OpenRouter API."""
+
+    id: str
+    provider: NotRequired[str]
+    model: str
+    object: Literal["chat.completion.chunk"]
+    created: int
+    choices: Sequence[OpenRouterStreamChoice]
+
+
 class OpenRouterRequest(TypedDict):
     """Complete request structure for OpenRouter API."""
 
@@ -234,4 +300,5 @@ class OpenRouterRequest(TypedDict):
     tool_choice: NotRequired[Literal["auto", "none"] | dict[str, object]]
     response_format: NotRequired[OpenRouterResponseFormat]
     provider: NotRequired[OpenRouterProviderPreferences]
-    plugins: NotRequired[Sequence[OpenRouterFileParserPlugin]]
+    plugins: NotRequired[Sequence[OpenRouterPlugin]]
+    transforms: NotRequired[Sequence[Literal["middle-out"]]]  # Context compression

@@ -4,7 +4,7 @@ from typing import Any, cast
 from pydantic import BaseModel, Field
 
 
-def parse_streaming_json[T](potential_json: str | None, model: type[T]) -> T:
+def parse_streaming_json[T: BaseModel](potential_json: str | None, model: type[T]) -> T:
     """
     Parse a potentially incomplete or malformed JSON string and create a Pydantic model instance.
 

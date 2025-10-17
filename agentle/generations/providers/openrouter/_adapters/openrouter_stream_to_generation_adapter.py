@@ -1,0 +1,242 @@
+# Adapter for OpenRouter streaming responses to generation
+"""
+Adapter for converting OpenRouter streaming responses to Agentle Generation objects.
+
+This module handles the transformation of OpenRouter's SSE streaming format into
+Agentle's standardized Generation format, processing delta chunks into complete
+messages.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from collections.abc import AsyncGenerator
+from typing import Any
+
+from agentle.generations.models.generation.generation import Generation
+from agentle.generations.models.message_parts.text import TextPart
+from agentle.generations.models.message_parts.tool_execution_suggestion import (
+    ToolExecutionSuggestion,
+)
+from agentle.generations.models.messages.generated_assistant_message import (
+    GeneratedAssistantMessage,
+)
+from agentle.generations.models.generation.choice import Choice
+from agentle.generations.providers.openrouter._types import (
+    OpenRouterStreamResponse,
+    OpenRouterStreamDelta,
+)
+
+logger = logging.getLogger(__name__)
+
+
+class OpenRouterStreamToGenerationAdapter[T]:
+    """
+    Adapter for converting OpenRouter streaming responses to Generation objects.
+
+    Processes SSE streaming chunks and accumulates them into Generation objects
+    that can be yielded as the stream progresses.
+
+    Attributes:
+        response_schema: Optional Pydantic model class for parsing structured data.
+        model: The model identifier being used.
+    """
+
+    response_schema: type[T] | None
+    model: str
+
+    def __init__(
+        self,
+        *,
+        response_schema: type[T] | None = None,
+        model: str,
+    ):
+        """
+        Initialize the streaming adapter.
+
+        Args:
+            response_schema: Optional Pydantic model class for structured output.
+            model: The model identifier being used.
+        """
+        self.response_schema = response_schema
+        self.model = model
+
+    async def adapt(
+        self,
+        response_stream: AsyncGenerator[bytes, None],
+    ) -> AsyncGenerator[Generation[None], None]:
+        """
+        Convert an OpenRouter SSE stream to an async generator of Generations.
+
+        Args:
+            response_stream: The async generator of raw response bytes.
+
+        Yields:
+            Generation objects as chunks arrive.
+        """
+        # Accumulate content across chunks
+        accumulated_content = ""
+        accumulated_reasoning = ""
+        accumulated_tool_calls: dict[str, dict[str, Any]] = {}
+        buffer = ""
+
+        async for chunk_bytes in response_stream:
+            chunk_str = chunk_bytes.decode("utf-8")
+            buffer += chunk_str
+
+            # Process complete SSE lines
+            while "\n" in buffer:
+                line, buffer = buffer.split("\n", 1)
+                line = line.strip()
+
+                # Skip empty lines and comments
+                if not line or line.startswith(":"):
+                    continue
+
+                # Parse SSE data
+                if line.startswith("data: "):
+                    data = line[6:]
+
+                    # Check for stream end
+                    if data == "[DONE]":
+                        # Yield final generation if we have accumulated content
+                        if accumulated_content or accumulated_tool_calls:
+                            yield self._build_generation(
+                                accumulated_content,
+                                accumulated_reasoning,
+                                accumulated_tool_calls,
+                            )
+                        return
+
+                    try:
+                        chunk_data: OpenRouterStreamResponse = json.loads(data)
+                        
+                        # Check for errors in the chunk
+                        if "error" in chunk_data:
+                            error_msg = chunk_data.get("error", {}).get("message", "Unknown error")
+                            logger.error(f"Stream error: {error_msg}")
+                            raise RuntimeError(f"OpenRouter stream error: {error_msg}")
+
+                        # Extract delta from first choice
+                        if chunk_data.get("choices"):
+                            choice = chunk_data["choices"][0]
+                            delta: OpenRouterStreamDelta = choice.get("delta", {})
+
+                            # Accumulate content
+                            if "content" in delta and delta["content"]:
+                                accumulated_content += delta["content"]
+
+                            # Accumulate reasoning
+                            if "reasoning" in delta and delta["reasoning"]:
+                                accumulated_reasoning += delta["reasoning"]
+
+                            # Accumulate tool calls
+                            if "tool_calls" in delta:
+                                for tool_call in delta["tool_calls"]:
+                                    tool_id = tool_call.get("id", "")
+                                    if tool_id not in accumulated_tool_calls:
+                                        accumulated_tool_calls[tool_id] = {
+                                            "id": tool_id,
+                                            "type": "function",
+                                            "function": {
+                                                "name": "",
+                                                "arguments": "",
+                                            },
+                                        }
+                                    
+                                    function = tool_call.get("function", {})
+                                    if "name" in function:
+                                        accumulated_tool_calls[tool_id]["function"]["name"] = function["name"]
+                                    if "arguments" in function:
+                                        accumulated_tool_calls[tool_id]["function"]["arguments"] += function["arguments"]
+
+                            # Check for finish_reason
+                            finish_reason = choice.get("finish_reason")
+                            if finish_reason:
+                                # Stream is complete for this choice
+                                yield self._build_generation(
+                                    accumulated_content,
+                                    accumulated_reasoning,
+                                    accumulated_tool_calls,
+                                )
+                                return
+
+                            # Yield intermediate generation
+                            yield self._build_generation(
+                                accumulated_content,
+                                accumulated_reasoning,
+                                accumulated_tool_calls,
+                            )
+
+                    except json.JSONDecodeError:
+                        logger.warning(f"Failed to parse SSE chunk: {data}")
+                        continue
+
+    def _build_generation(
+        self,
+        content: str,
+        reasoning: str,
+        tool_calls: dict[str, dict[str, Any]],
+    ) -> Generation[None]:
+        """
+        Build a Generation object from accumulated chunks.
+
+        Args:
+            content: Accumulated text content.
+            reasoning: Accumulated reasoning.
+            tool_calls: Accumulated tool calls.
+
+        Returns:
+            A Generation object with the current state.
+        """
+        import datetime
+        import uuid
+
+        # Build message parts
+        parts: list[TextPart | ToolExecutionSuggestion] = []
+        
+        if content:
+            parts.append(TextPart(text=content))
+
+        # Add tool execution suggestions
+        for tool_call_data in tool_calls.values():
+            function_data = tool_call_data.get("function", {})
+            try:
+                args_str = str(function_data.get("arguments", "{}"))
+                args = json.loads(args_str)
+            except json.JSONDecodeError:
+                args = {}
+            
+            parts.append(
+                ToolExecutionSuggestion(
+                    id=str(tool_call_data.get("id", "")),
+                    tool_name=str(function_data.get("name", "")),
+                    args=args,
+                )
+            )
+
+        # Create GeneratedAssistantMessage
+        message = GeneratedAssistantMessage[None](
+            parts=parts,
+            parsed=None,
+            reasoning=reasoning if reasoning else None,
+        )
+
+        # Create Choice
+        choice = Choice[None](
+            index=0,
+            message=message,
+        )
+
+        # Create Generation
+        # Note: Usage is not available during streaming, so we don't set it
+        from agentle.generations.models.generation.usage import Usage
+        return Generation[None](
+            id=uuid.uuid4(),
+            choices=[choice],
+            object="chat.generation",
+            created=datetime.datetime.now(),
+            model=self.model,
+            usage=Usage(prompt_tokens=0, completion_tokens=0),  # Placeholder since usage not available during streaming
+        )

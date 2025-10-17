@@ -132,4 +132,8 @@ class AgentleMessageToOpenRouterMessageAdapter(
                 if tool_calls:
                     result["tool_calls"] = tool_calls
 
+                # Add reasoning if present
+                if hasattr(message, "reasoning") and message.reasoning:
+                    result["reasoning"] = message.reasoning
+
                 return result

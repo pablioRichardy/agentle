@@ -66,10 +66,14 @@ class AgentlePartToOpenRouterPartAdapter(
 
         match part:
             case TextPart():
-                return OpenRouterTextPart(
-                    type="text",
-                    text=str(part.text),
-                )
+                result: OpenRouterTextPart = {
+                    "type": "text",
+                    "text": str(part.text),
+                }
+                # Add cache control if present (for Anthropic prompt caching)
+                if hasattr(part, "cache_control") and part.cache_control:
+                    result["cache_control"] = {"type": "ephemeral"}
+                return result
 
             case FilePart():
                 mime_type = part.mime_type

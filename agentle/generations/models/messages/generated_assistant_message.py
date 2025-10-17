@@ -42,6 +42,11 @@ class GeneratedAssistantMessage[T](BaseModel):
         description="The parsed representation of the message content of type T."
     )
 
+    reasoning: str | None = Field(
+        default=None,
+        description="The reasoning behind the assistant's response (for models that support it).",
+    )
+
     @classmethod
     def empty(cls) -> GeneratedAssistantMessage[None]:
         return GeneratedAssistantMessage(parts=[], parsed=None)

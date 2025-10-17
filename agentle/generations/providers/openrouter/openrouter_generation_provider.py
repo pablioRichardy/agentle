@@ -13,7 +13,12 @@ The provider supports:
 - Message-based interactions with multimodal content (images, PDFs, audio)
 - Structured output parsing via response schemas
 - Tool/function calling
-- Provider preferences and routing configuration
+- Streaming responses with Server-Sent Events (SSE)
+- Provider preferences and routing configuration (ZDR, sort, max_price, only, ignore)
+- Message transforms (middle-out context compression)
+- Plugins (file parser for PDFs, web search)
+- Prompt caching (cache_control on text parts)
+- Reasoning output (for models that support it)
 - Custom HTTP client configuration
 - Usage statistics tracking
 
@@ -37,6 +42,7 @@ from agentle.generations.models.generation.generation_config import GenerationCo
 from agentle.generations.models.generation.generation_config_dict import (
     GenerationConfigDict,
 )
+from agentle.generations.models.message_parts.text import TextPart
 from agentle.generations.models.messages.assistant_message import AssistantMessage
 from agentle.generations.models.messages.developer_message import DeveloperMessage
 from agentle.generations.models.messages.message import Message
@@ -59,6 +65,7 @@ from agentle.generations.providers.openrouter._types import (
     OpenRouterResponse,
     OpenRouterProviderPreferences,
     OpenRouterResponseFormat,
+    OpenRouterPlugin,
 )
 from agentle.generations.providers.types.model_kind import ModelKind
 from agentle.generations.tools.tool import Tool
@@ -83,7 +90,8 @@ class OpenRouterGenerationProvider(GenerationProvider):
     communication, and processes responses back into the standardized Agentle format.
 
     The provider supports API key authentication, custom HTTP configuration, provider
-    routing preferences, multimodal inputs, tool calling, and structured output parsing.
+    routing preferences, multimodal inputs, tool calling, structured output parsing,
+    streaming, message transforms, plugins, prompt caching, and reasoning output.
 
     Attributes:
         otel_clients: Optional clients for observability and tracing.
@@ -93,7 +101,9 @@ class OpenRouterGenerationProvider(GenerationProvider):
         max_retries: Maximum number of retries for failed requests.
         default_headers: Optional default HTTP headers for requests.
         http_client: Optional custom HTTP client for requests.
-        provider_preferences: Optional provider routing preferences.
+        provider_preferences: Optional provider routing preferences (ZDR, sort, max_price, etc).
+        plugins: Optional plugins configuration (file parser, web search).
+        transforms: Optional transforms (e.g., middle-out context compression).
         message_adapter: Adapter to convert Agentle messages to OpenRouter format.
         tool_adapter: Adapter to convert Agentle tools to OpenRouter format.
     """
@@ -105,6 +115,8 @@ class OpenRouterGenerationProvider(GenerationProvider):
     default_headers: Mapping[str, str] | None
     http_client: httpx.AsyncClient | None
     provider_preferences: OpenRouterProviderPreferences | None
+    plugins: Sequence[OpenRouterPlugin] | None
+    transforms: Sequence[str] | None
     message_adapter: AgentleMessageToOpenRouterMessageAdapter
     tool_adapter: AgentleToolToOpenRouterToolAdapter
 
@@ -119,6 +131,8 @@ class OpenRouterGenerationProvider(GenerationProvider):
         default_headers: Mapping[str, str] | None = None,
         http_client: httpx.AsyncClient | None = None,
         provider_preferences: OpenRouterProviderPreferences | None = None,
+        plugins: Sequence[OpenRouterPlugin] | None = None,
+        transforms: Sequence[str] | None = None,
         message_adapter: AgentleMessageToOpenRouterMessageAdapter | None = None,
         tool_adapter: AgentleToolToOpenRouterToolAdapter | None = None,
     ):
@@ -134,6 +148,8 @@ class OpenRouterGenerationProvider(GenerationProvider):
             default_headers: Optional default HTTP headers for requests.
             http_client: Optional custom HTTP client for requests.
             provider_preferences: Optional provider routing preferences.
+            plugins: Optional plugins configuration (e.g., file parser, web search).
+            transforms: Optional transforms (e.g., ["middle-out"] for context compression).
             message_adapter: Optional adapter to convert Agentle messages.
             tool_adapter: Optional adapter to convert Agentle tools.
         """
@@ -150,6 +166,8 @@ class OpenRouterGenerationProvider(GenerationProvider):
         self.default_headers = default_headers
         self.http_client = http_client
         self.provider_preferences = provider_preferences
+        self.plugins = plugins
+        self.transforms = transforms
         self.message_adapter = (
             message_adapter or AgentleMessageToOpenRouterMessageAdapter()
         )
@@ -178,6 +196,8 @@ class OpenRouterGenerationProvider(GenerationProvider):
         return "anthropic/claude-sonnet-4.5"
 
     @override
+    @observe
+    @override_model_kind
     async def stream_async[T = WithoutStructuredOutput](
         self,
         *,
@@ -188,24 +208,150 @@ class OpenRouterGenerationProvider(GenerationProvider):
         tools: Sequence[Tool] | None = None,
     ) -> AsyncGenerator[Generation[WithoutStructuredOutput], None]:
         """
-        Stream generations asynchronously (not yet implemented).
+        Stream generations asynchronously from OpenRouter.
+
+        This method streams responses from OpenRouter's API using Server-Sent Events (SSE).
+        Each chunk is converted to a Generation object and yielded as it arrives.
+
+        Note: When response_schema is provided, the model is instructed via system prompt
+        to output JSON matching the schema. The JSON is streamed naturally and can be
+        parsed from the final accumulated content.
 
         Args:
             model: The model identifier or kind to use.
             messages: The sequence of messages to send.
-            response_schema: Optional schema for structured output.
+            response_schema: Optional schema for structured output (via prompt instruction).
             generation_config: Optional generation configuration.
             tools: Optional tools for function calling.
 
         Yields:
             Generation objects as they are produced.
-
-        Raises:
-            NotImplementedError: Streaming is not yet implemented.
         """
-        raise NotImplementedError("Streaming is not yet implemented for OpenRouter.")
-        if False:  # pragma: no cover
-            yield cast(Generation[WithoutStructuredOutput], None)
+        from textwrap import dedent
+        from agentle.generations.providers.openrouter._adapters.openrouter_stream_to_generation_adapter import (
+            OpenRouterStreamToGenerationAdapter,
+        )
+        from agentle.utils.describe_model_for_llm import describe_model_for_llm
+
+        _generation_config = self._normalize_generation_config(generation_config)
+
+        # Handle structured output via system prompt instruction
+        messages_list = list(messages)
+        if response_schema:
+            model_description = describe_model_for_llm(response_schema)  # type: ignore[reportArgumentType]
+            json_instruction = "Your Output must be a valid JSON string. Do not include any other text. You must provide an answer following the following json structure:"
+            conditional_prefix = (
+                "If, and only if, not calling any tools, " if tools else ""
+            )
+
+            instruction_text = (
+                f"{conditional_prefix}{json_instruction}\n{model_description}"
+            )
+
+            # Check if first message is a DeveloperMessage
+            if messages_list and isinstance(messages_list[0], DeveloperMessage):
+                # Append to existing system instruction
+                existing_instruction = messages_list[0].text
+                messages_list[0] = DeveloperMessage(
+                    parts=[TextPart(text=existing_instruction + dedent(f"""\n\n{instruction_text}"""))]
+                )
+            else:
+                # Prepend new DeveloperMessage
+                messages_list.insert(
+                    0,
+                    DeveloperMessage(
+                        parts=[TextPart(text=dedent(f"""You are a helpful assistant. {instruction_text}"""))]
+                    )
+                )
+
+        # Convert messages
+        openrouter_messages = [
+            self.message_adapter.adapt(message) for message in messages_list
+        ]
+
+        # Convert tools if provided
+        openrouter_tools = (
+            [self.tool_adapter.adapt(tool) for tool in tools] if tools else None
+        )
+
+        # Build the request
+        request_body: OpenRouterRequest = {
+            "model": model or self.default_model,
+            "messages": openrouter_messages,
+            "stream": True,
+        }
+
+        # Add optional parameters
+        if openrouter_tools:
+            request_body["tools"] = openrouter_tools
+
+        if self.provider_preferences:
+            request_body["provider"] = self.provider_preferences
+
+        # Add generation config parameters
+        if _generation_config.temperature is not None:
+            request_body["temperature"] = _generation_config.temperature
+        if _generation_config.max_output_tokens is not None:
+            request_body["max_tokens"] = _generation_config.max_output_tokens
+        if _generation_config.top_p is not None:
+            request_body["top_p"] = _generation_config.top_p
+
+        # Add plugins if configured
+        if self.plugins:
+            request_body["plugins"] = self.plugins
+
+        # Add transforms if configured
+        if self.transforms:
+            request_body["transforms"] = self.transforms  # type: ignore
+
+        # Make the streaming API request
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            **(self.default_headers or {}),
+        }
+
+        timeout_seconds = _generation_config.timeout_in_seconds or 300.0
+        client = self.http_client or httpx.AsyncClient(
+            timeout=httpx.Timeout(
+                timeout=timeout_seconds,
+                connect=30.0,
+            )
+        )
+        url = f"{self.base_url}/chat/completions"
+
+        try:
+            async with asyncio.timeout(_generation_config.timeout_in_seconds):
+                async with client.stream(
+                    "POST",
+                    url,
+                    json=request_body,
+                    headers=headers,
+                ) as response:
+                    response.raise_for_status()
+
+                    # Create async generator from response content
+                    async def content_generator() -> AsyncGenerator[bytes, None]:
+                        async for chunk in response.aiter_bytes():
+                            yield chunk
+
+                    # Use the streaming adapter to process the response
+                    adapter = OpenRouterStreamToGenerationAdapter[WithoutStructuredOutput](
+                        response_schema=None,
+                        model=model or self.default_model,
+                    )
+
+                    async for generation in adapter.adapt(content_generator()):
+                        yield generation
+
+        except asyncio.TimeoutError as e:
+            e.add_note(
+                f"Streaming timed out after {_generation_config.timeout_in_seconds}s"
+            )
+            raise
+        finally:
+            if not self.http_client:
+                await client.aclose()
 
     @override
     @observe
@@ -289,6 +435,14 @@ class OpenRouterGenerationProvider(GenerationProvider):
             request_body["max_tokens"] = _generation_config.max_output_tokens
         if _generation_config.top_p is not None:
             request_body["top_p"] = _generation_config.top_p
+
+        # Add plugins if configured
+        if self.plugins:
+            request_body["plugins"] = self.plugins
+
+        # Add transforms if configured
+        if self.transforms:
+            request_body["transforms"] = self.transforms  # type: ignore
 
         # Make the API request
         headers = {
