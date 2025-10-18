@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.9.2
+
+- feat(agent): cache instructions in Agent class and Developer message for the providers that supports it (cache ephemeral)
+
+
 ## v0.9.1
 
 ### 🎯 **Pricing Integration**
