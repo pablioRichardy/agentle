@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 # Model dependencies
 from .connector_id import ConnectorId
-from .m_c_p_tool_filter import MCPToolFilter
+from .mcp_tool_filter import MCPToolFilter
 from .require_approval import RequireApproval
 from .require_approval1 import RequireApproval1
 

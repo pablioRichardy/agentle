@@ -8,7 +8,7 @@
 
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import RootModel
 
 
 
@@ -16,5 +16,5 @@ from pydantic import BaseModel
 from .web_search_approximate_location1 import WebSearchApproximateLocation1
 
 
-class WebSearchApproximateLocation(BaseModel):
-    __root__: Optional[WebSearchApproximateLocation1]
+class WebSearchApproximateLocation(RootModel[Optional[WebSearchApproximateLocation1]]):
+    pass

@@ -21,7 +21,7 @@ from .tool import Tool
 from .tool_choice_allowed import ToolChoiceAllowed
 from .tool_choice_custom import ToolChoiceCustom
 from .tool_choice_function import ToolChoiceFunction
-from .tool_choice_m_c_p import ToolChoiceMCP
+from .tool_choice_mcp import ToolChoiceMCP
 from .tool_choice_options import ToolChoiceOptions
 from .tool_choice_types import ToolChoiceTypes
 from .truncation import Truncation

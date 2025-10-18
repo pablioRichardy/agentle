@@ -8,7 +8,7 @@
 
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import RootModel
 
 
 
@@ -16,5 +16,5 @@ from pydantic import BaseModel
 from .reasoning_effort1 import ReasoningEffort1
 
 
-class ReasoningEffort(BaseModel):
-    __root__: Optional[ReasoningEffort1]
+class ReasoningEffort(RootModel[Optional[ReasoningEffort1]]):
+    pass

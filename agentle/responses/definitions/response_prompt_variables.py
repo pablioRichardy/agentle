@@ -8,7 +8,7 @@
 
 from typing import Dict, Optional, Union
 
-from pydantic import BaseModel
+from pydantic import RootModel
 
 
 
@@ -18,7 +18,5 @@ from .input_image_content import InputImageContent
 from .input_text_content import InputTextContent
 
 
-class ResponsePromptVariables(BaseModel):
-    __root__: Optional[
-        Dict[str, Union[str, InputTextContent, InputImageContent, InputFileContent]]
-    ]
+class ResponsePromptVariables(RootModel[Optional[Dict[str, Union[str, InputTextContent, InputImageContent, InputFileContent]]]]):
+    pass

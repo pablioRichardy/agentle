@@ -8,7 +8,7 @@
 
 from typing import Union
 
-from pydantic import BaseModel, Field
+from pydantic import RootModel
 
 
 
@@ -18,7 +18,5 @@ from .reasoning_text_content import ReasoningTextContent
 from .refusal_content import RefusalContent
 
 
-class OutputContent(BaseModel):
-    __root__: Union[OutputTextContent, RefusalContent, ReasoningTextContent] = Field(
-        ..., discriminator='type'
-    )
+class OutputContent(RootModel[Union[OutputTextContent, RefusalContent, ReasoningTextContent]]):
+    pass

@@ -8,17 +8,16 @@
 
 from typing import Optional
 
-from pydantic import BaseModel, Extra
+from pydantic import BaseModel, ConfigDict
 
 
 
 # Model dependencies
-from .m_c_p_tool_filter import MCPToolFilter
+from .mcp_tool_filter import MCPToolFilter
 
 
 class RequireApproval(BaseModel):
-    class Config:
-        extra = Extra.forbid
+    model_config = ConfigDict(extra='forbid')
 
     always: Optional[MCPToolFilter] = None
     never: Optional[MCPToolFilter] = None

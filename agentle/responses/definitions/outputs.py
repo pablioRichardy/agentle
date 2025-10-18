@@ -8,7 +8,7 @@
 
 from typing import Union
 
-from pydantic import BaseModel, Field
+from pydantic import RootModel
 
 
 
@@ -17,7 +17,5 @@ from .code_interpreter_output_image import CodeInterpreterOutputImage
 from .code_interpreter_output_logs import CodeInterpreterOutputLogs
 
 
-class Outputs(BaseModel):
-    __root__: Union[CodeInterpreterOutputLogs, CodeInterpreterOutputImage] = Field(
-        ..., discriminator='type'
-    )
+class Outputs(RootModel[Union[CodeInterpreterOutputLogs, CodeInterpreterOutputImage]]):
+    pass

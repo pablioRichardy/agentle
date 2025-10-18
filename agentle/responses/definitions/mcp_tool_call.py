@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 
 
 # Model dependencies
-from .m_c_p_tool_call_status import MCPToolCallStatus
+from .mcp_tool_call_status import MCPToolCallStatus
 
 
 class MCPToolCall(BaseModel):

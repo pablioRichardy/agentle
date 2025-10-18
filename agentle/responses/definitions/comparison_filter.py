@@ -8,7 +8,7 @@
 
 from typing import List, Union
 
-from pydantic import BaseModel, Extra, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 
@@ -18,8 +18,7 @@ from .type7 import Type7
 
 
 class ComparisonFilter(BaseModel):
-    class Config:
-        extra = Extra.forbid
+    model_config = ConfigDict(extra='forbid')
 
     type: Type7 = Field(
         ...,

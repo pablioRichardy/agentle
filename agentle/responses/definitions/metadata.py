@@ -8,10 +8,10 @@
 
 from typing import Dict, Optional
 
-from pydantic import BaseModel
+from pydantic import RootModel
 
 
 
 
-class Metadata(BaseModel):
-    __root__: Optional[Dict[str, str]]
+class Metadata(RootModel[Optional[Dict[str, str]]]):
+    pass

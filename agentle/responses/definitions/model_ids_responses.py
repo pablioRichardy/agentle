@@ -8,7 +8,7 @@
 
 from typing import Union
 
-from pydantic import BaseModel, Field
+from pydantic import RootModel
 
 
 
@@ -17,5 +17,5 @@ from .model_ids_responses1 import ModelIdsResponses1
 from .model_ids_shared import ModelIdsShared
 
 
-class ModelIdsResponses(BaseModel):
-    __root__: Union[ModelIdsShared, ModelIdsResponses1] = Field(..., example='gpt-4o')
+class ModelIdsResponses(RootModel[Union[ModelIdsShared, ModelIdsResponses1]]):
+    pass

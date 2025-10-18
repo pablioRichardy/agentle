@@ -8,7 +8,7 @@
 
 from typing import Union
 
-from pydantic import BaseModel, Field
+from pydantic import RootModel
 
 
 
@@ -20,25 +20,10 @@ from .file_search_tool import FileSearchTool
 from .function_tool import FunctionTool
 from .image_gen_tool import ImageGenTool
 from .local_shell_tool_param import LocalShellToolParam
-from .m_c_p_tool import MCPTool
+from .mcp_tool import MCPTool
 from .web_search_preview_tool import WebSearchPreviewTool
 from .web_search_tool import WebSearchTool
 
 
-class Tool(BaseModel):
-    __root__: Union[
-        FunctionTool,
-        FileSearchTool,
-        ComputerUsePreviewTool,
-        WebSearchTool,
-        MCPTool,
-        CodeInterpreterTool,
-        ImageGenTool,
-        LocalShellToolParam,
-        CustomToolParam,
-        WebSearchPreviewTool,
-    ] = Field(
-        ...,
-        description='A tool that can be used to generate a response.\n',
-        discriminator='type',
-    )
+class Tool(RootModel[Union[FunctionTool, FileSearchTool, ComputerUsePreviewTool, WebSearchTool, MCPTool, CodeInterpreterTool, ImageGenTool, LocalShellToolParam, CustomToolParam, WebSearchPreviewTool]]):
+    pass

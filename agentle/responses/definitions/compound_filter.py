@@ -8,7 +8,7 @@
 
 from typing import Any, List, Union
 
-from pydantic import BaseModel, Extra, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 
@@ -18,8 +18,7 @@ from .type8 import Type8
 
 
 class CompoundFilter(BaseModel):
-    class Config:
-        extra = Extra.forbid
+    model_config = ConfigDict(extra='forbid')
 
     type: Type8 = Field(..., description='Type of operation: `and` or `or`.')
     filters: List[Union[ComparisonFilter, Any]] = Field(

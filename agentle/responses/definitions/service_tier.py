@@ -8,7 +8,7 @@
 
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import RootModel
 
 
 
@@ -16,5 +16,5 @@ from pydantic import BaseModel
 from .service_tier1 import ServiceTier1
 
 
-class ServiceTier(BaseModel):
-    __root__: Optional[ServiceTier1]
+class ServiceTier(RootModel[Optional[ServiceTier1]]):
+    pass

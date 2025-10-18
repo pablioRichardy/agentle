@@ -8,7 +8,7 @@
 
 from typing import Union
 
-from pydantic import BaseModel
+from pydantic import RootModel
 
 
 
@@ -17,5 +17,5 @@ from .comparison_filter import ComparisonFilter
 from .compound_filter import CompoundFilter
 
 
-class Filters(BaseModel):
-    __root__: Union[ComparisonFilter, CompoundFilter]
+class Filters(RootModel[Union[ComparisonFilter, CompoundFilter]]):
+    pass

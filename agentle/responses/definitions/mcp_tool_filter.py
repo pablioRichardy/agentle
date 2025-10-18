@@ -8,14 +8,13 @@
 
 from typing import List, Optional
 
-from pydantic import BaseModel, Extra, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 
 
 class MCPToolFilter(BaseModel):
-    class Config:
-        extra = Extra.forbid
+    model_config = ConfigDict(extra='forbid')
 
     tool_names: Optional[List[str]] = Field(
         None, description='List of allowed tool names.', title='MCP allowed tools'

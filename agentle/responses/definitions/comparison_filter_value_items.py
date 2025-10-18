@@ -8,10 +8,10 @@
 
 from typing import Union
 
-from pydantic import BaseModel
+from pydantic import RootModel
 
 
 
 
-class ComparisonFilterValueItems(BaseModel):
-    __root__: Union[str, float]
+class ComparisonFilterValueItems(RootModel[Union[str, float]]):
+    pass

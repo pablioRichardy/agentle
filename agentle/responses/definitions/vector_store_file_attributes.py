@@ -8,10 +8,10 @@
 
 from typing import Dict, Optional, Union
 
-from pydantic import BaseModel, constr
+from pydantic import RootModel, constr
 
 
 
 
-class VectorStoreFileAttributes(BaseModel):
-    __root__: Optional[Dict[str, Union[constr(max_length=512), float, bool]]]
+class VectorStoreFileAttributes(RootModel[Optional[Dict[str, Union[constr(max_length=512), float, bool]]]]):
+    pass

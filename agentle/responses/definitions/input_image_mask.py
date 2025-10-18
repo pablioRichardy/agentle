@@ -8,14 +8,13 @@
 
 from typing import Optional
 
-from pydantic import BaseModel, Extra, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 
 
 class InputImageMask(BaseModel):
-    class Config:
-        extra = Extra.forbid
+    model_config = ConfigDict(extra='forbid')
 
     image_url: Optional[str] = Field(None, description='Base64-encoded mask image.\n')
     file_id: Optional[str] = Field(None, description='File ID for the mask image.\n')

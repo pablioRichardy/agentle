@@ -8,7 +8,7 @@
 
 from typing import Union
 
-from pydantic import BaseModel, Field
+from pydantic import RootModel
 
 
 
@@ -24,15 +24,5 @@ from .type_model import TypeModel
 from .wait import Wait
 
 
-class ComputerAction(BaseModel):
-    __root__: Union[
-        ClickParam,
-        DoubleClickAction,
-        Drag,
-        KeyPressAction,
-        Move,
-        Screenshot,
-        Scroll,
-        TypeModel,
-        Wait,
-    ] = Field(..., discriminator='type')
+class ComputerAction(RootModel[Union[ClickParam, DoubleClickAction, Drag, KeyPressAction, Move, Screenshot, Scroll, TypeModel, Wait]]):
+    pass

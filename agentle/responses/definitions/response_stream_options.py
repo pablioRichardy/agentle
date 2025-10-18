@@ -8,7 +8,7 @@
 
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import RootModel
 
 
 
@@ -16,5 +16,5 @@ from pydantic import BaseModel
 from .response_stream_options1 import ResponseStreamOptions1
 
 
-class ResponseStreamOptions(BaseModel):
-    __root__: Optional[ResponseStreamOptions1]
+class ResponseStreamOptions(RootModel[Optional[ResponseStreamOptions1]]):
+    pass

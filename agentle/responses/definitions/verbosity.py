@@ -8,7 +8,7 @@
 
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import RootModel
 
 
 
@@ -16,5 +16,5 @@ from pydantic import BaseModel
 from .verbosity1 import Verbosity1
 
 
-class Verbosity(BaseModel):
-    __root__: Optional[Verbosity1]
+class Verbosity(RootModel[Optional[Verbosity1]]):
+    pass

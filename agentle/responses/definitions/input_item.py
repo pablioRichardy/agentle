@@ -8,7 +8,7 @@
 
 from typing import Union
 
-from pydantic import BaseModel, Field
+from pydantic import RootModel
 
 
 
@@ -18,7 +18,5 @@ from .item import Item
 from .item_reference_param import ItemReferenceParam
 
 
-class InputItem(BaseModel):
-    __root__: Union[EasyInputMessage, Item, ItemReferenceParam] = Field(
-        ..., discriminator='type'
-    )
+class InputItem(RootModel[Union[EasyInputMessage, Item, ItemReferenceParam]]):
+    pass

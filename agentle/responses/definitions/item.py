@@ -8,7 +8,7 @@
 
 from typing import Union
 
-from pydantic import BaseModel, Field
+from pydantic import RootModel
 
 
 
@@ -25,38 +25,14 @@ from .image_gen_tool_call import ImageGenToolCall
 from .input_message import InputMessage
 from .local_shell_tool_call import LocalShellToolCall
 from .local_shell_tool_call_output import LocalShellToolCallOutput
-from .m_c_p_approval_request import MCPApprovalRequest
-from .m_c_p_approval_response import MCPApprovalResponse
-from .m_c_p_list_tools import MCPListTools
-from .m_c_p_tool_call import MCPToolCall
+from .mcp_approval_request import MCPApprovalRequest
+from .mcp_approval_response import MCPApprovalResponse
+from .mcp_list_tools import MCPListTools
+from .mcp_tool_call import MCPToolCall
 from .output_message import OutputMessage
 from .reasoning_item import ReasoningItem
 from .web_search_tool_call import WebSearchToolCall
 
 
-class Item(BaseModel):
-    __root__: Union[
-        InputMessage,
-        OutputMessage,
-        FileSearchToolCall,
-        ComputerToolCall,
-        ComputerCallOutputItemParam,
-        WebSearchToolCall,
-        FunctionToolCall,
-        FunctionCallOutputItemParam,
-        ReasoningItem,
-        ImageGenToolCall,
-        CodeInterpreterToolCall,
-        LocalShellToolCall,
-        LocalShellToolCallOutput,
-        MCPListTools,
-        MCPApprovalRequest,
-        MCPApprovalResponse,
-        MCPToolCall,
-        CustomToolCallOutput,
-        CustomToolCall,
-    ] = Field(
-        ...,
-        description='Content item used to generate a response.\n',
-        discriminator='type',
-    )
+class Item(RootModel[Union[InputMessage, OutputMessage, FileSearchToolCall, ComputerToolCall, ComputerCallOutputItemParam, WebSearchToolCall, FunctionToolCall, FunctionCallOutputItemParam, ReasoningItem, ImageGenToolCall, CodeInterpreterToolCall, LocalShellToolCall, LocalShellToolCallOutput, MCPListTools, MCPApprovalRequest, MCPApprovalResponse, MCPToolCall, CustomToolCallOutput, CustomToolCall]]):
+    pass

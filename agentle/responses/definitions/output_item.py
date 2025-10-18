@@ -8,7 +8,7 @@
 
 from typing import Union
 
-from pydantic import BaseModel, Field
+from pydantic import RootModel
 
 
 
@@ -20,27 +20,13 @@ from .file_search_tool_call import FileSearchToolCall
 from .function_tool_call import FunctionToolCall
 from .image_gen_tool_call import ImageGenToolCall
 from .local_shell_tool_call import LocalShellToolCall
-from .m_c_p_approval_request import MCPApprovalRequest
-from .m_c_p_list_tools import MCPListTools
-from .m_c_p_tool_call import MCPToolCall
+from .mcp_approval_request import MCPApprovalRequest
+from .mcp_list_tools import MCPListTools
+from .mcp_tool_call import MCPToolCall
 from .output_message import OutputMessage
 from .reasoning_item import ReasoningItem
 from .web_search_tool_call import WebSearchToolCall
 
 
-class OutputItem(BaseModel):
-    __root__: Union[
-        OutputMessage,
-        FileSearchToolCall,
-        FunctionToolCall,
-        WebSearchToolCall,
-        ComputerToolCall,
-        ReasoningItem,
-        ImageGenToolCall,
-        CodeInterpreterToolCall,
-        LocalShellToolCall,
-        MCPToolCall,
-        MCPListTools,
-        MCPApprovalRequest,
-        CustomToolCall,
-    ] = Field(..., discriminator='type')
+class OutputItem(RootModel[Union[OutputMessage, FileSearchToolCall, FunctionToolCall, WebSearchToolCall, ComputerToolCall, ReasoningItem, ImageGenToolCall, CodeInterpreterToolCall, LocalShellToolCall, MCPToolCall, MCPListTools, MCPApprovalRequest, CustomToolCall]]):
+    pass

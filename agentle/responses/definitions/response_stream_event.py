@@ -8,7 +8,7 @@
 
 from typing import Union
 
-from pydantic import BaseModel, Field
+from pydantic import RootModel
 
 
 
@@ -41,14 +41,14 @@ from .response_image_gen_call_in_progress_event import ResponseImageGenCallInPro
 from .response_image_gen_call_partial_image_event import ResponseImageGenCallPartialImageEvent
 from .response_in_progress_event import ResponseInProgressEvent
 from .response_incomplete_event import ResponseIncompleteEvent
-from .response_m_c_p_call_arguments_delta_event import ResponseMCPCallArgumentsDeltaEvent
-from .response_m_c_p_call_arguments_done_event import ResponseMCPCallArgumentsDoneEvent
-from .response_m_c_p_call_completed_event import ResponseMCPCallCompletedEvent
-from .response_m_c_p_call_failed_event import ResponseMCPCallFailedEvent
-from .response_m_c_p_call_in_progress_event import ResponseMCPCallInProgressEvent
-from .response_m_c_p_list_tools_completed_event import ResponseMCPListToolsCompletedEvent
-from .response_m_c_p_list_tools_failed_event import ResponseMCPListToolsFailedEvent
-from .response_m_c_p_list_tools_in_progress_event import ResponseMCPListToolsInProgressEvent
+from .response_mcp_call_arguments_delta_event import ResponseMCPCallArgumentsDeltaEvent
+from .response_mcp_call_arguments_done_event import ResponseMCPCallArgumentsDoneEvent
+from .response_mcp_call_completed_event import ResponseMCPCallCompletedEvent
+from .response_mcp_call_failed_event import ResponseMCPCallFailedEvent
+from .response_mcp_call_in_progress_event import ResponseMCPCallInProgressEvent
+from .response_mcp_list_tools_completed_event import ResponseMCPListToolsCompletedEvent
+from .response_mcp_list_tools_failed_event import ResponseMCPListToolsFailedEvent
+from .response_mcp_list_tools_in_progress_event import ResponseMCPListToolsInProgressEvent
 from .response_output_item_added_event import ResponseOutputItemAddedEvent
 from .response_output_item_done_event import ResponseOutputItemDoneEvent
 from .response_output_text_annotation_added_event import ResponseOutputTextAnnotationAddedEvent
@@ -68,59 +68,5 @@ from .response_web_search_call_in_progress_event import ResponseWebSearchCallInP
 from .response_web_search_call_searching_event import ResponseWebSearchCallSearchingEvent
 
 
-class ResponseStreamEvent(BaseModel):
-    __root__: Union[
-        ResponseAudioDeltaEvent,
-        ResponseAudioDoneEvent,
-        ResponseAudioTranscriptDeltaEvent,
-        ResponseAudioTranscriptDoneEvent,
-        ResponseCodeInterpreterCallCodeDeltaEvent,
-        ResponseCodeInterpreterCallCodeDoneEvent,
-        ResponseCodeInterpreterCallCompletedEvent,
-        ResponseCodeInterpreterCallInProgressEvent,
-        ResponseCodeInterpreterCallInterpretingEvent,
-        ResponseCompletedEvent,
-        ResponseContentPartAddedEvent,
-        ResponseContentPartDoneEvent,
-        ResponseCreatedEvent,
-        ResponseErrorEvent,
-        ResponseFileSearchCallCompletedEvent,
-        ResponseFileSearchCallInProgressEvent,
-        ResponseFileSearchCallSearchingEvent,
-        ResponseFunctionCallArgumentsDeltaEvent,
-        ResponseFunctionCallArgumentsDoneEvent,
-        ResponseInProgressEvent,
-        ResponseFailedEvent,
-        ResponseIncompleteEvent,
-        ResponseOutputItemAddedEvent,
-        ResponseOutputItemDoneEvent,
-        ResponseReasoningSummaryPartAddedEvent,
-        ResponseReasoningSummaryPartDoneEvent,
-        ResponseReasoningSummaryTextDeltaEvent,
-        ResponseReasoningSummaryTextDoneEvent,
-        ResponseReasoningTextDeltaEvent,
-        ResponseReasoningTextDoneEvent,
-        ResponseRefusalDeltaEvent,
-        ResponseRefusalDoneEvent,
-        ResponseTextDeltaEvent,
-        ResponseTextDoneEvent,
-        ResponseWebSearchCallCompletedEvent,
-        ResponseWebSearchCallInProgressEvent,
-        ResponseWebSearchCallSearchingEvent,
-        ResponseImageGenCallCompletedEvent,
-        ResponseImageGenCallGeneratingEvent,
-        ResponseImageGenCallInProgressEvent,
-        ResponseImageGenCallPartialImageEvent,
-        ResponseMCPCallArgumentsDeltaEvent,
-        ResponseMCPCallArgumentsDoneEvent,
-        ResponseMCPCallCompletedEvent,
-        ResponseMCPCallFailedEvent,
-        ResponseMCPCallInProgressEvent,
-        ResponseMCPListToolsCompletedEvent,
-        ResponseMCPListToolsFailedEvent,
-        ResponseMCPListToolsInProgressEvent,
-        ResponseOutputTextAnnotationAddedEvent,
-        ResponseQueuedEvent,
-        ResponseCustomToolCallInputDeltaEvent,
-        ResponseCustomToolCallInputDoneEvent,
-    ] = Field(..., discriminator='type')
+class ResponseStreamEvent(RootModel[Union[ResponseAudioDeltaEvent, ResponseAudioDoneEvent, ResponseAudioTranscriptDeltaEvent, ResponseAudioTranscriptDoneEvent, ResponseCodeInterpreterCallCodeDeltaEvent, ResponseCodeInterpreterCallCodeDoneEvent, ResponseCodeInterpreterCallCompletedEvent, ResponseCodeInterpreterCallInProgressEvent, ResponseCodeInterpreterCallInterpretingEvent, ResponseCompletedEvent, ResponseContentPartAddedEvent, ResponseContentPartDoneEvent, ResponseCreatedEvent, ResponseErrorEvent, ResponseFileSearchCallCompletedEvent, ResponseFileSearchCallInProgressEvent, ResponseFileSearchCallSearchingEvent, ResponseFunctionCallArgumentsDeltaEvent, ResponseFunctionCallArgumentsDoneEvent, ResponseInProgressEvent, ResponseFailedEvent, ResponseIncompleteEvent, ResponseOutputItemAddedEvent, ResponseOutputItemDoneEvent, ResponseReasoningSummaryPartAddedEvent, ResponseReasoningSummaryPartDoneEvent, ResponseReasoningSummaryTextDeltaEvent, ResponseReasoningSummaryTextDoneEvent, ResponseReasoningTextDeltaEvent, ResponseReasoningTextDoneEvent, ResponseRefusalDeltaEvent, ResponseRefusalDoneEvent, ResponseTextDeltaEvent, ResponseTextDoneEvent, ResponseWebSearchCallCompletedEvent, ResponseWebSearchCallInProgressEvent, ResponseWebSearchCallSearchingEvent, ResponseImageGenCallCompletedEvent, ResponseImageGenCallGeneratingEvent, ResponseImageGenCallInProgressEvent, ResponseImageGenCallPartialImageEvent, ResponseMCPCallArgumentsDeltaEvent, ResponseMCPCallArgumentsDoneEvent, ResponseMCPCallCompletedEvent, ResponseMCPCallFailedEvent, ResponseMCPCallInProgressEvent, ResponseMCPListToolsCompletedEvent, ResponseMCPListToolsFailedEvent, ResponseMCPListToolsInProgressEvent, ResponseOutputTextAnnotationAddedEvent, ResponseQueuedEvent, ResponseCustomToolCallInputDeltaEvent, ResponseCustomToolCallInputDoneEvent]]):
+    pass

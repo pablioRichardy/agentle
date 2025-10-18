@@ -8,7 +8,7 @@
 
 from typing import Union
 
-from pydantic import BaseModel, Field
+from pydantic import RootModel
 
 
 
@@ -18,7 +18,5 @@ from .input_image_content_param_auto_param import InputImageContentParamAutoPara
 from .input_text_content_param import InputTextContentParam
 
 
-class Output(BaseModel):
-    __root__: Union[
-        InputTextContentParam, InputImageContentParamAutoParam, InputFileContentParam
-    ] = Field(..., discriminator='type')
+class Output(RootModel[Union[InputTextContentParam, InputImageContentParamAutoParam, InputFileContentParam]]):
+    pass

@@ -7,13 +7,11 @@
 
 
 
-from pydantic import BaseModel, Extra
+from pydantic import BaseModel, ConfigDict
 
 
 
 
 class ResponseFormatJsonSchemaSchema(BaseModel):
+    model_config = ConfigDict(extra='allow')
     pass
-
-    class Config:
-        extra = Extra.allow

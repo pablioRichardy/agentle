@@ -8,7 +8,7 @@
 
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import RootModel
 
 
 
@@ -16,5 +16,5 @@ from pydantic import BaseModel
 from .response_error1 import ResponseError1
 
 
-class ResponseError(BaseModel):
-    __root__: Optional[ResponseError1]
+class ResponseError(RootModel[Optional[ResponseError1]]):
+    pass

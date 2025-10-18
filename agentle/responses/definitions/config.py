@@ -7,13 +7,8 @@
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import Any, Dict, List, Literal, Optional, Union
-
-from pydantic import AnyUrl, BaseModel, Extra, Field, confloat, conint, constr
+from pydantic import BaseModel, ConfigDict
 
 
-
-
-    class Config:
-        extra = Extra.forbid
+class Config(BaseModel):
+    model_config = ConfigDict(extra='forbid')

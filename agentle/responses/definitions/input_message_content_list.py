@@ -8,7 +8,7 @@
 
 from typing import List
 
-from pydantic import BaseModel, Field
+from pydantic import RootModel
 
 
 
@@ -16,9 +16,5 @@ from pydantic import BaseModel, Field
 from .input_content import InputContent
 
 
-class InputMessageContentList(BaseModel):
-    __root__: List[InputContent] = Field(
-        ...,
-        description='A list of one or many input items to the model, containing different content \ntypes.\n',
-        title='Input item content list',
-    )
+class InputMessageContentList(RootModel[List[InputContent]]):
+    pass

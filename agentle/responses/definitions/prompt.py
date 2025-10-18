@@ -8,7 +8,7 @@
 
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import RootModel
 
 
 
@@ -16,5 +16,5 @@ from pydantic import BaseModel
 from .prompt1 import Prompt1
 
 
-class Prompt(BaseModel):
-    __root__: Optional[Prompt1]
+class Prompt(RootModel[Optional[Prompt1]]):
+    pass

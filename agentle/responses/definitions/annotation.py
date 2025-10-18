@@ -8,7 +8,7 @@
 
 from typing import Union
 
-from pydantic import BaseModel, Field
+from pydantic import RootModel
 
 
 
@@ -19,7 +19,5 @@ from .file_path import FilePath
 from .url_citation_body import UrlCitationBody
 
 
-class Annotation(BaseModel):
-    __root__: Union[
-        FileCitationBody, UrlCitationBody, ContainerFileCitationBody, FilePath
-    ] = Field(..., discriminator='type')
+class Annotation(RootModel[Union[FileCitationBody, UrlCitationBody, ContainerFileCitationBody, FilePath]]):
+    pass

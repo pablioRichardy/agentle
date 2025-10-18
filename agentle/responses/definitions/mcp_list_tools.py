@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 
 
 # Model dependencies
-from .m_c_p_list_tools_tool import MCPListToolsTool
+from .mcp_list_tools_tool import MCPListToolsTool
 
 
 class MCPListTools(BaseModel):
