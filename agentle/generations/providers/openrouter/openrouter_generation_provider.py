@@ -107,6 +107,7 @@ class OpenRouterGenerationProvider(GenerationProvider):
         provider_preferences: Optional provider routing preferences (ZDR, sort, max_price, etc).
         plugins: Optional plugins configuration (file parser, web search).
         transforms: Optional transforms (e.g., middle-out context compression).
+        fallback_models: Optional list of fallback models to try if primary model fails.
         message_adapter: Adapter to convert Agentle messages to OpenRouter format.
         tool_adapter: Adapter to convert Agentle tools to OpenRouter format.
     """
@@ -120,6 +121,7 @@ class OpenRouterGenerationProvider(GenerationProvider):
     provider_preferences: OpenRouterProviderPreferences | None
     plugins: Sequence[OpenRouterPlugin] | None
     transforms: Sequence[Literal["middle-out"]] | None
+    fallback_models: Sequence[str] | None
     message_adapter: AgentleMessageToOpenRouterMessageAdapter
     tool_adapter: AgentleToolToOpenRouterToolAdapter
 
@@ -136,6 +138,7 @@ class OpenRouterGenerationProvider(GenerationProvider):
         provider_preferences: OpenRouterProviderPreferences | None = None,
         plugins: Sequence[OpenRouterPlugin] | None = None,
         transforms: Sequence[Literal["middle-out"]] | None = None,
+        fallback_models: Sequence[str] | None = None,
         message_adapter: AgentleMessageToOpenRouterMessageAdapter | None = None,
         tool_adapter: AgentleToolToOpenRouterToolAdapter | None = None,
     ):
@@ -153,6 +156,7 @@ class OpenRouterGenerationProvider(GenerationProvider):
             provider_preferences: Optional provider routing preferences.
             plugins: Optional plugins configuration (e.g., file parser, web search).
             transforms: Optional transforms (e.g., ["middle-out"] for context compression).
+            fallback_models: Optional list of fallback models to try if primary fails.
             message_adapter: Optional adapter to convert Agentle messages.
             tool_adapter: Optional adapter to convert Agentle tools.
         """
@@ -171,10 +175,30 @@ class OpenRouterGenerationProvider(GenerationProvider):
         self.provider_preferences = provider_preferences
         self.plugins = plugins
         self.transforms = transforms
+        self.fallback_models = fallback_models
         self.message_adapter = (
             message_adapter or AgentleMessageToOpenRouterMessageAdapter()
         )
         self.tool_adapter = tool_adapter or AgentleToolToOpenRouterToolAdapter()
+
+    # ==================== Helper Methods ====================
+
+    def _build_model_param(self, model: str | ModelKind | None) -> str | Sequence[str]:
+        """Build the model parameter with fallbacks if configured.
+        
+        Args:
+            model: Primary model to use
+            
+        Returns:
+            Model string or list of models with fallbacks
+        """
+        primary_model = model or self.default_model
+        
+        # If fallback models are configured, return as array
+        if self.fallback_models:
+            return [primary_model, *self.fallback_models]
+        
+        return primary_model
 
     # ==================== Factory Methods ====================
 
@@ -601,7 +625,158 @@ class OpenRouterGenerationProvider(GenerationProvider):
             tool_adapter=tool_adapter,
         )
 
+    @classmethod
+    def with_auto_router(
+        cls,
+        api_key: str | None = None,
+        otel_clients: Sequence[OtelClient] | None = None,
+        provider_id: str | None = None,
+        base_url: str = "https://openrouter.ai/api/v1",
+        max_retries: int = 2,
+        default_headers: dict[str, str] | None = None,
+        http_client: httpx.AsyncClient | None = None,
+        provider_preferences: OpenRouterProviderPreferences | None = None,
+        plugins: Sequence[OpenRouterPlugin] | None = None,
+        transforms: Sequence[Literal["middle-out"]] | None = None,
+        message_adapter: AgentleMessageToOpenRouterMessageAdapter | None = None,
+        tool_adapter: AgentleToolToOpenRouterToolAdapter | None = None,
+    ) -> "OpenRouterGenerationProvider":
+        """Create provider using OpenRouter's Auto Router.
+        
+        The Auto Router automatically selects between high-quality models based on
+        your prompt, powered by NotDiamond.
+        
+        Args:
+            api_key: Optional API key (uses OPENROUTER_API_KEY env var if not provided)
+            otel_clients: Optional OpenTelemetry clients for tracing
+            provider_id: Optional provider identifier for tracing
+            base_url: Base URL for OpenRouter API
+            max_retries: Maximum number of retries for failed requests
+            default_headers: Default headers to include in all requests
+            http_client: Optional httpx client to reuse
+            provider_preferences: Optional provider routing preferences
+            plugins: Optional plugins (web search, file parser)
+            transforms: Optional transforms (middle-out compression)
+            message_adapter: Optional custom message adapter
+            tool_adapter: Optional custom tool adapter
+            
+        Returns:
+            Configured OpenRouterGenerationProvider instance with Auto Router
+            
+        Example:
+            >>> provider = OpenRouterGenerationProvider.with_auto_router()
+            >>> # Will automatically select the best model for each request
+        """
+        instance = cls(
+            api_key=api_key,
+            otel_clients=otel_clients,
+            provider_id=provider_id,
+            base_url=base_url,
+            max_retries=max_retries,
+            default_headers=default_headers,
+            http_client=http_client,
+            provider_preferences=provider_preferences,
+            plugins=plugins,
+            transforms=transforms,
+            message_adapter=message_adapter,
+            tool_adapter=tool_adapter,
+        )
+        # Override default model to use Auto Router
+        instance._default_model = "openrouter/auto"
+        return instance
+
+    @classmethod
+    def with_fallback_models(
+        cls,
+        fallback_models: Sequence[str],
+        api_key: str | None = None,
+        otel_clients: Sequence[OtelClient] | None = None,
+        provider_id: str | None = None,
+        base_url: str = "https://openrouter.ai/api/v1",
+        max_retries: int = 2,
+        default_headers: dict[str, str] | None = None,
+        http_client: httpx.AsyncClient | None = None,
+        provider_preferences: OpenRouterProviderPreferences | None = None,
+        plugins: Sequence[OpenRouterPlugin] | None = None,
+        transforms: Sequence[Literal["middle-out"]] | None = None,
+        message_adapter: AgentleMessageToOpenRouterMessageAdapter | None = None,
+        tool_adapter: AgentleToolToOpenRouterToolAdapter | None = None,
+    ) -> "OpenRouterGenerationProvider":
+        """Create provider with automatic fallback models.
+        
+        If the primary model fails (downtime, rate-limiting, moderation, etc.),
+        OpenRouter will automatically try the fallback models in order.
+        
+        Args:
+            fallback_models: List of model IDs to use as fallbacks
+            api_key: Optional API key (uses OPENROUTER_API_KEY env var if not provided)
+            otel_clients: Optional OpenTelemetry clients for tracing
+            provider_id: Optional provider identifier for tracing
+            base_url: Base URL for OpenRouter API
+            max_retries: Maximum number of retries for failed requests
+            default_headers: Default headers to include in all requests
+            http_client: Optional httpx client to reuse
+            provider_preferences: Optional provider routing preferences
+            plugins: Optional plugins (web search, file parser)
+            transforms: Optional transforms (middle-out compression)
+            message_adapter: Optional custom message adapter
+            tool_adapter: Optional custom tool adapter
+            
+        Returns:
+            Configured OpenRouterGenerationProvider instance with fallbacks
+            
+        Example:
+            >>> provider = OpenRouterGenerationProvider.with_fallback_models(
+            ...     fallback_models=["anthropic/claude-3.5-sonnet", "gryphe/mythomax-l2-13b"]
+            ... )
+        """
+        return cls(
+            api_key=api_key,
+            otel_clients=otel_clients,
+            provider_id=provider_id,
+            base_url=base_url,
+            max_retries=max_retries,
+            default_headers=default_headers,
+            http_client=http_client,
+            provider_preferences=provider_preferences,
+            plugins=plugins,
+            transforms=transforms,
+            fallback_models=fallback_models,
+            message_adapter=message_adapter,
+            tool_adapter=tool_adapter,
+        )
+
     # ==================== Builder-Style Methods ====================
+
+    def set_fallback_models(self, models: Sequence[str]) -> "OpenRouterGenerationProvider":
+        """Set fallback models to try if primary model fails.
+        
+        Args:
+            models: List of model IDs to use as fallbacks
+            
+        Returns:
+            Self for method chaining
+            
+        Example:
+            >>> provider.set_fallback_models([
+            ...     "anthropic/claude-3.5-sonnet",
+            ...     "gryphe/mythomax-l2-13b"
+            ... ])
+        """
+        self.fallback_models = models
+        return self
+
+    def use_auto_router(self) -> "OpenRouterGenerationProvider":
+        """Configure to use OpenRouter's Auto Router.
+        
+        The Auto Router automatically selects between high-quality models
+        based on your prompt, powered by NotDiamond.
+        
+        Returns:
+            Self for method chaining
+        """
+        self._default_model = "openrouter/auto"
+        return self
 
     def order_by_cheapest(self) -> "OpenRouterGenerationProvider":
         """Configure to always use the cheapest provider (floor pricing).
@@ -959,9 +1134,9 @@ class OpenRouterGenerationProvider(GenerationProvider):
             [self.tool_adapter.adapt(tool) for tool in tools] if tools else None
         )
 
-        # Build the request
+        # Build the request with model routing support
         request_body: OpenRouterRequest = {
-            "model": model or self.default_model,
+            "model": self._build_model_param(model),
             "messages": openrouter_messages,
             "stream": True,
         }
@@ -1097,9 +1272,9 @@ class OpenRouterGenerationProvider(GenerationProvider):
                 },
             )
 
-        # Build the request
+        # Build the request with model routing support
         request_body: OpenRouterRequest = {
-            "model": model or self.default_model,
+            "model": self._build_model_param(model),
             "messages": openrouter_messages,
         }
 
