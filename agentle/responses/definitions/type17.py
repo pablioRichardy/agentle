@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type17(Enum):
-    custom_tool_call_output = 'custom_tool_call_output'
+    custom_tool_call_output = "custom_tool_call_output"

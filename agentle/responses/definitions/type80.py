@@ -9,10 +9,7 @@
 from enum import Enum
 
 
-
-
-
 class Type80(Enum):
     response_image_generation_call_completed = (
-        'response.image_generation_call.completed'
+        "response.image_generation_call.completed"
     )

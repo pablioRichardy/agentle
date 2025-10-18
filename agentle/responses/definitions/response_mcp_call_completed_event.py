@@ -11,16 +11,14 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ResponseMCPCallCompletedEvent(BaseModel):
-    type: Literal['ResponseMCPCallCompletedEvent'] = Field(
+    type: Literal["ResponseMCPCallCompletedEvent"] = Field(
         ..., description="The type of the event. Always 'response.mcp_call.completed'."
     )
     item_id: str = Field(
-        ..., description='The ID of the MCP tool call item that completed.'
+        ..., description="The ID of the MCP tool call item that completed."
     )
     output_index: int = Field(
-        ..., description='The index of the output item that completed.'
+        ..., description="The index of the output item that completed."
     )
-    sequence_number: int = Field(..., description='The sequence number of this event.')
+    sequence_number: int = Field(..., description="The sequence number of this event.")

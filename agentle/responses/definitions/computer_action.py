@@ -11,7 +11,6 @@ from typing import Union
 from pydantic import RootModel
 
 
-
 # Model dependencies
 from .click_param import ClickParam
 from .double_click_action import DoubleClickAction
@@ -24,5 +23,19 @@ from .type_model import TypeModel
 from .wait import Wait
 
 
-class ComputerAction(RootModel[Union[ClickParam, DoubleClickAction, Drag, KeyPressAction, Move, Screenshot, Scroll, TypeModel, Wait]]):
+class ComputerAction(
+    RootModel[
+        Union[
+            ClickParam,
+            DoubleClickAction,
+            Drag,
+            KeyPressAction,
+            Move,
+            Screenshot,
+            Scroll,
+            TypeModel,
+            Wait,
+        ]
+    ]
+):
     pass

@@ -9,10 +9,7 @@
 from enum import Enum
 
 
-
-
-
 class Type81(Enum):
     response_image_generation_call_generating = (
-        'response.image_generation_call.generating'
+        "response.image_generation_call.generating"
     )

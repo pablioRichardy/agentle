@@ -11,21 +11,20 @@ from typing import List, Union
 from pydantic import BaseModel, ConfigDict, Field
 
 
-
 # Model dependencies
 from .comparison_filter_value_items import ComparisonFilterValueItems
 from .type7 import Type7
 
 
 class ComparisonFilter(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra="forbid")
 
     type: Type7 = Field(
         ...,
-        description='Specifies the comparison operator: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `nin`.\n- `eq`: equals\n- `ne`: not equal\n- `gt`: greater than\n- `gte`: greater than or equal\n- `lt`: less than\n- `lte`: less than or equal\n- `in`: in\n- `nin`: not in\n',
+        description="Specifies the comparison operator: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `nin`.\n- `eq`: equals\n- `ne`: not equal\n- `gt`: greater than\n- `gte`: greater than or equal\n- `lt`: less than\n- `lte`: less than or equal\n- `in`: in\n- `nin`: not in\n",
     )
-    key: str = Field(..., description='The key to compare against the value.')
+    key: str = Field(..., description="The key to compare against the value.")
     value: Union[str, float, bool, List[ComparisonFilterValueItems]] = Field(
         ...,
-        description='The value to compare against the attribute key; supports string, number, or boolean types.',
+        description="The value to compare against the attribute key; supports string, number, or boolean types.",
     )

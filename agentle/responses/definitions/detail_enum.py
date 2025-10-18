@@ -9,10 +9,7 @@
 from enum import Enum
 
 
-
-
-
 class DetailEnum(Enum):
-    low = 'low'
-    high = 'high'
-    auto = 'auto'
+    low = "low"
+    high = "high"
+    auto = "auto"

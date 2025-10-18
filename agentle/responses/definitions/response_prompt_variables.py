@@ -11,12 +11,17 @@ from typing import Dict, Optional, Union
 from pydantic import RootModel
 
 
-
 # Model dependencies
 from .input_file_content import InputFileContent
 from .input_image_content import InputImageContent
 from .input_text_content import InputTextContent
 
 
-class ResponsePromptVariables(RootModel[Optional[Dict[str, Union[str, InputTextContent, InputImageContent, InputFileContent]]]]):
+class ResponsePromptVariables(
+    RootModel[
+        Optional[
+            Dict[str, Union[str, InputTextContent, InputImageContent, InputFileContent]]
+        ]
+    ]
+):
     pass

@@ -11,17 +11,15 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class MCPApprovalRequest(BaseModel):
-    type: Literal['MCPApprovalRequest'] = Field(
-        ..., description='The type of the item. Always `mcp_approval_request`.\n'
+    type: Literal["MCPApprovalRequest"] = Field(
+        ..., description="The type of the item. Always `mcp_approval_request`.\n"
     )
-    id: str = Field(..., description='The unique ID of the approval request.\n')
+    id: str = Field(..., description="The unique ID of the approval request.\n")
     server_label: str = Field(
-        ..., description='The label of the MCP server making the request.\n'
+        ..., description="The label of the MCP server making the request.\n"
     )
-    name: str = Field(..., description='The name of the tool to run.\n')
+    name: str = Field(..., description="The name of the tool to run.\n")
     arguments: str = Field(
-        ..., description='A JSON string of arguments for the tool.\n'
+        ..., description="A JSON string of arguments for the tool.\n"
     )

@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type40(Enum):
-    keypress = 'keypress'
+    keypress = "keypress"

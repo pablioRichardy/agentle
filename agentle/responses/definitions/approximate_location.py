@@ -11,14 +11,13 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .type import Type
 
 
 class ApproximateLocation(BaseModel):
     type: Type = Field(
-        ..., description='The type of location approximation. Always `approximate`.'
+        ..., description="The type of location approximation. Always `approximate`."
     )
     country: Optional[str] = None
     region: Optional[str] = None

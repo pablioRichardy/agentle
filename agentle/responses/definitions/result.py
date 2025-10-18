@@ -11,18 +11,17 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .vector_store_file_attributes import VectorStoreFileAttributes
 
 
 class Result(BaseModel):
-    file_id: Optional[str] = Field(None, description='The unique ID of the file.\n')
+    file_id: Optional[str] = Field(None, description="The unique ID of the file.\n")
     text: Optional[str] = Field(
-        None, description='The text that was retrieved from the file.\n'
+        None, description="The text that was retrieved from the file.\n"
     )
-    filename: Optional[str] = Field(None, description='The name of the file.\n')
+    filename: Optional[str] = Field(None, description="The name of the file.\n")
     attributes: Optional[VectorStoreFileAttributes] = None
     score: Optional[float] = Field(
-        None, description='The relevance score of the file - a value between 0 and 1.\n'
+        None, description="The relevance score of the file - a value between 0 and 1.\n"
     )

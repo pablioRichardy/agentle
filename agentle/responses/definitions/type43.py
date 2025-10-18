@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type43(Enum):
-    local_shell_call_output = 'local_shell_call_output'
+    local_shell_call_output = "local_shell_call_output"

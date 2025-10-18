@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type19(Enum):
-    double_click = 'double_click'
+    double_click = "double_click"

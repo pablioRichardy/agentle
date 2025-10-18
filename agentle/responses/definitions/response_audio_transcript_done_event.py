@@ -11,11 +11,9 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ResponseAudioTranscriptDoneEvent(BaseModel):
-    type: Literal['ResponseAudioTranscriptDoneEvent'] = Field(
+    type: Literal["ResponseAudioTranscriptDoneEvent"] = Field(
         ...,
-        description='The type of the event. Always `response.audio.transcript.done`.\n',
+        description="The type of the event. Always `response.audio.transcript.done`.\n",
     )
-    sequence_number: int = Field(..., description='The sequence number of this event.')
+    sequence_number: int = Field(..., description="The sequence number of this event.")

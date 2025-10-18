@@ -9,12 +9,9 @@
 from enum import Enum
 
 
-
-
-
 class ServiceTier1(Enum):
-    auto = 'auto'
-    default = 'default'
-    flex = 'flex'
-    scale = 'scale'
-    priority = 'priority'
+    auto = "auto"
+    default = "default"
+    flex = "flex"
+    scale = "scale"
+    priority = "priority"

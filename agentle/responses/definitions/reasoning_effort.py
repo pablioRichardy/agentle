@@ -11,7 +11,6 @@ from typing import Optional
 from pydantic import RootModel
 
 
-
 # Model dependencies
 from .reasoning_effort1 import ReasoningEffort1
 

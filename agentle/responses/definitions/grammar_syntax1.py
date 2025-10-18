@@ -9,9 +9,6 @@
 from enum import Enum
 
 
-
-
-
 class GrammarSyntax1(Enum):
-    lark = 'lark'
-    regex = 'regex'
+    lark = "lark"
+    regex = "regex"

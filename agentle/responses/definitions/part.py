@@ -6,9 +6,7 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-
 from pydantic import BaseModel, Field
-
 
 
 # Model dependencies
@@ -17,6 +15,6 @@ from .type99 import Type99
 
 class Part(BaseModel):
     type: Type99 = Field(
-        ..., description='The type of the summary part. Always `summary_text`.'
+        ..., description="The type of the summary part. Always `summary_text`."
     )
-    text: str = Field(..., description='The text of the summary part.')
+    text: str = Field(..., description="The text of the summary part.")

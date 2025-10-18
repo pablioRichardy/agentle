@@ -11,14 +11,13 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .response_prompt_variables import ResponsePromptVariables
 
 
 class Prompt1(BaseModel):
     id: str = Field(
-        ..., description='The unique identifier of the prompt template to use.'
+        ..., description="The unique identifier of the prompt template to use."
     )
     version: Optional[str] = None
     variables: Optional[ResponsePromptVariables] = None

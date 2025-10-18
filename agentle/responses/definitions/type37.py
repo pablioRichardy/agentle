@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type37(Enum):
-    input_text = 'input_text'
+    input_text = "input_text"

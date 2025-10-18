@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type126(Enum):
-    open_page = 'open_page'
+    open_page = "open_page"

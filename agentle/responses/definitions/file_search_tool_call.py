@@ -11,23 +11,22 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .result import Result
 from .status2 import Status2
 
 
 class FileSearchToolCall(BaseModel):
-    id: str = Field(..., description='The unique ID of the file search tool call.\n')
-    type: Literal['FileSearchToolCall'] = Field(
+    id: str = Field(..., description="The unique ID of the file search tool call.\n")
+    type: Literal["FileSearchToolCall"] = Field(
         ...,
-        description='The type of the file search tool call. Always `file_search_call`.\n',
+        description="The type of the file search tool call. Always `file_search_call`.\n",
     )
     status: Status2 = Field(
         ...,
-        description='The status of the file search tool call. One of `in_progress`,\n`searching`, `incomplete` or `failed`,\n',
+        description="The status of the file search tool call. One of `in_progress`,\n`searching`, `incomplete` or `failed`,\n",
     )
     queries: List[str] = Field(
-        ..., description='The queries used to search for files.\n'
+        ..., description="The queries used to search for files.\n"
     )
     results: Optional[List[Result]] = None

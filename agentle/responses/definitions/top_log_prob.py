@@ -11,8 +11,6 @@ from typing import List
 from pydantic import BaseModel
 
 
-
-
 class TopLogProb(BaseModel):
     token: str
     logprob: float

@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type44(Enum):
-    local_shell = 'local_shell'
+    local_shell = "local_shell"

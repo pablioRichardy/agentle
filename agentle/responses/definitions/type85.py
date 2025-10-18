@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type85(Enum):
-    response_incomplete = 'response.incomplete'
+    response_incomplete = "response.incomplete"

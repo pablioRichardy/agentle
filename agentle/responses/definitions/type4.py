@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type4(Enum):
-    logs = 'logs'
+    logs = "logs"

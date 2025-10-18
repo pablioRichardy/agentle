@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type39(Enum):
-    item_reference = 'item_reference'
+    item_reference = "item_reference"

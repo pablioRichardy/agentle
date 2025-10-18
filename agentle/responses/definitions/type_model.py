@@ -11,11 +11,9 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class TypeModel(BaseModel):
-    type: Literal['Type'] = Field(
+    type: Literal["Type"] = Field(
         ...,
-        description='Specifies the event type. For a type action, this property is \nalways set to `type`.\n',
+        description="Specifies the event type. For a type action, this property is \nalways set to `type`.\n",
     )
-    text: str = Field(..., description='The text to type.\n')
+    text: str = Field(..., description="The text to type.\n")

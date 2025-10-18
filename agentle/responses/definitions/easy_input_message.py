@@ -11,7 +11,6 @@ from typing import Literal, Union
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .input_message_content_list import InputMessageContentList
 from .role import Role
@@ -20,12 +19,12 @@ from .role import Role
 class EasyInputMessage(BaseModel):
     role: Role = Field(
         ...,
-        description='The role of the message input. One of `user`, `assistant`, `system`, or\n`developer`.\n',
+        description="The role of the message input. One of `user`, `assistant`, `system`, or\n`developer`.\n",
     )
     content: Union[str, InputMessageContentList] = Field(
         ...,
-        description='Text, image, or audio input to the model, used to generate a response.\nCan also contain previous assistant responses.\n',
+        description="Text, image, or audio input to the model, used to generate a response.\nCan also contain previous assistant responses.\n",
     )
-    type: Literal['EasyInputMessage'] = Field(
-        ..., description='The type of the message input. Always `message`.\n'
+    type: Literal["EasyInputMessage"] = Field(
+        ..., description="The type of the message input. Always `message`.\n"
     )

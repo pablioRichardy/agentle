@@ -11,15 +11,13 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ResponseAudioDeltaEvent(BaseModel):
-    type: Literal['ResponseAudioDeltaEvent'] = Field(
-        ..., description='The type of the event. Always `response.audio.delta`.\n'
+    type: Literal["ResponseAudioDeltaEvent"] = Field(
+        ..., description="The type of the event. Always `response.audio.delta`.\n"
     )
     sequence_number: int = Field(
-        ..., description='A sequence number for this chunk of the stream response.\n'
+        ..., description="A sequence number for this chunk of the stream response.\n"
     )
     delta: str = Field(
-        ..., description='A chunk of Base64 encoded response audio bytes.\n'
+        ..., description="A chunk of Base64 encoded response audio bytes.\n"
     )

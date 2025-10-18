@@ -11,7 +11,6 @@ from typing import List
 from pydantic import RootModel
 
 
-
 # Model dependencies
 from .input_content import InputContent
 

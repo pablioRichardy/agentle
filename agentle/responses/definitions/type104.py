@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type104(Enum):
-    response_reasoning_text_delta = 'response.reasoning_text.delta'
+    response_reasoning_text_delta = "response.reasoning_text.delta"

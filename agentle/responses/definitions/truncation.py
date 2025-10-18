@@ -9,9 +9,6 @@
 from enum import Enum
 
 
-
-
-
 class Truncation(Enum):
-    auto = 'auto'
-    disabled = 'disabled'
+    auto = "auto"
+    disabled = "disabled"

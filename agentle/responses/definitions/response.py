@@ -11,7 +11,6 @@ from typing import List, Optional, Union
 from pydantic import Field
 
 
-
 # Model dependencies
 from .conversation2 import Conversation2
 from .incomplete_details import IncompleteDetails
@@ -26,18 +25,18 @@ from .status10 import Status10
 
 
 class Response(ModelResponseProperties, ResponseProperties):
-    id: str = Field(..., description='Unique identifier for this Response.\n')
+    id: str = Field(..., description="Unique identifier for this Response.\n")
     object: Object = Field(
         ...,
-        description='The object type of this resource - always set to `response`.\n',
+        description="The object type of this resource - always set to `response`.\n",
     )
     status: Optional[Status10] = Field(
         None,
-        description='The status of the response generation. One of `completed`, `failed`,\n`in_progress`, `cancelled`, `queued`, or `incomplete`.\n',
+        description="The status of the response generation. One of `completed`, `failed`,\n`in_progress`, `cancelled`, `queued`, or `incomplete`.\n",
     )
     created_at: float = Field(
         ...,
-        description='Unix timestamp (in seconds) of when this Response was created.\n',
+        description="Unix timestamp (in seconds) of when this Response was created.\n",
     )
     error: ResponseError
     incomplete_details: Optional[IncompleteDetails]
@@ -49,6 +48,6 @@ class Response(ModelResponseProperties, ResponseProperties):
     output_text: Optional[str] = None
     usage: Optional[ResponseUsage] = None
     parallel_tool_calls: bool = Field(
-        ..., description='Whether to allow the model to run tool calls in parallel.\n'
+        ..., description="Whether to allow the model to run tool calls in parallel.\n"
     )
     conversation: Optional[Conversation2] = None

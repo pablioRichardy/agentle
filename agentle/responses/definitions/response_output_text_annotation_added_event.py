@@ -11,28 +11,26 @@ from typing import Any, Dict, Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ResponseOutputTextAnnotationAddedEvent(BaseModel):
-    type: Literal['ResponseOutputTextAnnotationAddedEvent'] = Field(
+    type: Literal["ResponseOutputTextAnnotationAddedEvent"] = Field(
         ...,
         description="The type of the event. Always 'response.output_text.annotation.added'.",
     )
     item_id: str = Field(
         ...,
-        description='The unique identifier of the item to which the annotation is being added.',
+        description="The unique identifier of the item to which the annotation is being added.",
     )
     output_index: int = Field(
         ..., description="The index of the output item in the response's output array."
     )
     content_index: int = Field(
-        ..., description='The index of the content part within the output item.'
+        ..., description="The index of the content part within the output item."
     )
     annotation_index: int = Field(
-        ..., description='The index of the annotation within the content part.'
+        ..., description="The index of the annotation within the content part."
     )
-    sequence_number: int = Field(..., description='The sequence number of this event.')
+    sequence_number: int = Field(..., description="The sequence number of this event.")
     annotation: Dict[str, Any] = Field(
         ...,
-        description='The annotation object being added. (See annotation schema for details.)',
+        description="The annotation object being added. (See annotation schema for details.)",
     )

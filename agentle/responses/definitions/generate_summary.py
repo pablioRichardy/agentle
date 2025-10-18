@@ -9,10 +9,7 @@
 from enum import Enum
 
 
-
-
-
 class GenerateSummary(Enum):
-    auto = 'auto'
-    concise = 'concise'
-    detailed = 'detailed'
+    auto = "auto"
+    concise = "concise"
+    detailed = "detailed"

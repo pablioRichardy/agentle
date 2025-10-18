@@ -9,9 +9,6 @@
 from enum import Enum
 
 
-
-
-
 class Moderation(Enum):
-    auto = 'auto'
-    low = 'low'
+    auto = "auto"
+    low = "low"

@@ -11,11 +11,9 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 
-
-
 class ToolChoiceMCP(BaseModel):
-    type: Literal['ToolChoiceMCP'] = Field(
-        ..., description='For MCP tools, the type is always `mcp`.'
+    type: Literal["ToolChoiceMCP"] = Field(
+        ..., description="For MCP tools, the type is always `mcp`."
     )
-    server_label: str = Field(..., description='The label of the MCP server to use.\n')
+    server_label: str = Field(..., description="The label of the MCP server to use.\n")
     name: Optional[str] = None

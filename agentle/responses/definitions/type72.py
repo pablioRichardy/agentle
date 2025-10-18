@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type72(Enum):
-    response_failed = 'response.failed'
+    response_failed = "response.failed"

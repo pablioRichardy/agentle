@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type113(Enum):
-    screenshot = 'screenshot'
+    screenshot = "screenshot"

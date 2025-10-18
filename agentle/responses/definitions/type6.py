@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type6(Enum):
-    code_interpreter_call = 'code_interpreter_call'
+    code_interpreter_call = "code_interpreter_call"

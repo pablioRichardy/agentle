@@ -11,21 +11,19 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ContainerFileCitationBody(BaseModel):
-    type: Literal['ContainerFileCitationBody'] = Field(
+    type: Literal["ContainerFileCitationBody"] = Field(
         ...,
-        description='The type of the container file citation. Always `container_file_citation`.',
+        description="The type of the container file citation. Always `container_file_citation`.",
     )
-    container_id: str = Field(..., description='The ID of the container file.')
-    file_id: str = Field(..., description='The ID of the file.')
+    container_id: str = Field(..., description="The ID of the container file.")
+    file_id: str = Field(..., description="The ID of the file.")
     start_index: int = Field(
         ...,
-        description='The index of the first character of the container file citation in the message.',
+        description="The index of the first character of the container file citation in the message.",
     )
     end_index: int = Field(
         ...,
-        description='The index of the last character of the container file citation in the message.',
+        description="The index of the last character of the container file citation in the message.",
     )
-    filename: str = Field(..., description='The filename of the container file cited.')
+    filename: str = Field(..., description="The filename of the container file cited.")

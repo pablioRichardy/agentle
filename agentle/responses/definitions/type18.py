@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type18(Enum):
-    custom = 'custom'
+    custom = "custom"

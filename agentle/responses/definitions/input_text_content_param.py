@@ -11,12 +11,10 @@ from typing import Literal
 from pydantic import BaseModel, Field, constr
 
 
-
-
 class InputTextContentParam(BaseModel):
-    type: Literal['InputTextContentParam'] = Field(
-        ..., description='The type of the input item. Always `input_text`.'
+    type: Literal["InputTextContentParam"] = Field(
+        ..., description="The type of the input item. Always `input_text`."
     )
     text: constr(max_length=10485760) = Field(
-        ..., description='The text input to the model.'
+        ..., description="The text input to the model."
     )

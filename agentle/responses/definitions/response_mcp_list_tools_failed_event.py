@@ -11,17 +11,15 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ResponseMCPListToolsFailedEvent(BaseModel):
-    type: Literal['ResponseMCPListToolsFailedEvent'] = Field(
+    type: Literal["ResponseMCPListToolsFailedEvent"] = Field(
         ...,
         description="The type of the event. Always 'response.mcp_list_tools.failed'.",
     )
     item_id: str = Field(
-        ..., description='The ID of the MCP tool call item that failed.'
+        ..., description="The ID of the MCP tool call item that failed."
     )
     output_index: int = Field(
-        ..., description='The index of the output item that failed.'
+        ..., description="The index of the output item that failed."
     )
-    sequence_number: int = Field(..., description='The sequence number of this event.')
+    sequence_number: int = Field(..., description="The sequence number of this event.")

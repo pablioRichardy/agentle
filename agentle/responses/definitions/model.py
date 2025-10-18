@@ -9,9 +9,6 @@
 from enum import Enum
 
 
-
-
-
 class Model(Enum):
-    gpt_image_1 = 'gpt-image-1'
-    gpt_image_1_mini = 'gpt-image-1-mini'
+    gpt_image_1 = "gpt-image-1"
+    gpt_image_1_mini = "gpt-image-1-mini"

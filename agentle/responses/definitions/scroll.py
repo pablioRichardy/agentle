@@ -11,14 +11,12 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class Scroll(BaseModel):
-    type: Literal['Scroll'] = Field(
+    type: Literal["Scroll"] = Field(
         ...,
-        description='Specifies the event type. For a scroll action, this property is \nalways set to `scroll`.\n',
+        description="Specifies the event type. For a scroll action, this property is \nalways set to `scroll`.\n",
     )
-    x: int = Field(..., description='The x-coordinate where the scroll occurred.\n')
-    y: int = Field(..., description='The y-coordinate where the scroll occurred.\n')
-    scroll_x: int = Field(..., description='The horizontal scroll distance.\n')
-    scroll_y: int = Field(..., description='The vertical scroll distance.\n')
+    x: int = Field(..., description="The x-coordinate where the scroll occurred.\n")
+    y: int = Field(..., description="The y-coordinate where the scroll occurred.\n")
+    scroll_x: int = Field(..., description="The horizontal scroll distance.\n")
+    scroll_y: int = Field(..., description="The vertical scroll distance.\n")

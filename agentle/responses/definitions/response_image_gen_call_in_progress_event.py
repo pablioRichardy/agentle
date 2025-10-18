@@ -11,10 +11,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ResponseImageGenCallInProgressEvent(BaseModel):
-    type: Literal['ResponseImageGenCallInProgressEvent'] = Field(
+    type: Literal["ResponseImageGenCallInProgressEvent"] = Field(
         ...,
         description="The type of the event. Always 'response.image_generation_call.in_progress'.",
     )
@@ -23,9 +21,9 @@ class ResponseImageGenCallInProgressEvent(BaseModel):
     )
     item_id: str = Field(
         ...,
-        description='The unique identifier of the image generation item being processed.',
+        description="The unique identifier of the image generation item being processed.",
     )
     sequence_number: int = Field(
         ...,
-        description='The sequence number of the image generation item being processed.',
+        description="The sequence number of the image generation item being processed.",
     )

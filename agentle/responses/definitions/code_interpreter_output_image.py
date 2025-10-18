@@ -11,12 +11,10 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class CodeInterpreterOutputImage(BaseModel):
-    type: Literal['CodeInterpreterOutputImage'] = Field(
-        ..., description='The type of the output. Always `image`.'
+    type: Literal["CodeInterpreterOutputImage"] = Field(
+        ..., description="The type of the output. Always `image`."
     )
     url: str = Field(
-        ..., description='The URL of the image output from the code interpreter.'
+        ..., description="The URL of the image output from the code interpreter."
     )

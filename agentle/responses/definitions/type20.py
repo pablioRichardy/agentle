@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type20(Enum):
-    drag = 'drag'
+    drag = "drag"

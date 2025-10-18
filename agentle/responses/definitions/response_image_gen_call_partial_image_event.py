@@ -11,10 +11,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ResponseImageGenCallPartialImageEvent(BaseModel):
-    type: Literal['ResponseImageGenCallPartialImageEvent'] = Field(
+    type: Literal["ResponseImageGenCallPartialImageEvent"] = Field(
         ...,
         description="The type of the event. Always 'response.image_generation_call.partial_image'.",
     )
@@ -23,17 +21,17 @@ class ResponseImageGenCallPartialImageEvent(BaseModel):
     )
     item_id: str = Field(
         ...,
-        description='The unique identifier of the image generation item being processed.',
+        description="The unique identifier of the image generation item being processed.",
     )
     sequence_number: int = Field(
         ...,
-        description='The sequence number of the image generation item being processed.',
+        description="The sequence number of the image generation item being processed.",
     )
     partial_image_index: int = Field(
         ...,
-        description='0-based index for the partial image (backend is 1-based, but this is 0-based for the user).',
+        description="0-based index for the partial image (backend is 1-based, but this is 0-based for the user).",
     )
     partial_image_b64: str = Field(
         ...,
-        description='Base64-encoded partial image data, suitable for rendering as an image.',
+        description="Base64-encoded partial image data, suitable for rendering as an image.",
     )

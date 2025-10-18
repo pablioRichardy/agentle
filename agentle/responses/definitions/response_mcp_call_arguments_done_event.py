@@ -11,10 +11,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ResponseMCPCallArgumentsDoneEvent(BaseModel):
-    type: Literal['ResponseMCPCallArgumentsDoneEvent'] = Field(
+    type: Literal["ResponseMCPCallArgumentsDoneEvent"] = Field(
         ...,
         description="The type of the event. Always 'response.mcp_call_arguments.done'.",
     )
@@ -23,10 +21,10 @@ class ResponseMCPCallArgumentsDoneEvent(BaseModel):
     )
     item_id: str = Field(
         ...,
-        description='The unique identifier of the MCP tool call item being processed.',
+        description="The unique identifier of the MCP tool call item being processed.",
     )
     arguments: str = Field(
         ...,
-        description='A JSON string containing the finalized arguments for the MCP tool call.\n',
+        description="A JSON string containing the finalized arguments for the MCP tool call.\n",
     )
-    sequence_number: int = Field(..., description='The sequence number of this event.')
+    sequence_number: int = Field(..., description="The sequence number of this event.")

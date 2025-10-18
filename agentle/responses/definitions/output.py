@@ -11,12 +11,19 @@ from typing import Union
 from pydantic import RootModel
 
 
-
 # Model dependencies
 from .input_file_content_param import InputFileContentParam
 from .input_image_content_param_auto_param import InputImageContentParamAutoParam
 from .input_text_content_param import InputTextContentParam
 
 
-class Output(RootModel[Union[InputTextContentParam, InputImageContentParamAutoParam, InputFileContentParam]]):
+class Output(
+    RootModel[
+        Union[
+            InputTextContentParam,
+            InputImageContentParamAutoParam,
+            InputFileContentParam,
+        ]
+    ]
+):
     pass

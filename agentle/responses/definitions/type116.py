@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type116(Enum):
-    json_schema = 'json_schema'
+    json_schema = "json_schema"

@@ -6,11 +6,8 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-
 from pydantic import BaseModel, Field
 
 
-
-
 class OutputTokensDetails(BaseModel):
-    reasoning_tokens: int = Field(..., description='The number of reasoning tokens.')
+    reasoning_tokens: int = Field(..., description="The number of reasoning tokens.")

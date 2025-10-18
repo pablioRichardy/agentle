@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type2(Enum):
-    auto = 'auto'
+    auto = "auto"

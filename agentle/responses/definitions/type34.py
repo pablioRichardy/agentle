@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type34(Enum):
-    input_image = 'input_image'
+    input_image = "input_image"

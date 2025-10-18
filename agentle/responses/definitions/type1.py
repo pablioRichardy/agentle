@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type1(Enum):
-    click = 'click'
+    click = "click"

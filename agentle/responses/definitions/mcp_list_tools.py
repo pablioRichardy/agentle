@@ -11,18 +11,17 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .mcp_list_tools_tool import MCPListToolsTool
 
 
 class MCPListTools(BaseModel):
-    type: Literal['MCPListTools'] = Field(
-        ..., description='The type of the item. Always `mcp_list_tools`.\n'
+    type: Literal["MCPListTools"] = Field(
+        ..., description="The type of the item. Always `mcp_list_tools`.\n"
     )
-    id: str = Field(..., description='The unique ID of the list.\n')
-    server_label: str = Field(..., description='The label of the MCP server.\n')
+    id: str = Field(..., description="The unique ID of the list.\n")
+    server_label: str = Field(..., description="The label of the MCP server.\n")
     tools: List[MCPListToolsTool] = Field(
-        ..., description='The tools available on the server.\n'
+        ..., description="The tools available on the server.\n"
     )
     error: Optional[str] = None

@@ -11,13 +11,11 @@ from typing import Literal
 from pydantic import AnyUrl, BaseModel, Field
 
 
-
-
 class WebSearchActionFind(BaseModel):
-    type: Literal['WebSearchActionFind'] = Field(..., description='The action type.\n')
+    type: Literal["WebSearchActionFind"] = Field(..., description="The action type.\n")
     url: AnyUrl = Field(
-        ..., description='The URL of the page searched for the pattern.\n'
+        ..., description="The URL of the page searched for the pattern.\n"
     )
     pattern: str = Field(
-        ..., description='The pattern or text to search for within the page.\n'
+        ..., description="The pattern or text to search for within the page.\n"
     )

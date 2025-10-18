@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type128(Enum):
-    url = 'url'
+    url = "url"

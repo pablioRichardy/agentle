@@ -9,11 +9,8 @@
 from enum import Enum
 
 
-
-
-
 class Role(Enum):
-    user = 'user'
-    assistant = 'assistant'
-    system = 'system'
-    developer = 'developer'
+    user = "user"
+    assistant = "assistant"
+    system = "system"
+    developer = "developer"

@@ -11,22 +11,20 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ResponseFunctionCallArgumentsDeltaEvent(BaseModel):
-    type: Literal['ResponseFunctionCallArgumentsDeltaEvent'] = Field(
+    type: Literal["ResponseFunctionCallArgumentsDeltaEvent"] = Field(
         ...,
-        description='The type of the event. Always `response.function_call_arguments.delta`.\n',
+        description="The type of the event. Always `response.function_call_arguments.delta`.\n",
     )
     item_id: str = Field(
         ...,
-        description='The ID of the output item that the function-call arguments delta is added to.\n',
+        description="The ID of the output item that the function-call arguments delta is added to.\n",
     )
     output_index: int = Field(
         ...,
-        description='The index of the output item that the function-call arguments delta is added to.\n',
+        description="The index of the output item that the function-call arguments delta is added to.\n",
     )
-    sequence_number: int = Field(..., description='The sequence number of this event.')
+    sequence_number: int = Field(..., description="The sequence number of this event.")
     delta: str = Field(
-        ..., description='The function-call arguments delta that is added.\n'
+        ..., description="The function-call arguments delta that is added.\n"
     )

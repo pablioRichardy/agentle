@@ -9,10 +9,7 @@
 from enum import Enum
 
 
-
-
-
 class SearchContextSize(Enum):
-    low = 'low'
-    medium = 'medium'
-    high = 'high'
+    low = "low"
+    medium = "medium"
+    high = "high"

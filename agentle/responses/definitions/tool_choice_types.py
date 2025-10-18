@@ -11,10 +11,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ToolChoiceTypes(BaseModel):
-    type: Literal['ToolChoiceTypes'] = Field(
+    type: Literal["ToolChoiceTypes"] = Field(
         ...,
-        description='The type of hosted tool the model should to use. Learn more about\n[built-in tools](https://platform.openai.com/docs/guides/tools).\n\nAllowed values are:\n- `file_search`\n- `web_search_preview`\n- `computer_use_preview`\n- `code_interpreter`\n- `image_generation`\n',
+        description="The type of hosted tool the model should to use. Learn more about\n[built-in tools](https://platform.openai.com/docs/guides/tools).\n\nAllowed values are:\n- `file_search`\n- `web_search_preview`\n- `computer_use_preview`\n- `code_interpreter`\n- `image_generation`\n",
     )

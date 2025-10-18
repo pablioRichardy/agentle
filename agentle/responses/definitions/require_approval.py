@@ -11,13 +11,12 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
 
-
 # Model dependencies
 from .mcp_tool_filter import MCPToolFilter
 
 
 class RequireApproval(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra="forbid")
 
     always: Optional[MCPToolFilter] = None
     never: Optional[MCPToolFilter] = None

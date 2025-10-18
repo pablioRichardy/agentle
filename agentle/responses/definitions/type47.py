@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type47(Enum):
-    mcp_list_tools = 'mcp_list_tools'
+    mcp_list_tools = "mcp_list_tools"

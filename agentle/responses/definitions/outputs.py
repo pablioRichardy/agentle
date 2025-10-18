@@ -11,7 +11,6 @@ from typing import Union
 from pydantic import RootModel
 
 
-
 # Model dependencies
 from .code_interpreter_output_image import CodeInterpreterOutputImage
 from .code_interpreter_output_logs import CodeInterpreterOutputLogs

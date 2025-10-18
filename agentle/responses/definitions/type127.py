@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type127(Enum):
-    search = 'search'
+    search = "search"

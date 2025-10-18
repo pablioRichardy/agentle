@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type50(Enum):
-    move = 'move'
+    move = "move"

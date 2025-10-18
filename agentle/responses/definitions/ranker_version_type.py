@@ -9,9 +9,6 @@
 from enum import Enum
 
 
-
-
-
 class RankerVersionType(Enum):
-    auto = 'auto'
-    default_2024_11_15 = 'default-2024-11-15'
+    auto = "auto"
+    default_2024_11_15 = "default-2024-11-15"

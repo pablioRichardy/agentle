@@ -9,10 +9,7 @@
 from enum import Enum
 
 
-
-
-
 class Type83(Enum):
     response_image_generation_call_partial_image = (
-        'response.image_generation_call.partial_image'
+        "response.image_generation_call.partial_image"
     )

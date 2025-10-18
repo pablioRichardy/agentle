@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type3(Enum):
-    image = 'image'
+    image = "image"

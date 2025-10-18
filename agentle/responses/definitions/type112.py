@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type112(Enum):
-    response_web_search_call_searching = 'response.web_search_call.searching'
+    response_web_search_call_searching = "response.web_search_call.searching"

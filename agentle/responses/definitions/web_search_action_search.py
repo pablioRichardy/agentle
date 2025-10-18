@@ -11,18 +11,17 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .source import Source
 
 
 class WebSearchActionSearch(BaseModel):
-    type: Literal['WebSearchActionSearch'] = Field(
-        ..., description='The action type.\n'
+    type: Literal["WebSearchActionSearch"] = Field(
+        ..., description="The action type.\n"
     )
-    query: str = Field(..., description='The search query.\n')
+    query: str = Field(..., description="The search query.\n")
     sources: Optional[List[Source]] = Field(
         None,
-        description='The sources used in the search.\n',
-        title='Web search sources',
+        description="The sources used in the search.\n",
+        title="Web search sources",
     )

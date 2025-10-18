@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type119(Enum):
-    function = 'function'
+    function = "function"

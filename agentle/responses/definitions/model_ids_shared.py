@@ -11,7 +11,6 @@ from typing import Union
 from pydantic import RootModel
 
 
-
 # Model dependencies
 from .chat_model import ChatModel
 

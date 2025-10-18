@@ -11,13 +11,11 @@ from typing import Any, Dict, Literal, Optional
 from pydantic import BaseModel, Field
 
 
-
-
 class FunctionTool(BaseModel):
-    type: Literal['FunctionTool'] = Field(
-        ..., description='The type of the function tool. Always `function`.'
+    type: Literal["FunctionTool"] = Field(
+        ..., description="The type of the function tool. Always `function`."
     )
-    name: str = Field(..., description='The name of the function to call.')
+    name: str = Field(..., description="The name of the function to call.")
     description: Optional[str] = None
     parameters: Optional[Dict[str, Any]]
     strict: Optional[bool]

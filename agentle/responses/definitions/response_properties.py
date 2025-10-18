@@ -11,7 +11,6 @@ from typing import List, Optional, Union
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .model_ids_responses import ModelIdsResponses
 from .prompt import Prompt
@@ -31,7 +30,7 @@ class ResponseProperties(BaseModel):
     previous_response_id: Optional[str] = None
     model: Optional[ModelIdsResponses] = Field(
         None,
-        description='Model ID used to generate the response, like `gpt-4o` or `o3`. OpenAI\noffers a wide range of models with different capabilities, performance\ncharacteristics, and price points. Refer to the [model guide](https://platform.openai.com/docs/models)\nto browse and compare available models.\n',
+        description="Model ID used to generate the response, like `gpt-4o` or `o3`. OpenAI\noffers a wide range of models with different capabilities, performance\ncharacteristics, and price points. Refer to the [model guide](https://platform.openai.com/docs/models)\nto browse and compare available models.\n",
     )
     reasoning: Optional[Reasoning] = None
     background: Optional[bool] = None
@@ -39,7 +38,7 @@ class ResponseProperties(BaseModel):
     max_tool_calls: Optional[int] = None
     text: Optional[Text] = Field(
         None,
-        description='Configuration options for a text response from the model. Can be plain\ntext or structured JSON data. Learn more:\n- [Text inputs and outputs](https://platform.openai.com/docs/guides/text)\n- [Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs)\n',
+        description="Configuration options for a text response from the model. Can be plain\ntext or structured JSON data. Learn more:\n- [Text inputs and outputs](https://platform.openai.com/docs/guides/text)\n- [Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs)\n",
     )
     tools: Optional[List[Tool]] = Field(
         None,
@@ -56,8 +55,8 @@ class ResponseProperties(BaseModel):
         ]
     ] = Field(
         None,
-        description='How the model should select which tool (or tools) to use when generating\na response. See the `tools` parameter to see how to specify which tools\nthe model can call.\n',
-        discriminator='type',
+        description="How the model should select which tool (or tools) to use when generating\na response. See the `tools` parameter to see how to specify which tools\nthe model can call.\n",
+        discriminator="type",
     )
     prompt: Optional[Prompt] = None
     truncation: Optional[Truncation] = None

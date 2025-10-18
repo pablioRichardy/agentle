@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type66(Enum):
-    response_content_part_added = 'response.content_part.added'
+    response_content_part_added = "response.content_part.added"

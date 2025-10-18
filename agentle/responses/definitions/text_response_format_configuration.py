@@ -11,12 +11,17 @@ from typing import Union
 from pydantic import RootModel
 
 
-
 # Model dependencies
 from .response_format_json_object import ResponseFormatJsonObject
 from .response_format_text import ResponseFormatText
 from .text_response_format_json_schema import TextResponseFormatJsonSchema
 
 
-class TextResponseFormatConfiguration(RootModel[Union[ResponseFormatText, TextResponseFormatJsonSchema, ResponseFormatJsonObject]]):
+class TextResponseFormatConfiguration(
+    RootModel[
+        Union[
+            ResponseFormatText, TextResponseFormatJsonSchema, ResponseFormatJsonObject
+        ]
+    ]
+):
     pass

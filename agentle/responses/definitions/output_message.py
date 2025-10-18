@@ -11,7 +11,6 @@ from typing import List, Literal
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .output_message_content import OutputMessageContent
 from .role2 import Role2
@@ -19,17 +18,17 @@ from .status5 import Status5
 
 
 class OutputMessage(BaseModel):
-    id: str = Field(..., description='The unique ID of the output message.\n')
-    type: Literal['OutputMessage'] = Field(
-        ..., description='The type of the output message. Always `message`.\n'
+    id: str = Field(..., description="The unique ID of the output message.\n")
+    type: Literal["OutputMessage"] = Field(
+        ..., description="The type of the output message. Always `message`.\n"
     )
     role: Role2 = Field(
-        ..., description='The role of the output message. Always `assistant`.\n'
+        ..., description="The role of the output message. Always `assistant`.\n"
     )
     content: List[OutputMessageContent] = Field(
-        ..., description='The content of the output message.\n'
+        ..., description="The content of the output message.\n"
     )
     status: Status5 = Field(
         ...,
-        description='The status of the message input. One of `in_progress`, `completed`, or\n`incomplete`. Populated when input items are returned via API.\n',
+        description="The status of the message input. One of `in_progress`, `completed`, or\n`incomplete`. Populated when input items are returned via API.\n",
     )

@@ -11,12 +11,11 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .reason import Reason
 
 
 class IncompleteDetails(BaseModel):
     reason: Optional[Reason] = Field(
-        None, description='The reason why the response is incomplete.'
+        None, description="The reason why the response is incomplete."
     )

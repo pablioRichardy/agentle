@@ -9,13 +9,10 @@
 from enum import Enum
 
 
-
-
-
 class Status10(Enum):
-    completed = 'completed'
-    failed = 'failed'
-    in_progress = 'in_progress'
-    cancelled = 'cancelled'
-    queued = 'queued'
-    incomplete = 'incomplete'
+    completed = "completed"
+    failed = "failed"
+    in_progress = "in_progress"
+    cancelled = "cancelled"
+    queued = "queued"
+    incomplete = "incomplete"

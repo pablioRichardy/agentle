@@ -11,14 +11,13 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .response import Response
 
 
 class ResponseInProgressEvent(BaseModel):
-    type: Literal['ResponseInProgressEvent'] = Field(
-        ..., description='The type of the event. Always `response.in_progress`.\n'
+    type: Literal["ResponseInProgressEvent"] = Field(
+        ..., description="The type of the event. Always `response.in_progress`.\n"
     )
-    response: Response = Field(..., description='The response that is in progress.\n')
-    sequence_number: int = Field(..., description='The sequence number of this event.')
+    response: Response = Field(..., description="The response that is in progress.\n")
+    sequence_number: int = Field(..., description="The sequence number of this event.")

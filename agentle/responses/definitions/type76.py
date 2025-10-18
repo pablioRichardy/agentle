@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type76(Enum):
-    json_object = 'json_object'
+    json_object = "json_object"

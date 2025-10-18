@@ -9,10 +9,7 @@
 from enum import Enum
 
 
-
-
-
 class Type63(Enum):
     response_code_interpreter_call_in_progress = (
-        'response.code_interpreter_call.in_progress'
+        "response.code_interpreter_call.in_progress"
     )

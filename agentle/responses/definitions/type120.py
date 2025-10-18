@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type120(Enum):
-    mcp = 'mcp'
+    mcp = "mcp"

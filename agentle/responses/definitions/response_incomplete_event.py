@@ -11,14 +11,13 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .response import Response
 
 
 class ResponseIncompleteEvent(BaseModel):
-    type: Literal['ResponseIncompleteEvent'] = Field(
-        ..., description='The type of the event. Always `response.incomplete`.\n'
+    type: Literal["ResponseIncompleteEvent"] = Field(
+        ..., description="The type of the event. Always `response.incomplete`.\n"
     )
-    response: Response = Field(..., description='The response that was incomplete.\n')
-    sequence_number: int = Field(..., description='The sequence number of this event.')
+    response: Response = Field(..., description="The response that was incomplete.\n")
+    sequence_number: int = Field(..., description="The sequence number of this event.")

@@ -11,18 +11,17 @@ from typing import Any, Dict, List, Literal
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .mode import Mode
 
 
 class ToolChoiceAllowed(BaseModel):
-    type: Literal['ToolChoiceAllowed'] = Field(
-        ..., description='Allowed tool configuration type. Always `allowed_tools`.'
+    type: Literal["ToolChoiceAllowed"] = Field(
+        ..., description="Allowed tool configuration type. Always `allowed_tools`."
     )
     mode: Mode = Field(
         ...,
-        description='Constrains the tools available to the model to a pre-defined set.\n\n`auto` allows the model to pick from among the allowed tools and generate a\nmessage.\n\n`required` requires the model to call one or more of the allowed tools.\n',
+        description="Constrains the tools available to the model to a pre-defined set.\n\n`auto` allows the model to pick from among the allowed tools and generate a\nmessage.\n\n`required` requires the model to call one or more of the allowed tools.\n",
     )
     tools: List[Dict[str, Any]] = Field(
         ...,

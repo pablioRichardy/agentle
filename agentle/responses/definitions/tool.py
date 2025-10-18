@@ -11,7 +11,6 @@ from typing import Union
 from pydantic import RootModel
 
 
-
 # Model dependencies
 from .code_interpreter_tool import CodeInterpreterTool
 from .computer_use_preview_tool import ComputerUsePreviewTool
@@ -25,5 +24,20 @@ from .web_search_preview_tool import WebSearchPreviewTool
 from .web_search_tool import WebSearchTool
 
 
-class Tool(RootModel[Union[FunctionTool, FileSearchTool, ComputerUsePreviewTool, WebSearchTool, MCPTool, CodeInterpreterTool, ImageGenTool, LocalShellToolParam, CustomToolParam, WebSearchPreviewTool]]):
+class Tool(
+    RootModel[
+        Union[
+            FunctionTool,
+            FileSearchTool,
+            ComputerUsePreviewTool,
+            WebSearchTool,
+            MCPTool,
+            CodeInterpreterTool,
+            ImageGenTool,
+            LocalShellToolParam,
+            CustomToolParam,
+            WebSearchPreviewTool,
+        ]
+    ]
+):
     pass

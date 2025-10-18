@@ -11,13 +11,11 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 
-
-
 class ResponseErrorEvent(BaseModel):
-    type: Literal['ResponseErrorEvent'] = Field(
-        ..., description='The type of the event. Always `error`.\n'
+    type: Literal["ResponseErrorEvent"] = Field(
+        ..., description="The type of the event. Always `error`.\n"
     )
     code: Optional[str]
-    message: str = Field(..., description='The error message.\n')
+    message: str = Field(..., description="The error message.\n")
     param: Optional[str]
-    sequence_number: int = Field(..., description='The sequence number of this event.')
+    sequence_number: int = Field(..., description="The sequence number of this event.")

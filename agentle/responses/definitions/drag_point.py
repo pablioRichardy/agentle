@@ -6,12 +6,9 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-
 from pydantic import BaseModel, Field
 
 
-
-
 class DragPoint(BaseModel):
-    x: int = Field(..., description='The x-coordinate.')
-    y: int = Field(..., description='The y-coordinate.')
+    x: int = Field(..., description="The x-coordinate.")
+    y: int = Field(..., description="The y-coordinate.")

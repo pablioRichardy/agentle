@@ -11,15 +11,14 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .type129 import Type129
 
 
 class WebSearchApproximateLocation1(BaseModel):
     type: Optional[Type129] = Field(
-        'approximate',
-        description='The type of location approximation. Always `approximate`.',
+        "approximate",
+        description="The type of location approximation. Always `approximate`.",
     )
     country: Optional[str] = None
     region: Optional[str] = None

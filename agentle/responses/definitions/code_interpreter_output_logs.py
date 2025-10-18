@@ -11,10 +11,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class CodeInterpreterOutputLogs(BaseModel):
-    type: Literal['CodeInterpreterOutputLogs'] = Field(
-        ..., description='The type of the output. Always `logs`.'
+    type: Literal["CodeInterpreterOutputLogs"] = Field(
+        ..., description="The type of the output. Always `logs`."
     )
-    logs: str = Field(..., description='The logs output from the code interpreter.')
+    logs: str = Field(..., description="The logs output from the code interpreter.")

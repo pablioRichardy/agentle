@@ -11,19 +11,17 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class UrlCitationBody(BaseModel):
-    type: Literal['UrlCitationBody'] = Field(
-        ..., description='The type of the URL citation. Always `url_citation`.'
+    type: Literal["UrlCitationBody"] = Field(
+        ..., description="The type of the URL citation. Always `url_citation`."
     )
-    url: str = Field(..., description='The URL of the web resource.')
+    url: str = Field(..., description="The URL of the web resource.")
     start_index: int = Field(
         ...,
-        description='The index of the first character of the URL citation in the message.',
+        description="The index of the first character of the URL citation in the message.",
     )
     end_index: int = Field(
         ...,
-        description='The index of the last character of the URL citation in the message.',
+        description="The index of the last character of the URL citation in the message.",
     )
-    title: str = Field(..., description='The title of the web resource.')
+    title: str = Field(..., description="The title of the web resource.")

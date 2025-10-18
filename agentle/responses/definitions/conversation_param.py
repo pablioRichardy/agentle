@@ -6,13 +6,10 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-
 from pydantic import BaseModel, Field
-
-
 
 
 class ConversationParam(BaseModel):
     id: str = Field(
-        ..., description='The unique ID of the conversation.', example='conv_123'
+        ..., description="The unique ID of the conversation.", example="conv_123"
     )

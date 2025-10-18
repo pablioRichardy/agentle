@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type107(Enum):
-    response_refusal_done = 'response.refusal.done'
+    response_refusal_done = "response.refusal.done"

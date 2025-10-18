@@ -11,7 +11,6 @@ from typing import Optional
 from pydantic import RootModel
 
 
-
 # Model dependencies
 from .service_tier1 import ServiceTier1
 

@@ -9,9 +9,6 @@
 from enum import Enum
 
 
-
-
-
 class Format(Enum):
-    mp3 = 'mp3'
-    wav = 'wav'
+    mp3 = "mp3"
+    wav = "wav"

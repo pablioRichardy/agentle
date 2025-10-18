@@ -11,17 +11,16 @@ from typing import Any, List, Union
 from pydantic import BaseModel, ConfigDict, Field
 
 
-
 # Model dependencies
 from .comparison_filter import ComparisonFilter
 from .type8 import Type8
 
 
 class CompoundFilter(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra="forbid")
 
-    type: Type8 = Field(..., description='Type of operation: `and` or `or`.')
+    type: Type8 = Field(..., description="Type of operation: `and` or `or`.")
     filters: List[Union[ComparisonFilter, Any]] = Field(
         ...,
-        description='Array of filters to combine. Items can be `ComparisonFilter` or `CompoundFilter`.',
+        description="Array of filters to combine. Items can be `ComparisonFilter` or `CompoundFilter`.",
     )

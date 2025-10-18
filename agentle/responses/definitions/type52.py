@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type52(Enum):
-    output_text = 'output_text'
+    output_text = "output_text"

@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type125(Enum):
-    find = 'find'
+    find = "find"

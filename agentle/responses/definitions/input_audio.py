@@ -11,13 +11,12 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .input_audio1 import InputAudio1
 
 
 class InputAudio(BaseModel):
-    type: Literal['InputAudio'] = Field(
-        ..., description='The type of the input item. Always `input_audio`.\n'
+    type: Literal["InputAudio"] = Field(
+        ..., description="The type of the input item. Always `input_audio`.\n"
     )
     input_audio: InputAudio1

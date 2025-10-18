@@ -11,10 +11,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ToolChoiceCustom(BaseModel):
-    type: Literal['ToolChoiceCustom'] = Field(
-        ..., description='For custom tool calling, the type is always `custom`.'
+    type: Literal["ToolChoiceCustom"] = Field(
+        ..., description="For custom tool calling, the type is always `custom`."
     )
-    name: str = Field(..., description='The name of the custom tool to call.')
+    name: str = Field(..., description="The name of the custom tool to call.")

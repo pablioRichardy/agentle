@@ -11,14 +11,13 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .top_logprob import TopLogprob
 
 
 class ResponseLogProb(BaseModel):
-    token: str = Field(..., description='A possible text token.')
-    logprob: float = Field(..., description='The log probability of this token.\n')
+    token: str = Field(..., description="A possible text token.")
+    logprob: float = Field(..., description="The log probability of this token.\n")
     top_logprobs: Optional[List[TopLogprob]] = Field(
-        None, description='The log probability of the top 20 most likely tokens.\n'
+        None, description="The log probability of the top 20 most likely tokens.\n"
     )

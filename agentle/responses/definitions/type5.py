@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type5(Enum):
-    code_interpreter = 'code_interpreter'
+    code_interpreter = "code_interpreter"

@@ -11,25 +11,24 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .output_content import OutputContent
 
 
 class ResponseContentPartDoneEvent(BaseModel):
-    type: Literal['ResponseContentPartDoneEvent'] = Field(
-        ..., description='The type of the event. Always `response.content_part.done`.\n'
+    type: Literal["ResponseContentPartDoneEvent"] = Field(
+        ..., description="The type of the event. Always `response.content_part.done`.\n"
     )
     item_id: str = Field(
         ...,
-        description='The ID of the output item that the content part was added to.\n',
+        description="The ID of the output item that the content part was added to.\n",
     )
     output_index: int = Field(
         ...,
-        description='The index of the output item that the content part was added to.\n',
+        description="The index of the output item that the content part was added to.\n",
     )
     content_index: int = Field(
-        ..., description='The index of the content part that is done.\n'
+        ..., description="The index of the content part that is done.\n"
     )
-    sequence_number: int = Field(..., description='The sequence number of this event.')
-    part: OutputContent = Field(..., description='The content part that is done.\n')
+    sequence_number: int = Field(..., description="The sequence number of this event.")
+    part: OutputContent = Field(..., description="The content part that is done.\n")

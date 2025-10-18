@@ -11,25 +11,23 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ResponseCodeInterpreterCallCodeDeltaEvent(BaseModel):
-    type: Literal['ResponseCodeInterpreterCallCodeDeltaEvent'] = Field(
+    type: Literal["ResponseCodeInterpreterCallCodeDeltaEvent"] = Field(
         ...,
-        description='The type of the event. Always `response.code_interpreter_call_code.delta`.',
+        description="The type of the event. Always `response.code_interpreter_call_code.delta`.",
     )
     output_index: int = Field(
         ...,
-        description='The index of the output item in the response for which the code is being streamed.',
+        description="The index of the output item in the response for which the code is being streamed.",
     )
     item_id: str = Field(
-        ..., description='The unique identifier of the code interpreter tool call item.'
+        ..., description="The unique identifier of the code interpreter tool call item."
     )
     delta: str = Field(
         ...,
-        description='The partial code snippet being streamed by the code interpreter.',
+        description="The partial code snippet being streamed by the code interpreter.",
     )
     sequence_number: int = Field(
         ...,
-        description='The sequence number of this event, used to order streaming events.',
+        description="The sequence number of this event, used to order streaming events.",
     )

@@ -11,10 +11,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class Wait(BaseModel):
-    type: Literal['Wait'] = Field(
+    type: Literal["Wait"] = Field(
         ...,
-        description='Specifies the event type. For a wait action, this property is \nalways set to `wait`.\n',
+        description="Specifies the event type. For a wait action, this property is \nalways set to `wait`.\n",
     )

@@ -11,27 +11,26 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .part1 import Part1
 
 
 class ResponseReasoningSummaryPartDoneEvent(BaseModel):
-    type: Literal['ResponseReasoningSummaryPartDoneEvent'] = Field(
+    type: Literal["ResponseReasoningSummaryPartDoneEvent"] = Field(
         ...,
-        description='The type of the event. Always `response.reasoning_summary_part.done`.\n',
+        description="The type of the event. Always `response.reasoning_summary_part.done`.\n",
     )
     item_id: str = Field(
-        ..., description='The ID of the item this summary part is associated with.\n'
+        ..., description="The ID of the item this summary part is associated with.\n"
     )
     output_index: int = Field(
         ...,
-        description='The index of the output item this summary part is associated with.\n',
+        description="The index of the output item this summary part is associated with.\n",
     )
     summary_index: int = Field(
-        ..., description='The index of the summary part within the reasoning summary.\n'
+        ..., description="The index of the summary part within the reasoning summary.\n"
     )
     sequence_number: int = Field(
-        ..., description='The sequence number of this event.\n'
+        ..., description="The sequence number of this event.\n"
     )
-    part: Part1 = Field(..., description='The completed summary part.\n')
+    part: Part1 = Field(..., description="The completed summary part.\n")

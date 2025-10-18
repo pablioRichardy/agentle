@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type117(Enum):
-    allowed_tools = 'allowed_tools'
+    allowed_tools = "allowed_tools"

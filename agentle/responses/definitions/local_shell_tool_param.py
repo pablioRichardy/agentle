@@ -11,9 +11,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class LocalShellToolParam(BaseModel):
-    type: Literal['LocalShellToolParam'] = Field(
-        ..., description='The type of the local shell tool. Always `local_shell`.'
+    type: Literal["LocalShellToolParam"] = Field(
+        ..., description="The type of the local shell tool. Always `local_shell`."
     )

@@ -9,10 +9,7 @@
 from enum import Enum
 
 
-
-
-
 class OutputFormat(Enum):
-    png = 'png'
-    webp = 'webp'
-    jpeg = 'jpeg'
+    png = "png"
+    webp = "webp"
+    jpeg = "jpeg"

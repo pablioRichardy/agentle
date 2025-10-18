@@ -11,26 +11,24 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ResponseReasoningTextDoneEvent(BaseModel):
-    type: Literal['ResponseReasoningTextDoneEvent'] = Field(
+    type: Literal["ResponseReasoningTextDoneEvent"] = Field(
         ...,
-        description='The type of the event. Always `response.reasoning_text.done`.\n',
+        description="The type of the event. Always `response.reasoning_text.done`.\n",
     )
     item_id: str = Field(
-        ..., description='The ID of the item this reasoning text is associated with.\n'
+        ..., description="The ID of the item this reasoning text is associated with.\n"
     )
     output_index: int = Field(
         ...,
-        description='The index of the output item this reasoning text is associated with.\n',
+        description="The index of the output item this reasoning text is associated with.\n",
     )
     content_index: int = Field(
-        ..., description='The index of the reasoning content part.\n'
+        ..., description="The index of the reasoning content part.\n"
     )
     text: str = Field(
-        ..., description='The full text of the completed reasoning content.\n'
+        ..., description="The full text of the completed reasoning content.\n"
     )
     sequence_number: int = Field(
-        ..., description='The sequence number of this event.\n'
+        ..., description="The sequence number of this event.\n"
     )

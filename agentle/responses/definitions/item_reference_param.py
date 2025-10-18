@@ -11,8 +11,6 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ItemReferenceParam(BaseModel):
-    type: Literal['ItemReferenceParam']
-    id: str = Field(..., description='The ID of the item to reference.')
+    type: Literal["ItemReferenceParam"]
+    id: str = Field(..., description="The ID of the item to reference.")

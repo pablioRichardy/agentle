@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type14(Enum):
-    grammar = 'grammar'
+    grammar = "grammar"

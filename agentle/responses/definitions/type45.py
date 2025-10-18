@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type45(Enum):
-    mcp_approval_request = 'mcp_approval_request'
+    mcp_approval_request = "mcp_approval_request"

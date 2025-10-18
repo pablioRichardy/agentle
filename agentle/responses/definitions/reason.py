@@ -9,9 +9,6 @@
 from enum import Enum
 
 
-
-
-
 class Reason(Enum):
-    max_output_tokens = 'max_output_tokens'
-    content_filter = 'content_filter'
+    max_output_tokens = "max_output_tokens"
+    content_filter = "content_filter"

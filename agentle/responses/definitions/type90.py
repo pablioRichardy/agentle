@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type90(Enum):
-    response_mcp_call_in_progress = 'response.mcp_call.in_progress'
+    response_mcp_call_in_progress = "response.mcp_call.in_progress"

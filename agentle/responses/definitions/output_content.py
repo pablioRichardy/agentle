@@ -11,12 +11,13 @@ from typing import Union
 from pydantic import RootModel
 
 
-
 # Model dependencies
 from .output_text_content import OutputTextContent
 from .reasoning_text_content import ReasoningTextContent
 from .refusal_content import RefusalContent
 
 
-class OutputContent(RootModel[Union[OutputTextContent, RefusalContent, ReasoningTextContent]]):
+class OutputContent(
+    RootModel[Union[OutputTextContent, RefusalContent, ReasoningTextContent]]
+):
     pass

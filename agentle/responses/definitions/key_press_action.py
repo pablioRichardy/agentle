@@ -11,14 +11,12 @@ from typing import List, Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class KeyPressAction(BaseModel):
-    type: Literal['KeyPressAction'] = Field(
+    type: Literal["KeyPressAction"] = Field(
         ...,
-        description='Specifies the event type. For a keypress action, this property is always set to `keypress`.',
+        description="Specifies the event type. For a keypress action, this property is always set to `keypress`.",
     )
     keys: List[str] = Field(
         ...,
-        description='The combination of keys the model is requesting to be pressed. This is an array of strings, each representing a key.',
+        description="The combination of keys the model is requesting to be pressed. This is an array of strings, each representing a key.",
     )

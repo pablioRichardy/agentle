@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type22(Enum):
-    file_citation = 'file_citation'
+    file_citation = "file_citation"

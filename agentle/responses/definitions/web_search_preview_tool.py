@@ -11,19 +11,18 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .approximate_location import ApproximateLocation
 from .search_context_size import SearchContextSize
 
 
 class WebSearchPreviewTool(BaseModel):
-    type: Literal['WebSearchPreviewTool'] = Field(
+    type: Literal["WebSearchPreviewTool"] = Field(
         ...,
-        description='The type of the web search tool. One of `web_search_preview` or `web_search_preview_2025_03_11`.',
+        description="The type of the web search tool. One of `web_search_preview` or `web_search_preview_2025_03_11`.",
     )
     user_location: Optional[ApproximateLocation] = None
     search_context_size: Optional[SearchContextSize] = Field(
         None,
-        description='High level guidance for the amount of context window space to use for the search. One of `low`, `medium`, or `high`. `medium` is the default.',
+        description="High level guidance for the amount of context window space to use for the search. One of `low`, `medium`, or `high`. `medium` is the default.",
     )

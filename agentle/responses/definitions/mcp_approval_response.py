@@ -11,15 +11,13 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 
-
-
 class MCPApprovalResponse(BaseModel):
-    type: Literal['MCPApprovalResponse'] = Field(
-        ..., description='The type of the item. Always `mcp_approval_response`.\n'
+    type: Literal["MCPApprovalResponse"] = Field(
+        ..., description="The type of the item. Always `mcp_approval_response`.\n"
     )
     id: Optional[str] = None
     approval_request_id: str = Field(
-        ..., description='The ID of the approval request being answered.\n'
+        ..., description="The ID of the approval request being answered.\n"
     )
-    approve: bool = Field(..., description='Whether the request was approved.\n')
+    approve: bool = Field(..., description="Whether the request was approved.\n")
     reason: Optional[str] = None

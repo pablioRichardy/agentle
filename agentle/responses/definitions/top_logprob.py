@@ -11,10 +11,8 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-
-
 class TopLogprob(BaseModel):
-    token: Optional[str] = Field(None, description='A possible text token.')
+    token: Optional[str] = Field(None, description="A possible text token.")
     logprob: Optional[float] = Field(
-        None, description='The log probability of this token.'
+        None, description="The log probability of this token."
     )

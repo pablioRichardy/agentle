@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type26(Enum):
-    function_call_output = 'function_call_output'
+    function_call_output = "function_call_output"

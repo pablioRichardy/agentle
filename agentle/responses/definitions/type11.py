@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type11(Enum):
-    computer_call = 'computer_call'
+    computer_call = "computer_call"

@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type31(Enum):
-    input_audio = 'input_audio'
+    input_audio = "input_audio"

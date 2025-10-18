@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type79(Enum):
-    response_function_call_arguments_done = 'response.function_call_arguments.done'
+    response_function_call_arguments_done = "response.function_call_arguments.done"

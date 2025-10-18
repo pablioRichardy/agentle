@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type87(Enum):
-    response_mcp_call_arguments_done = 'response.mcp_call_arguments.done'
+    response_mcp_call_arguments_done = "response.mcp_call_arguments.done"

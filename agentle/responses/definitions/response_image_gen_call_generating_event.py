@@ -11,10 +11,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ResponseImageGenCallGeneratingEvent(BaseModel):
-    type: Literal['ResponseImageGenCallGeneratingEvent'] = Field(
+    type: Literal["ResponseImageGenCallGeneratingEvent"] = Field(
         ...,
         description="The type of the event. Always 'response.image_generation_call.generating'.",
     )
@@ -23,9 +21,9 @@ class ResponseImageGenCallGeneratingEvent(BaseModel):
     )
     item_id: str = Field(
         ...,
-        description='The unique identifier of the image generation item being processed.',
+        description="The unique identifier of the image generation item being processed.",
     )
     sequence_number: int = Field(
         ...,
-        description='The sequence number of the image generation item being processed.',
+        description="The sequence number of the image generation item being processed.",
     )

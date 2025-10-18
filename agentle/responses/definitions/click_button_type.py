@@ -9,12 +9,9 @@
 from enum import Enum
 
 
-
-
-
 class ClickButtonType(Enum):
-    left = 'left'
-    right = 'right'
-    wheel = 'wheel'
-    back = 'back'
-    forward = 'forward'
+    left = "left"
+    right = "right"
+    wheel = "wheel"
+    back = "back"
+    forward = "forward"

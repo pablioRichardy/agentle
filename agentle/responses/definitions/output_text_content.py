@@ -12,18 +12,17 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .annotation import Annotation
 from .log_prob import LogProb
 
 
 class OutputTextContent(BaseModel):
-    type: Literal['OutputTextContent'] = Field(
-        ..., description='The type of the output text. Always `output_text`.'
+    type: Literal["OutputTextContent"] = Field(
+        ..., description="The type of the output text. Always `output_text`."
     )
-    text: str = Field(..., description='The text output from the model.')
+    text: str = Field(..., description="The text output from the model.")
     annotations: List[Annotation] = Field(
-        ..., description='The annotations of the text output.'
+        ..., description="The annotations of the text output."
     )
     logprobs: Optional[List[LogProb]] = None

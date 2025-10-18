@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type129(Enum):
-    approximate = 'approximate'
+    approximate = "approximate"

@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type101(Enum):
-    summary_text = 'summary_text'
+    summary_text = "summary_text"

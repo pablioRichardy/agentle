@@ -9,10 +9,7 @@
 from enum import Enum
 
 
-
-
-
 class FunctionCallItemStatus(Enum):
-    in_progress = 'in_progress'
-    completed = 'completed'
-    incomplete = 'incomplete'
+    in_progress = "in_progress"
+    completed = "completed"
+    incomplete = "incomplete"

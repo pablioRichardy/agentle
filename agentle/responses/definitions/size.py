@@ -9,11 +9,8 @@
 from enum import Enum
 
 
-
-
-
 class Size(Enum):
-    field_1024x1024 = '1024x1024'
-    field_1024x1536 = '1024x1536'
-    field_1536x1024 = '1536x1024'
-    auto = 'auto'
+    field_1024x1024 = "1024x1024"
+    field_1024x1536 = "1024x1536"
+    field_1536x1024 = "1536x1024"
+    auto = "auto"

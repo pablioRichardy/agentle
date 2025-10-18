@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type109(Enum):
-    response_output_text_done = 'response.output_text.done'
+    response_output_text_done = "response.output_text.done"

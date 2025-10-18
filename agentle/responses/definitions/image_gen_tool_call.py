@@ -11,18 +11,17 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .status4 import Status4
 
 
 class ImageGenToolCall(BaseModel):
-    type: Literal['ImageGenToolCall'] = Field(
+    type: Literal["ImageGenToolCall"] = Field(
         ...,
-        description='The type of the image generation call. Always `image_generation_call`.\n',
+        description="The type of the image generation call. Always `image_generation_call`.\n",
     )
-    id: str = Field(..., description='The unique ID of the image generation call.\n')
+    id: str = Field(..., description="The unique ID of the image generation call.\n")
     status: Status4 = Field(
-        ..., description='The status of the image generation call.\n'
+        ..., description="The status of the image generation call.\n"
     )
     result: Optional[str]

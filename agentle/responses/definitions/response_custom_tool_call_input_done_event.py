@@ -11,20 +11,18 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ResponseCustomToolCallInputDoneEvent(BaseModel):
-    type: Literal['ResponseCustomToolCallInputDoneEvent'] = Field(
-        ..., description='The event type identifier.'
+    type: Literal["ResponseCustomToolCallInputDoneEvent"] = Field(
+        ..., description="The event type identifier."
     )
-    sequence_number: int = Field(..., description='The sequence number of this event.')
+    sequence_number: int = Field(..., description="The sequence number of this event.")
     output_index: int = Field(
-        ..., description='The index of the output this event applies to.'
+        ..., description="The index of the output this event applies to."
     )
     item_id: str = Field(
         ...,
-        description='Unique identifier for the API item associated with this event.',
+        description="Unique identifier for the API item associated with this event.",
     )
     input: str = Field(
-        ..., description='The complete input data for the custom tool call.'
+        ..., description="The complete input data for the custom tool call."
     )

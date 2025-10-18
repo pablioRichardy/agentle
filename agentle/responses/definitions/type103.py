@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type103(Enum):
-    response_reasoning_summary_text_done = 'response.reasoning_summary_text.done'
+    response_reasoning_summary_text_done = "response.reasoning_summary_text.done"

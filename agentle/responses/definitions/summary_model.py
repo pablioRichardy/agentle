@@ -6,9 +6,7 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-
 from pydantic import BaseModel, Field
-
 
 
 # Model dependencies
@@ -17,8 +15,8 @@ from .type115 import Type115
 
 class SummaryModel(BaseModel):
     type: Type115 = Field(
-        ..., description='The type of the object. Always `summary_text`.'
+        ..., description="The type of the object. Always `summary_text`."
     )
     text: str = Field(
-        ..., description='A summary of the reasoning output from the model so far.'
+        ..., description="A summary of the reasoning output from the model so far."
     )

@@ -9,10 +9,7 @@
 from enum import Enum
 
 
-
-
-
 class ToolChoiceOptions(Enum):
-    none = 'none'
-    auto = 'auto'
-    required = 'required'
+    none = "none"
+    auto = "auto"
+    required = "required"

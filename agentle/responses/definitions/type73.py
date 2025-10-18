@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type73(Enum):
-    response_file_search_call_completed = 'response.file_search_call.completed'
+    response_file_search_call_completed = "response.file_search_call.completed"

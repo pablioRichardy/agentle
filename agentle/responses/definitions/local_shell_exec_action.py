@@ -11,19 +11,18 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .type41 import Type41
 
 
 class LocalShellExecAction(BaseModel):
     type: Type41 = Field(
-        ..., description='The type of the local shell action. Always `exec`.'
+        ..., description="The type of the local shell action. Always `exec`."
     )
-    command: List[str] = Field(..., description='The command to run.')
+    command: List[str] = Field(..., description="The command to run.")
     timeout_ms: Optional[int] = None
     working_directory: Optional[str] = None
     env: Dict[str, str] = Field(
-        ..., description='Environment variables to set for the command.'
+        ..., description="Environment variables to set for the command."
     )
     user: Optional[str] = None

@@ -9,13 +9,10 @@
 from enum import Enum
 
 
-
-
-
 class Type121(Enum):
-    file_search = 'file_search'
-    web_search_preview = 'web_search_preview'
-    computer_use_preview = 'computer_use_preview'
-    web_search_preview_2025_03_11 = 'web_search_preview_2025_03_11'
-    image_generation = 'image_generation'
-    code_interpreter = 'code_interpreter'
+    file_search = "file_search"
+    web_search_preview = "web_search_preview"
+    computer_use_preview = "computer_use_preview"
+    web_search_preview_2025_03_11 = "web_search_preview_2025_03_11"
+    image_generation = "image_generation"
+    code_interpreter = "code_interpreter"

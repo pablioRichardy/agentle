@@ -11,7 +11,6 @@ from typing import Union
 from pydantic import RootModel
 
 
-
 # Model dependencies
 from .container_file_citation_body import ContainerFileCitationBody
 from .file_citation_body import FileCitationBody
@@ -19,5 +18,9 @@ from .file_path import FilePath
 from .url_citation_body import UrlCitationBody
 
 
-class Annotation(RootModel[Union[FileCitationBody, UrlCitationBody, ContainerFileCitationBody, FilePath]]):
+class Annotation(
+    RootModel[
+        Union[FileCitationBody, UrlCitationBody, ContainerFileCitationBody, FilePath]
+    ]
+):
     pass

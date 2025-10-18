@@ -9,15 +9,12 @@
 from enum import Enum
 
 
-
-
-
 class IncludeEnum(Enum):
-    file_search_call_results = 'file_search_call.results'
-    web_search_call_results = 'web_search_call.results'
-    web_search_call_action_sources = 'web_search_call.action.sources'
-    message_input_image_image_url = 'message.input_image.image_url'
-    computer_call_output_output_image_url = 'computer_call_output.output.image_url'
-    code_interpreter_call_outputs = 'code_interpreter_call.outputs'
-    reasoning_encrypted_content = 'reasoning.encrypted_content'
-    message_output_text_logprobs = 'message.output_text.logprobs'
+    file_search_call_results = "file_search_call.results"
+    web_search_call_results = "web_search_call.results"
+    web_search_call_action_sources = "web_search_call.action.sources"
+    message_input_image_image_url = "message.input_image.image_url"
+    computer_call_output_output_image_url = "computer_call_output.output.image_url"
+    code_interpreter_call_outputs = "code_interpreter_call.outputs"
+    reasoning_encrypted_content = "reasoning.encrypted_content"
+    message_output_text_logprobs = "message.output_text.logprobs"

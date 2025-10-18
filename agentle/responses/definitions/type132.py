@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type132(Enum):
-    web_search_call = 'web_search_call'
+    web_search_call = "web_search_call"

@@ -11,7 +11,7 @@ from typing import Dict, Optional, Union
 from pydantic import RootModel, constr
 
 
-
-
-class VectorStoreFileAttributes(RootModel[Optional[Dict[str, Union[constr(max_length=512), float, bool]]]]):
+class VectorStoreFileAttributes(
+    RootModel[Optional[Dict[str, Union[constr(max_length=512), float, bool]]]]
+):
     pass

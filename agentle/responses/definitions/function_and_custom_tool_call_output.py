@@ -11,12 +11,13 @@ from typing import Union
 from pydantic import RootModel
 
 
-
 # Model dependencies
 from .input_file_content import InputFileContent
 from .input_image_content import InputImageContent
 from .input_text_content import InputTextContent
 
 
-class FunctionAndCustomToolCallOutput(RootModel[Union[InputTextContent, InputImageContent, InputFileContent]]):
+class FunctionAndCustomToolCallOutput(
+    RootModel[Union[InputTextContent, InputImageContent, InputFileContent]]
+):
     pass

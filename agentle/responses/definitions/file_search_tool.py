@@ -11,24 +11,23 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .filters import Filters
 from .ranking_options import RankingOptions
 
 
 class FileSearchTool(BaseModel):
-    type: Literal['FileSearchTool'] = Field(
-        ..., description='The type of the file search tool. Always `file_search`.'
+    type: Literal["FileSearchTool"] = Field(
+        ..., description="The type of the file search tool. Always `file_search`."
     )
     vector_store_ids: List[str] = Field(
-        ..., description='The IDs of the vector stores to search.'
+        ..., description="The IDs of the vector stores to search."
     )
     max_num_results: Optional[int] = Field(
         None,
-        description='The maximum number of results to return. This number should be between 1 and 50 inclusive.',
+        description="The maximum number of results to return. This number should be between 1 and 50 inclusive.",
     )
     ranking_options: Optional[RankingOptions] = Field(
-        None, description='Ranking options for search.'
+        None, description="Ranking options for search."
     )
     filters: Optional[Filters] = None

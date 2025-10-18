@@ -11,10 +11,8 @@ from typing import Literal
 from pydantic import AnyUrl, BaseModel, Field
 
 
-
-
 class WebSearchActionOpenPage(BaseModel):
-    type: Literal['WebSearchActionOpenPage'] = Field(
-        ..., description='The action type.\n'
+    type: Literal["WebSearchActionOpenPage"] = Field(
+        ..., description="The action type.\n"
     )
-    url: AnyUrl = Field(..., description='The URL opened by the model.\n')
+    url: AnyUrl = Field(..., description="The URL opened by the model.\n")

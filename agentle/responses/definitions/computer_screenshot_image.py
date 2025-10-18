@@ -11,7 +11,6 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .type10 import Type10
 
@@ -19,12 +18,12 @@ from .type10 import Type10
 class ComputerScreenshotImage(BaseModel):
     type: Type10 = Field(
         ...,
-        description='Specifies the event type. For a computer screenshot, this property is \nalways set to `computer_screenshot`.\n',
+        description="Specifies the event type. For a computer screenshot, this property is \nalways set to `computer_screenshot`.\n",
     )
     image_url: Optional[str] = Field(
-        None, description='The URL of the screenshot image.'
+        None, description="The URL of the screenshot image."
     )
     file_id: Optional[str] = Field(
         None,
-        description='The identifier of an uploaded file that contains the screenshot.',
+        description="The identifier of an uploaded file that contains the screenshot.",
     )

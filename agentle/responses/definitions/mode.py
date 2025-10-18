@@ -9,9 +9,6 @@
 from enum import Enum
 
 
-
-
-
 class Mode(Enum):
-    auto = 'auto'
-    required = 'required'
+    auto = "auto"
+    required = "required"

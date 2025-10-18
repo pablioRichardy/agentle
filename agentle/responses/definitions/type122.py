@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type122(Enum):
-    type = 'type'
+    type = "type"

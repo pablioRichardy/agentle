@@ -11,7 +11,6 @@ from typing import Union
 from pydantic import RootModel
 
 
-
 # Model dependencies
 from .code_interpreter_tool_call import CodeInterpreterToolCall
 from .computer_call_output_item_param import ComputerCallOutputItemParam
@@ -34,5 +33,29 @@ from .reasoning_item import ReasoningItem
 from .web_search_tool_call import WebSearchToolCall
 
 
-class Item(RootModel[Union[InputMessage, OutputMessage, FileSearchToolCall, ComputerToolCall, ComputerCallOutputItemParam, WebSearchToolCall, FunctionToolCall, FunctionCallOutputItemParam, ReasoningItem, ImageGenToolCall, CodeInterpreterToolCall, LocalShellToolCall, LocalShellToolCallOutput, MCPListTools, MCPApprovalRequest, MCPApprovalResponse, MCPToolCall, CustomToolCallOutput, CustomToolCall]]):
+class Item(
+    RootModel[
+        Union[
+            InputMessage,
+            OutputMessage,
+            FileSearchToolCall,
+            ComputerToolCall,
+            ComputerCallOutputItemParam,
+            WebSearchToolCall,
+            FunctionToolCall,
+            FunctionCallOutputItemParam,
+            ReasoningItem,
+            ImageGenToolCall,
+            CodeInterpreterToolCall,
+            LocalShellToolCall,
+            LocalShellToolCallOutput,
+            MCPListTools,
+            MCPApprovalRequest,
+            MCPApprovalResponse,
+            MCPToolCall,
+            CustomToolCallOutput,
+            CustomToolCall,
+        ]
+    ]
+):
     pass

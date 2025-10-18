@@ -9,10 +9,7 @@
 from enum import Enum
 
 
-
-
-
 class Background(Enum):
-    transparent = 'transparent'
-    opaque = 'opaque'
-    auto = 'auto'
+    transparent = "transparent"
+    opaque = "opaque"
+    auto = "auto"

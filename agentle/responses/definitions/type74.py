@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type74(Enum):
-    response_file_search_call_in_progress = 'response.file_search_call.in_progress'
+    response_file_search_call_in_progress = "response.file_search_call.in_progress"

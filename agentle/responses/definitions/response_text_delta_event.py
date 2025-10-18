@@ -11,28 +11,27 @@ from typing import List, Literal
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .response_log_prob import ResponseLogProb
 
 
 class ResponseTextDeltaEvent(BaseModel):
-    type: Literal['ResponseTextDeltaEvent'] = Field(
-        ..., description='The type of the event. Always `response.output_text.delta`.\n'
+    type: Literal["ResponseTextDeltaEvent"] = Field(
+        ..., description="The type of the event. Always `response.output_text.delta`.\n"
     )
     item_id: str = Field(
-        ..., description='The ID of the output item that the text delta was added to.\n'
+        ..., description="The ID of the output item that the text delta was added to.\n"
     )
     output_index: int = Field(
         ...,
-        description='The index of the output item that the text delta was added to.\n',
+        description="The index of the output item that the text delta was added to.\n",
     )
     content_index: int = Field(
         ...,
-        description='The index of the content part that the text delta was added to.\n',
+        description="The index of the content part that the text delta was added to.\n",
     )
-    delta: str = Field(..., description='The text delta that was added.\n')
-    sequence_number: int = Field(..., description='The sequence number for this event.')
+    delta: str = Field(..., description="The text delta that was added.\n")
+    sequence_number: int = Field(..., description="The sequence number for this event.")
     logprobs: List[ResponseLogProb] = Field(
-        ..., description='The log probabilities of the tokens in the delta.\n'
+        ..., description="The log probabilities of the tokens in the delta.\n"
     )

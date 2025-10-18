@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type110(Enum):
-    response_web_search_call_completed = 'response.web_search_call.completed'
+    response_web_search_call_completed = "response.web_search_call.completed"

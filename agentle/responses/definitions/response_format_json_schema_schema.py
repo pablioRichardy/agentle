@@ -6,12 +6,9 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-
 from pydantic import BaseModel, ConfigDict
 
 
-
-
 class ResponseFormatJsonSchemaSchema(BaseModel):
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra="allow")
     pass

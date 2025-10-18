@@ -11,7 +11,6 @@ from typing import Union
 from pydantic import RootModel
 
 
-
 # Model dependencies
 from .comparison_filter import ComparisonFilter
 from .compound_filter import CompoundFilter

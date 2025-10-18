@@ -11,7 +11,6 @@ from typing import Optional
 from pydantic import BaseModel
 
 
-
 # Model dependencies
 from .generate_summary import GenerateSummary
 from .reasoning_effort import ReasoningEffort

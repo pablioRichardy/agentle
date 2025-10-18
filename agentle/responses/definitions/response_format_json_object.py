@@ -11,10 +11,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ResponseFormatJsonObject(BaseModel):
-    type: Literal['ResponseFormatJsonObject'] = Field(
+    type: Literal["ResponseFormatJsonObject"] = Field(
         ...,
-        description='The type of response format being defined. Always `json_object`.',
+        description="The type of response format being defined. Always `json_object`.",
     )

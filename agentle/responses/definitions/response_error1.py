@@ -6,9 +6,7 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-
 from pydantic import BaseModel, Field
-
 
 
 # Model dependencies
@@ -18,5 +16,5 @@ from .response_error_code import ResponseErrorCode
 class ResponseError1(BaseModel):
     code: ResponseErrorCode
     message: str = Field(
-        ..., description='A human-readable description of the error.\n'
+        ..., description="A human-readable description of the error.\n"
     )

@@ -11,10 +11,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ToolChoiceFunction(BaseModel):
-    type: Literal['ToolChoiceFunction'] = Field(
-        ..., description='For function calling, the type is always `function`.'
+    type: Literal["ToolChoiceFunction"] = Field(
+        ..., description="For function calling, the type is always `function`."
     )
-    name: str = Field(..., description='The name of the function to call.')
+    name: str = Field(..., description="The name of the function to call.")

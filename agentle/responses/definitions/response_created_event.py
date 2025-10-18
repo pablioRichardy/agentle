@@ -11,14 +11,13 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .response import Response
 
 
 class ResponseCreatedEvent(BaseModel):
-    type: Literal['ResponseCreatedEvent'] = Field(
-        ..., description='The type of the event. Always `response.created`.\n'
+    type: Literal["ResponseCreatedEvent"] = Field(
+        ..., description="The type of the event. Always `response.created`.\n"
     )
-    response: Response = Field(..., description='The response that was created.\n')
-    sequence_number: int = Field(..., description='The sequence number for this event.')
+    response: Response = Field(..., description="The response that was created.\n")
+    sequence_number: int = Field(..., description="The sequence number for this event.")

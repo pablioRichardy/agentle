@@ -11,19 +11,17 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 
-
-
 class InputFileContent(BaseModel):
-    type: Literal['InputFileContent'] = Field(
-        ..., description='The type of the input item. Always `input_file`.'
+    type: Literal["InputFileContent"] = Field(
+        ..., description="The type of the input item. Always `input_file`."
     )
     file_id: Optional[str] = None
     filename: Optional[str] = Field(
-        None, description='The name of the file to be sent to the model.'
+        None, description="The name of the file to be sent to the model."
     )
     file_url: Optional[str] = Field(
-        None, description='The URL of the file to be sent to the model.'
+        None, description="The URL of the file to be sent to the model."
     )
     file_data: Optional[str] = Field(
-        None, description='The content of the file to be sent to the model.\n'
+        None, description="The content of the file to be sent to the model.\n"
     )

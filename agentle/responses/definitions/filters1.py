@@ -11,7 +11,5 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 
-
-
 class Filters1(BaseModel):
     allowed_domains: Optional[List[str]] = None

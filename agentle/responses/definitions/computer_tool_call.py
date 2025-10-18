@@ -11,7 +11,6 @@ from typing import List, Literal
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .computer_action import ComputerAction
 from .computer_call_safety_check_param import ComputerCallSafetyCheckParam
@@ -19,19 +18,19 @@ from .status1 import Status1
 
 
 class ComputerToolCall(BaseModel):
-    type: Literal['ComputerToolCall'] = Field(
-        ..., description='The type of the computer call. Always `computer_call`.'
+    type: Literal["ComputerToolCall"] = Field(
+        ..., description="The type of the computer call. Always `computer_call`."
     )
-    id: str = Field(..., description='The unique ID of the computer call.')
+    id: str = Field(..., description="The unique ID of the computer call.")
     call_id: str = Field(
         ...,
-        description='An identifier used when responding to the tool call with output.\n',
+        description="An identifier used when responding to the tool call with output.\n",
     )
     action: ComputerAction
     pending_safety_checks: List[ComputerCallSafetyCheckParam] = Field(
-        ..., description='The pending safety checks for the computer call.\n'
+        ..., description="The pending safety checks for the computer call.\n"
     )
     status: Status1 = Field(
         ...,
-        description='The status of the item. One of `in_progress`, `completed`, or\n`incomplete`. Populated when items are returned via API.\n',
+        description="The status of the item. One of `in_progress`, `completed`, or\n`incomplete`. Populated when items are returned via API.\n",
     )

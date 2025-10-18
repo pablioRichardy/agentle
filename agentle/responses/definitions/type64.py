@@ -9,10 +9,7 @@
 from enum import Enum
 
 
-
-
-
 class Type64(Enum):
     response_code_interpreter_call_interpreting = (
-        'response.code_interpreter_call.interpreting'
+        "response.code_interpreter_call.interpreting"
     )

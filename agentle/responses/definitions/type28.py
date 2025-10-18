@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type28(Enum):
-    function_call = 'function_call'
+    function_call = "function_call"

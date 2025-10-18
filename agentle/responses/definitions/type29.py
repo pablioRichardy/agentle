@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type29(Enum):
-    image_generation = 'image_generation'
+    image_generation = "image_generation"

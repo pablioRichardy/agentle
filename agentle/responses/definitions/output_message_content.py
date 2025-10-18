@@ -11,7 +11,6 @@ from typing import Union
 from pydantic import RootModel
 
 
-
 # Model dependencies
 from .output_text_content import OutputTextContent
 from .refusal_content import RefusalContent

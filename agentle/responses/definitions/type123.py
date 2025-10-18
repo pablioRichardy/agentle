@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type123(Enum):
-    url_citation = 'url_citation'
+    url_citation = "url_citation"

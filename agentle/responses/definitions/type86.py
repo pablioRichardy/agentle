@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type86(Enum):
-    response_mcp_call_arguments_delta = 'response.mcp_call_arguments.delta'
+    response_mcp_call_arguments_delta = "response.mcp_call_arguments.delta"

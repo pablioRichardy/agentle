@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type69(Enum):
-    response_custom_tool_call_input_delta = 'response.custom_tool_call_input.delta'
+    response_custom_tool_call_input_delta = "response.custom_tool_call_input.delta"

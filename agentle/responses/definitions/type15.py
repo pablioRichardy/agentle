@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type15(Enum):
-    text = 'text'
+    text = "text"

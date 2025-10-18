@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type108(Enum):
-    response_output_text_delta = 'response.output_text.delta'
+    response_output_text_delta = "response.output_text.delta"

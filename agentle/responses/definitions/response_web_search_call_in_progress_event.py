@@ -11,21 +11,19 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ResponseWebSearchCallInProgressEvent(BaseModel):
-    type: Literal['ResponseWebSearchCallInProgressEvent'] = Field(
+    type: Literal["ResponseWebSearchCallInProgressEvent"] = Field(
         ...,
-        description='The type of the event. Always `response.web_search_call.in_progress`.\n',
+        description="The type of the event. Always `response.web_search_call.in_progress`.\n",
     )
     output_index: int = Field(
         ...,
-        description='The index of the output item that the web search call is associated with.\n',
+        description="The index of the output item that the web search call is associated with.\n",
     )
     item_id: str = Field(
         ...,
-        description='Unique ID for the output item associated with the web search call.\n',
+        description="Unique ID for the output item associated with the web search call.\n",
     )
     sequence_number: int = Field(
-        ..., description='The sequence number of the web search call being processed.'
+        ..., description="The sequence number of the web search call being processed."
     )

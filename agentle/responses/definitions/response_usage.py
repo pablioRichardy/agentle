@@ -6,9 +6,7 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-
 from pydantic import BaseModel, Field
-
 
 
 # Model dependencies
@@ -17,12 +15,12 @@ from .output_tokens_details import OutputTokensDetails
 
 
 class ResponseUsage(BaseModel):
-    input_tokens: int = Field(..., description='The number of input tokens.')
+    input_tokens: int = Field(..., description="The number of input tokens.")
     input_tokens_details: InputTokensDetails = Field(
-        ..., description='A detailed breakdown of the input tokens.'
+        ..., description="A detailed breakdown of the input tokens."
     )
-    output_tokens: int = Field(..., description='The number of output tokens.')
+    output_tokens: int = Field(..., description="The number of output tokens.")
     output_tokens_details: OutputTokensDetails = Field(
-        ..., description='A detailed breakdown of the output tokens.'
+        ..., description="A detailed breakdown of the output tokens."
     )
-    total_tokens: int = Field(..., description='The total number of tokens used.')
+    total_tokens: int = Field(..., description="The total number of tokens used.")

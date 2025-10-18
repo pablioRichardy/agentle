@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type54(Enum):
-    reasoning_text = 'reasoning_text'
+    reasoning_text = "reasoning_text"

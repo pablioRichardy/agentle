@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type97(Enum):
-    response_queued = 'response.queued'
+    response_queued = "response.queued"

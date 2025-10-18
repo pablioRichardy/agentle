@@ -11,7 +11,6 @@ from typing import List
 from pydantic import BaseModel
 
 
-
 # Model dependencies
 from .top_log_prob import TopLogProb
 

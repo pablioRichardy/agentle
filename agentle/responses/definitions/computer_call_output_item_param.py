@@ -11,7 +11,6 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, Field, constr
 
 
-
 # Model dependencies
 from .computer_call_safety_check_param import ComputerCallSafetyCheckParam
 from .computer_screenshot_image import ComputerScreenshotImage
@@ -21,11 +20,11 @@ from .function_call_item_status import FunctionCallItemStatus
 class ComputerCallOutputItemParam(BaseModel):
     id: Optional[str] = None
     call_id: constr(min_length=1, max_length=64) = Field(
-        ..., description='The ID of the computer tool call that produced the output.'
+        ..., description="The ID of the computer tool call that produced the output."
     )
-    type: Literal['ComputerCallOutputItemParam'] = Field(
+    type: Literal["ComputerCallOutputItemParam"] = Field(
         ...,
-        description='The type of the computer tool call output. Always `computer_call_output`.',
+        description="The type of the computer tool call output. Always `computer_call_output`.",
     )
     output: ComputerScreenshotImage
     acknowledged_safety_checks: Optional[List[ComputerCallSafetyCheckParam]] = None

@@ -11,10 +11,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class RefusalContent(BaseModel):
-    type: Literal['RefusalContent'] = Field(
-        ..., description='The type of the refusal. Always `refusal`.'
+    type: Literal["RefusalContent"] = Field(
+        ..., description="The type of the refusal. Always `refusal`."
     )
-    refusal: str = Field(..., description='The refusal explanation from the model.')
+    refusal: str = Field(..., description="The refusal explanation from the model.")

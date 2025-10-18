@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type13(Enum):
-    container_file_citation = 'container_file_citation'
+    container_file_citation = "container_file_citation"

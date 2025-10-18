@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type24(Enum):
-    file_search = 'file_search'
+    file_search = "file_search"

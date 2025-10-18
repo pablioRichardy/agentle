@@ -11,9 +11,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-
-
 class ComputerCallSafetyCheckParam(BaseModel):
-    id: str = Field(..., description='The ID of the pending safety check.')
+    id: str = Field(..., description="The ID of the pending safety check.")
     code: Optional[str] = None
     message: Optional[str] = None

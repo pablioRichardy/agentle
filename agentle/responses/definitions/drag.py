@@ -11,17 +11,16 @@ from typing import List, Literal
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .drag_point import DragPoint
 
 
 class Drag(BaseModel):
-    type: Literal['Drag'] = Field(
+    type: Literal["Drag"] = Field(
         ...,
-        description='Specifies the event type. For a drag action, this property is \nalways set to `drag`.\n',
+        description="Specifies the event type. For a drag action, this property is \nalways set to `drag`.\n",
     )
     path: List[DragPoint] = Field(
         ...,
-        description='An array of coordinates representing the path of the drag action. Coordinates will appear as an array\nof objects, eg\n```\n[\n  { x: 100, y: 200 },\n  { x: 200, y: 300 }\n]\n```\n',
+        description="An array of coordinates representing the path of the drag action. Coordinates will appear as an array\nof objects, eg\n```\n[\n  { x: 100, y: 200 },\n  { x: 200, y: 300 }\n]\n```\n",
     )

@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Object(Enum):
-    response = 'response'
+    response = "response"

@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type12(Enum):
-    computer_use_preview = 'computer_use_preview'
+    computer_use_preview = "computer_use_preview"

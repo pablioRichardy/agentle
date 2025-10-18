@@ -9,9 +9,6 @@
 from enum import Enum
 
 
-
-
-
 class InputFidelity(Enum):
-    high = 'high'
-    low = 'low'
+    high = "high"
+    low = "low"

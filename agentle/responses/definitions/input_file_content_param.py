@@ -11,11 +11,9 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field, constr
 
 
-
-
 class InputFileContentParam(BaseModel):
-    type: Literal['InputFileContentParam'] = Field(
-        ..., description='The type of the input item. Always `input_file`.'
+    type: Literal["InputFileContentParam"] = Field(
+        ..., description="The type of the input item. Always `input_file`."
     )
     file_id: Optional[str] = None
     filename: Optional[str] = None

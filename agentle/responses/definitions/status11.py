@@ -9,11 +9,8 @@
 from enum import Enum
 
 
-
-
-
 class Status11(Enum):
-    in_progress = 'in_progress'
-    searching = 'searching'
-    completed = 'completed'
-    failed = 'failed'
+    in_progress = "in_progress"
+    searching = "searching"
+    completed = "completed"
+    failed = "failed"

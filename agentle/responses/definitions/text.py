@@ -11,7 +11,6 @@ from typing import Optional
 from pydantic import BaseModel
 
 
-
 # Model dependencies
 from .text_response_format_configuration import TextResponseFormatConfiguration
 from .verbosity import Verbosity

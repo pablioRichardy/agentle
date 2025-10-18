@@ -11,11 +11,9 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class FilePath(BaseModel):
-    type: Literal['FilePath'] = Field(
-        ..., description='The type of the file path. Always `file_path`.\n'
+    type: Literal["FilePath"] = Field(
+        ..., description="The type of the file path. Always `file_path`.\n"
     )
-    file_id: str = Field(..., description='The ID of the file.\n')
-    index: int = Field(..., description='The index of the file in the list of files.\n')
+    file_id: str = Field(..., description="The ID of the file.\n")
+    index: int = Field(..., description="The index of the file in the list of files.\n")

@@ -11,7 +11,6 @@ from typing import Union
 from pydantic import RootModel
 
 
-
 # Model dependencies
 from .easy_input_message import EasyInputMessage
 from .item import Item

@@ -11,14 +11,13 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field, constr
 
 
-
 # Model dependencies
 from .detail_enum import DetailEnum
 
 
 class InputImageContentParamAutoParam(BaseModel):
-    type: Literal['InputImageContentParamAutoParam'] = Field(
-        ..., description='The type of the input item. Always `input_image`.'
+    type: Literal["InputImageContentParamAutoParam"] = Field(
+        ..., description="The type of the input item. Always `input_image`."
     )
     image_url: Optional[constr(max_length=20971520)] = None
     file_id: Optional[str] = None

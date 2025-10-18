@@ -11,26 +11,25 @@ from typing import Literal, Optional, Union
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .custom_grammar_format_param import CustomGrammarFormatParam
 from .custom_text_format_param import CustomTextFormatParam
 
 
 class CustomToolParam(BaseModel):
-    type: Literal['CustomToolParam'] = Field(
-        ..., description='The type of the custom tool. Always `custom`.'
+    type: Literal["CustomToolParam"] = Field(
+        ..., description="The type of the custom tool. Always `custom`."
     )
     name: str = Field(
         ...,
-        description='The name of the custom tool, used to identify it in tool calls.',
+        description="The name of the custom tool, used to identify it in tool calls.",
     )
     description: Optional[str] = Field(
         None,
-        description='Optional description of the custom tool, used to provide more context.',
+        description="Optional description of the custom tool, used to provide more context.",
     )
     format: Optional[Union[CustomTextFormatParam, CustomGrammarFormatParam]] = Field(
         None,
-        description='The input format for the custom tool. Default is unconstrained text.',
-        discriminator='type',
+        description="The input format for the custom tool. Default is unconstrained text.",
+        discriminator="type",
     )

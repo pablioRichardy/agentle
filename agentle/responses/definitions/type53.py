@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type53(Enum):
-    reasoning = 'reasoning'
+    reasoning = "reasoning"

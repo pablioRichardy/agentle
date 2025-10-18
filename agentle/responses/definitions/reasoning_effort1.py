@@ -9,11 +9,8 @@
 from enum import Enum
 
 
-
-
-
 class ReasoningEffort1(Enum):
-    minimal = 'minimal'
-    low = 'low'
-    medium = 'medium'
-    high = 'high'
+    minimal = "minimal"
+    low = "low"
+    medium = "medium"
+    high = "high"

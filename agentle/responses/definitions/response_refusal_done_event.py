@@ -11,25 +11,23 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ResponseRefusalDoneEvent(BaseModel):
-    type: Literal['ResponseRefusalDoneEvent'] = Field(
-        ..., description='The type of the event. Always `response.refusal.done`.\n'
+    type: Literal["ResponseRefusalDoneEvent"] = Field(
+        ..., description="The type of the event. Always `response.refusal.done`.\n"
     )
     item_id: str = Field(
         ...,
-        description='The ID of the output item that the refusal text is finalized.\n',
+        description="The ID of the output item that the refusal text is finalized.\n",
     )
     output_index: int = Field(
         ...,
-        description='The index of the output item that the refusal text is finalized.\n',
+        description="The index of the output item that the refusal text is finalized.\n",
     )
     content_index: int = Field(
         ...,
-        description='The index of the content part that the refusal text is finalized.\n',
+        description="The index of the content part that the refusal text is finalized.\n",
     )
-    refusal: str = Field(..., description='The refusal text that is finalized.\n')
+    refusal: str = Field(..., description="The refusal text that is finalized.\n")
     sequence_number: int = Field(
-        ..., description='The sequence number of this event.\n'
+        ..., description="The sequence number of this event.\n"
     )

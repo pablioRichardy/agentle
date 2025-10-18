@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type32(Enum):
-    input_file = 'input_file'
+    input_file = "input_file"

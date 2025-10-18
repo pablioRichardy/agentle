@@ -11,7 +11,6 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .reasoning_text_content import ReasoningTextContent
 from .status5 import Status5
@@ -19,18 +18,18 @@ from .summary_model import SummaryModel
 
 
 class ReasoningItem(BaseModel):
-    type: Literal['ReasoningItem'] = Field(
-        ..., description='The type of the object. Always `reasoning`.\n'
+    type: Literal["ReasoningItem"] = Field(
+        ..., description="The type of the object. Always `reasoning`.\n"
     )
     id: str = Field(
-        ..., description='The unique identifier of the reasoning content.\n'
+        ..., description="The unique identifier of the reasoning content.\n"
     )
     encrypted_content: Optional[str] = None
-    summary: List[SummaryModel] = Field(..., description='Reasoning summary content.\n')
+    summary: List[SummaryModel] = Field(..., description="Reasoning summary content.\n")
     content: Optional[List[ReasoningTextContent]] = Field(
-        None, description='Reasoning text content.\n'
+        None, description="Reasoning text content.\n"
     )
     status: Optional[Status5] = Field(
         None,
-        description='The status of the item. One of `in_progress`, `completed`, or\n`incomplete`. Populated when items are returned via API.\n',
+        description="The status of the item. One of `in_progress`, `completed`, or\n`incomplete`. Populated when items are returned via API.\n",
     )

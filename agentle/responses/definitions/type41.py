@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type41(Enum):
-    exec = 'exec'
+    exec = "exec"

@@ -11,10 +11,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class Screenshot(BaseModel):
-    type: Literal['Screenshot'] = Field(
+    type: Literal["Screenshot"] = Field(
         ...,
-        description='Specifies the event type. For a screenshot action, this property is \nalways set to `screenshot`.\n',
+        description="Specifies the event type. For a screenshot action, this property is \nalways set to `screenshot`.\n",
     )

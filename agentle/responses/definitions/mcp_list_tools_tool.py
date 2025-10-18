@@ -12,10 +12,8 @@ from typing import Any, Dict, Optional
 from pydantic import BaseModel, Field
 
 
-
-
 class MCPListToolsTool(BaseModel):
-    name: str = Field(..., description='The name of the tool.\n')
+    name: str = Field(..., description="The name of the tool.\n")
     description: Optional[str] = None
     input_schema: Dict[str, Any] = Field(
         ..., description="The JSON schema describing the tool's input.\n"

@@ -11,7 +11,6 @@ from typing import Union
 from pydantic import RootModel
 
 
-
 # Model dependencies
 from .input_audio import InputAudio
 from .input_file_content import InputFileContent
@@ -19,5 +18,7 @@ from .input_image_content import InputImageContent
 from .input_text_content import InputTextContent
 
 
-class InputContent(RootModel[Union[InputTextContent, InputImageContent, InputFileContent, InputAudio]]):
+class InputContent(
+    RootModel[Union[InputTextContent, InputImageContent, InputFileContent, InputAudio]]
+):
     pass

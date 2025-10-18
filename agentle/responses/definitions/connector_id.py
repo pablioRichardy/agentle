@@ -9,15 +9,12 @@
 from enum import Enum
 
 
-
-
-
 class ConnectorId(Enum):
-    connector_dropbox = 'connector_dropbox'
-    connector_gmail = 'connector_gmail'
-    connector_googlecalendar = 'connector_googlecalendar'
-    connector_googledrive = 'connector_googledrive'
-    connector_microsoftteams = 'connector_microsoftteams'
-    connector_outlookcalendar = 'connector_outlookcalendar'
-    connector_outlookemail = 'connector_outlookemail'
-    connector_sharepoint = 'connector_sharepoint'
+    connector_dropbox = "connector_dropbox"
+    connector_gmail = "connector_gmail"
+    connector_googlecalendar = "connector_googlecalendar"
+    connector_googledrive = "connector_googledrive"
+    connector_microsoftteams = "connector_microsoftteams"
+    connector_outlookcalendar = "connector_outlookcalendar"
+    connector_outlookemail = "connector_outlookemail"
+    connector_sharepoint = "connector_sharepoint"

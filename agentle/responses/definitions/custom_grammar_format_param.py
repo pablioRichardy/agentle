@@ -11,17 +11,16 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .grammar_syntax1 import GrammarSyntax1
 
 
 class CustomGrammarFormatParam(BaseModel):
-    type: Literal['CustomGrammarFormatParam'] = Field(
-        ..., description='Grammar format. Always `grammar`.'
+    type: Literal["CustomGrammarFormatParam"] = Field(
+        ..., description="Grammar format. Always `grammar`."
     )
     syntax: GrammarSyntax1 = Field(
         ...,
-        description='The syntax of the grammar definition. One of `lark` or `regex`.',
+        description="The syntax of the grammar definition. One of `lark` or `regex`.",
     )
-    definition: str = Field(..., description='The grammar definition.')
+    definition: str = Field(..., description="The grammar definition.")

@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Role2(Enum):
-    assistant = 'assistant'
+    assistant = "assistant"

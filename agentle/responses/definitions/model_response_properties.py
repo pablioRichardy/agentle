@@ -11,7 +11,6 @@ from typing import Optional
 from pydantic import BaseModel, Field, confloat, conint
 
 
-
 # Model dependencies
 from .metadata import Metadata
 from .service_tier import ServiceTier
@@ -24,17 +23,17 @@ class ModelResponseProperties(BaseModel):
     top_p: Optional[confloat(ge=0.0, le=1.0)] = None
     user: Optional[str] = Field(
         None,
-        description='This field is being replaced by `safety_identifier` and `prompt_cache_key`. Use `prompt_cache_key` instead to maintain caching optimizations.\nA stable identifier for your end-users.\nUsed to boost cache hit rates by better bucketing similar requests and  to help OpenAI detect and prevent abuse. [Learn more](https://platform.openai.com/docs/guides/safety-best-practices#safety-identifiers).\n',
-        example='user-1234',
+        description="This field is being replaced by `safety_identifier` and `prompt_cache_key`. Use `prompt_cache_key` instead to maintain caching optimizations.\nA stable identifier for your end-users.\nUsed to boost cache hit rates by better bucketing similar requests and  to help OpenAI detect and prevent abuse. [Learn more](https://platform.openai.com/docs/guides/safety-best-practices#safety-identifiers).\n",
+        example="user-1234",
     )
     safety_identifier: Optional[str] = Field(
         None,
         description="A stable identifier used to help detect users of your application that may be violating OpenAI's usage policies.\nThe IDs should be a string that uniquely identifies each user. We recommend hashing their username or email address, in order to avoid sending us any identifying information. [Learn more](https://platform.openai.com/docs/guides/safety-best-practices#safety-identifiers).\n",
-        example='safety-identifier-1234',
+        example="safety-identifier-1234",
     )
     prompt_cache_key: Optional[str] = Field(
         None,
-        description='Used by OpenAI to cache responses for similar requests to optimize your cache hit rates. Replaces the `user` field. [Learn more](https://platform.openai.com/docs/guides/prompt-caching).\n',
-        example='prompt-cache-key-1234',
+        description="Used by OpenAI to cache responses for similar requests to optimize your cache hit rates. Replaces the `user` field. [Learn more](https://platform.openai.com/docs/guides/prompt-caching).\n",
+        example="prompt-cache-key-1234",
     )
     service_tier: Optional[ServiceTier] = None

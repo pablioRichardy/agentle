@@ -11,7 +11,6 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .input_message_content_list import InputMessageContentList
 from .role1 import Role1
@@ -19,15 +18,15 @@ from .status5 import Status5
 
 
 class InputMessage(BaseModel):
-    type: Literal['InputMessage'] = Field(
-        ..., description='The type of the message input. Always set to `message`.\n'
+    type: Literal["InputMessage"] = Field(
+        ..., description="The type of the message input. Always set to `message`.\n"
     )
     role: Role1 = Field(
         ...,
-        description='The role of the message input. One of `user`, `system`, or `developer`.\n',
+        description="The role of the message input. One of `user`, `system`, or `developer`.\n",
     )
     status: Optional[Status5] = Field(
         None,
-        description='The status of item. One of `in_progress`, `completed`, or\n`incomplete`. Populated when items are returned via API.\n',
+        description="The status of item. One of `in_progress`, `completed`, or\n`incomplete`. Populated when items are returned via API.\n",
     )
     content: InputMessageContentList

@@ -11,12 +11,10 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class FileCitationBody(BaseModel):
-    type: Literal['FileCitationBody'] = Field(
-        ..., description='The type of the file citation. Always `file_citation`.'
+    type: Literal["FileCitationBody"] = Field(
+        ..., description="The type of the file citation. Always `file_citation`."
     )
-    file_id: str = Field(..., description='The ID of the file.')
-    index: int = Field(..., description='The index of the file in the list of files.')
-    filename: str = Field(..., description='The filename of the file cited.')
+    file_id: str = Field(..., description="The ID of the file.")
+    index: int = Field(..., description="The index of the file in the list of files.")
+    filename: str = Field(..., description="The filename of the file cited.")

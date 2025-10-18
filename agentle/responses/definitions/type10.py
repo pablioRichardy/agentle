@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type10(Enum):
-    computer_screenshot = 'computer_screenshot'
+    computer_screenshot = "computer_screenshot"

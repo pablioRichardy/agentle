@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type55(Enum):
-    refusal = 'refusal'
+    refusal = "refusal"

@@ -11,12 +11,10 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class Move(BaseModel):
-    type: Literal['Move'] = Field(
+    type: Literal["Move"] = Field(
         ...,
-        description='Specifies the event type. For a move action, this property is \nalways set to `move`.\n',
+        description="Specifies the event type. For a move action, this property is \nalways set to `move`.\n",
     )
-    x: int = Field(..., description='The x-coordinate to move to.\n')
-    y: int = Field(..., description='The y-coordinate to move to.\n')
+    x: int = Field(..., description="The x-coordinate to move to.\n")
+    y: int = Field(..., description="The y-coordinate to move to.\n")

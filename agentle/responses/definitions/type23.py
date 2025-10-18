@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type23(Enum):
-    file_path = 'file_path'
+    file_path = "file_path"

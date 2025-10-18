@@ -6,9 +6,7 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-
 from pydantic import BaseModel, Field
-
 
 
 # Model dependencies
@@ -16,8 +14,8 @@ from .format import Format
 
 
 class InputAudio1(BaseModel):
-    data: str = Field(..., description='Base64-encoded audio data.\n')
+    data: str = Field(..., description="Base64-encoded audio data.\n")
     format: Format = Field(
         ...,
-        description='The format of the audio data. Currently supported formats are `mp3` and\n`wav`.\n',
+        description="The format of the audio data. Currently supported formats are `mp3` and\n`wav`.\n",
     )

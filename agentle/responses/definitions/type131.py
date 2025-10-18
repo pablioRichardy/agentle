@@ -9,9 +9,6 @@
 from enum import Enum
 
 
-
-
-
 class Type131(Enum):
-    web_search = 'web_search'
-    web_search_2025_08_26 = 'web_search_2025_08_26'
+    web_search = "web_search"
+    web_search_2025_08_26 = "web_search_2025_08_26"

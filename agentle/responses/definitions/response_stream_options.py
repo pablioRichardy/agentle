@@ -11,7 +11,6 @@ from typing import Optional
 from pydantic import RootModel
 
 
-
 # Model dependencies
 from .response_stream_options1 import ResponseStreamOptions1
 

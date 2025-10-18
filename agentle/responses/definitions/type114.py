@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type114(Enum):
-    scroll = 'scroll'
+    scroll = "scroll"

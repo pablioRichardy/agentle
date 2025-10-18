@@ -11,16 +11,15 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .ranker_version_type import RankerVersionType
 
 
 class RankingOptions(BaseModel):
     ranker: Optional[RankerVersionType] = Field(
-        None, description='The ranker to use for the file search.'
+        None, description="The ranker to use for the file search."
     )
     score_threshold: Optional[float] = Field(
         None,
-        description='The score threshold for the file search, a number between 0 and 1. Numbers closer to 1 will attempt to return only the most relevant results, but may return fewer results.',
+        description="The score threshold for the file search, a number between 0 and 1. Numbers closer to 1 will attempt to return only the most relevant results, but may return fewer results.",
     )

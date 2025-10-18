@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type84(Enum):
-    response_in_progress = 'response.in_progress'
+    response_in_progress = "response.in_progress"

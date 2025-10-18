@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type56(Enum):
-    response_audio_delta = 'response.audio.delta'
+    response_audio_delta = "response.audio.delta"

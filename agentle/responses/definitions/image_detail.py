@@ -9,10 +9,7 @@
 from enum import Enum
 
 
-
-
-
 class ImageDetail(Enum):
-    low = 'low'
-    high = 'high'
-    auto = 'auto'
+    low = "low"
+    high = "high"
+    auto = "auto"

@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type49(Enum):
-    mcp_call = 'mcp_call'
+    mcp_call = "mcp_call"

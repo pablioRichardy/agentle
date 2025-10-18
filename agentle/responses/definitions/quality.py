@@ -9,11 +9,8 @@
 from enum import Enum
 
 
-
-
-
 class Quality(Enum):
-    low = 'low'
-    medium = 'medium'
-    high = 'high'
-    auto = 'auto'
+    low = "low"
+    medium = "medium"
+    high = "high"
+    auto = "auto"

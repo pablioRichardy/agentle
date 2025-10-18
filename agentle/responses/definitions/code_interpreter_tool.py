@@ -11,17 +11,16 @@ from typing import Literal, Union
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .code_interpreter_container_auto import CodeInterpreterContainerAuto
 
 
 class CodeInterpreterTool(BaseModel):
-    type: Literal['CodeInterpreterTool'] = Field(
+    type: Literal["CodeInterpreterTool"] = Field(
         ...,
-        description='The type of the code interpreter tool. Always `code_interpreter`.\n',
+        description="The type of the code interpreter tool. Always `code_interpreter`.\n",
     )
     container: Union[str, CodeInterpreterContainerAuto] = Field(
         ...,
-        description='The code interpreter container. Can be a container ID or an object that\nspecifies uploaded file IDs to make available to your code.\n',
+        description="The code interpreter container. Can be a container ID or an object that\nspecifies uploaded file IDs to make available to your code.\n",
     )

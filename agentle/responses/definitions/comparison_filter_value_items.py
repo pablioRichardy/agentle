@@ -11,7 +11,5 @@ from typing import Union
 from pydantic import RootModel
 
 
-
-
 class ComparisonFilterValueItems(RootModel[Union[str, float]]):
     pass

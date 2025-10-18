@@ -11,18 +11,17 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .image_detail import ImageDetail
 
 
 class InputImageContent(BaseModel):
-    type: Literal['InputImageContent'] = Field(
-        ..., description='The type of the input item. Always `input_image`.'
+    type: Literal["InputImageContent"] = Field(
+        ..., description="The type of the input item. Always `input_image`."
     )
     image_url: Optional[str] = None
     file_id: Optional[str] = None
     detail: ImageDetail = Field(
         ...,
-        description='The detail level of the image to be sent to the model. One of `high`, `low`, or `auto`. Defaults to `auto`.',
+        description="The detail level of the image to be sent to the model. One of `high`, `low`, or `auto`. Defaults to `auto`.",
     )

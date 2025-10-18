@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type93(Enum):
-    response_mcp_list_tools_in_progress = 'response.mcp_list_tools.in_progress'
+    response_mcp_list_tools_in_progress = "response.mcp_list_tools.in_progress"

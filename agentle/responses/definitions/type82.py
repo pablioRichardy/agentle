@@ -9,10 +9,7 @@
 from enum import Enum
 
 
-
-
-
 class Type82(Enum):
     response_image_generation_call_in_progress = (
-        'response.image_generation_call.in_progress'
+        "response.image_generation_call.in_progress"
     )

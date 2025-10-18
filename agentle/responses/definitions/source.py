@@ -6,9 +6,7 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-
 from pydantic import BaseModel, Field
-
 
 
 # Model dependencies
@@ -16,5 +14,5 @@ from .type128 import Type128
 
 
 class Source(BaseModel):
-    type: Type128 = Field(..., description='The type of source. Always `url`.\n')
-    url: str = Field(..., description='The URL of the source.\n')
+    type: Type128 = Field(..., description="The type of source. Always `url`.\n")
+    url: str = Field(..., description="The URL of the source.\n")

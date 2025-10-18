@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type48(Enum):
-    mcp = 'mcp'
+    mcp = "mcp"

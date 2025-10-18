@@ -11,7 +11,6 @@ from typing import Literal, Union
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .status11 import Status11
 from .web_search_action_find import WebSearchActionFind
@@ -20,18 +19,18 @@ from .web_search_action_search import WebSearchActionSearch
 
 
 class WebSearchToolCall(BaseModel):
-    id: str = Field(..., description='The unique ID of the web search tool call.\n')
-    type: Literal['WebSearchToolCall'] = Field(
+    id: str = Field(..., description="The unique ID of the web search tool call.\n")
+    type: Literal["WebSearchToolCall"] = Field(
         ...,
-        description='The type of the web search tool call. Always `web_search_call`.\n',
+        description="The type of the web search tool call. Always `web_search_call`.\n",
     )
     status: Status11 = Field(
-        ..., description='The status of the web search tool call.\n'
+        ..., description="The status of the web search tool call.\n"
     )
     action: Union[
         WebSearchActionSearch, WebSearchActionOpenPage, WebSearchActionFind
     ] = Field(
         ...,
-        description='An object describing the specific action taken in this web search call.\nIncludes details on how the model used the web (search, open_page, find).\n',
-        discriminator='type',
+        description="An object describing the specific action taken in this web search call.\nIncludes details on how the model used the web (search, open_page, find).\n",
+        discriminator="type",
     )

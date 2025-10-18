@@ -11,10 +11,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ReasoningTextContent(BaseModel):
-    type: Literal['ReasoningTextContent'] = Field(
-        ..., description='The type of the reasoning text. Always `reasoning_text`.'
+    type: Literal["ReasoningTextContent"] = Field(
+        ..., description="The type of the reasoning text. Always `reasoning_text`."
     )
-    text: str = Field(..., description='The reasoning text from the model.')
+    text: str = Field(..., description="The reasoning text from the model.")

@@ -11,18 +11,17 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .computer_environment import ComputerEnvironment
 
 
 class ComputerUsePreviewTool(BaseModel):
-    type: Literal['ComputerUsePreviewTool'] = Field(
+    type: Literal["ComputerUsePreviewTool"] = Field(
         ...,
-        description='The type of the computer use tool. Always `computer_use_preview`.',
+        description="The type of the computer use tool. Always `computer_use_preview`.",
     )
     environment: ComputerEnvironment = Field(
-        ..., description='The type of computer environment to control.'
+        ..., description="The type of computer environment to control."
     )
-    display_width: int = Field(..., description='The width of the computer display.')
-    display_height: int = Field(..., description='The height of the computer display.')
+    display_width: int = Field(..., description="The width of the computer display.")
+    display_height: int = Field(..., description="The height of the computer display.")

@@ -11,19 +11,17 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ResponseFileSearchCallInProgressEvent(BaseModel):
-    type: Literal['ResponseFileSearchCallInProgressEvent'] = Field(
+    type: Literal["ResponseFileSearchCallInProgressEvent"] = Field(
         ...,
-        description='The type of the event. Always `response.file_search_call.in_progress`.\n',
+        description="The type of the event. Always `response.file_search_call.in_progress`.\n",
     )
     output_index: int = Field(
         ...,
-        description='The index of the output item that the file search call is initiated.\n',
+        description="The index of the output item that the file search call is initiated.\n",
     )
     item_id: str = Field(
         ...,
-        description='The ID of the output item that the file search call is initiated.\n',
+        description="The ID of the output item that the file search call is initiated.\n",
     )
-    sequence_number: int = Field(..., description='The sequence number of this event.')
+    sequence_number: int = Field(..., description="The sequence number of this event.")

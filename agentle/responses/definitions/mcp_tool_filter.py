@@ -11,15 +11,13 @@ from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
-
-
 class MCPToolFilter(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra="forbid")
 
     tool_names: Optional[List[str]] = Field(
-        None, description='List of allowed tool names.', title='MCP allowed tools'
+        None, description="List of allowed tool names.", title="MCP allowed tools"
     )
     read_only: Optional[bool] = Field(
         None,
-        description='Indicates whether or not a tool modifies data or is read-only. If an\nMCP server is [annotated with `readOnlyHint`](https://modelcontextprotocol.io/specification/2025-06-18/schema#toolannotations-readonlyhint),\nit will match this filter.\n',
+        description="Indicates whether or not a tool modifies data or is read-only. If an\nMCP server is [annotated with `readOnlyHint`](https://modelcontextprotocol.io/specification/2025-06-18/schema#toolannotations-readonlyhint),\nit will match this filter.\n",
     )

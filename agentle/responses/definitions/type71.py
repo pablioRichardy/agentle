@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type71(Enum):
-    error = 'error'
+    error = "error"

@@ -11,19 +11,18 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .click_button_type import ClickButtonType
 
 
 class ClickParam(BaseModel):
-    type: Literal['ClickParam'] = Field(
+    type: Literal["ClickParam"] = Field(
         ...,
-        description='Specifies the event type. For a click action, this property is always `click`.',
+        description="Specifies the event type. For a click action, this property is always `click`.",
     )
     button: ClickButtonType = Field(
         ...,
-        description='Indicates which mouse button was pressed during the click. One of `left`, `right`, `wheel`, `back`, or `forward`.',
+        description="Indicates which mouse button was pressed during the click. One of `left`, `right`, `wheel`, `back`, or `forward`.",
     )
-    x: int = Field(..., description='The x-coordinate where the click occurred.')
-    y: int = Field(..., description='The y-coordinate where the click occurred.')
+    x: int = Field(..., description="The x-coordinate where the click occurred.")
+    y: int = Field(..., description="The y-coordinate where the click occurred.")

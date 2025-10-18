@@ -11,9 +11,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class CustomTextFormatParam(BaseModel):
-    type: Literal['CustomTextFormatParam'] = Field(
-        ..., description='Unconstrained text format. Always `text`.'
+    type: Literal["CustomTextFormatParam"] = Field(
+        ..., description="Unconstrained text format. Always `text`."
     )

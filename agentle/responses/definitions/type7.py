@@ -9,13 +9,10 @@
 from enum import Enum
 
 
-
-
-
 class Type7(Enum):
-    eq = 'eq'
-    ne = 'ne'
-    gt = 'gt'
-    gte = 'gte'
-    lt = 'lt'
-    lte = 'lte'
+    eq = "eq"
+    ne = "ne"
+    gt = "gt"
+    gte = "gte"
+    lt = "lt"
+    lte = "lte"

@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type21(Enum):
-    message = 'message'
+    message = "message"

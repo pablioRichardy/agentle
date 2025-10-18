@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type16(Enum):
-    custom_tool_call = 'custom_tool_call'
+    custom_tool_call = "custom_tool_call"

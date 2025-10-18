@@ -9,9 +9,6 @@
 from enum import Enum
 
 
-
-
-
 class Type8(Enum):
-    and_ = 'and'
-    or_ = 'or'
+    and_ = "and"
+    or_ = "or"

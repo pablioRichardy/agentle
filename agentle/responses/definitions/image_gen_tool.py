@@ -11,7 +11,6 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field, conint
 
 
-
 # Model dependencies
 from .background import Background
 from .input_fidelity import InputFidelity
@@ -24,43 +23,43 @@ from .size import Size
 
 
 class ImageGenTool(BaseModel):
-    type: Literal['ImageGenTool'] = Field(
+    type: Literal["ImageGenTool"] = Field(
         ...,
-        description='The type of the image generation tool. Always `image_generation`.\n',
+        description="The type of the image generation tool. Always `image_generation`.\n",
     )
     model: Optional[Model] = Field(
-        'gpt-image-1',
-        description='The image generation model to use. Default: `gpt-image-1`.\n',
+        "gpt-image-1",
+        description="The image generation model to use. Default: `gpt-image-1`.\n",
     )
     quality: Optional[Quality] = Field(
-        'auto',
-        description='The quality of the generated image. One of `low`, `medium`, `high`,\nor `auto`. Default: `auto`.\n',
+        "auto",
+        description="The quality of the generated image. One of `low`, `medium`, `high`,\nor `auto`. Default: `auto`.\n",
     )
     size: Optional[Size] = Field(
-        'auto',
-        description='The size of the generated image. One of `1024x1024`, `1024x1536`,\n`1536x1024`, or `auto`. Default: `auto`.\n',
+        "auto",
+        description="The size of the generated image. One of `1024x1024`, `1024x1536`,\n`1536x1024`, or `auto`. Default: `auto`.\n",
     )
     output_format: Optional[OutputFormat] = Field(
-        'png',
-        description='The output format of the generated image. One of `png`, `webp`, or\n`jpeg`. Default: `png`.\n',
+        "png",
+        description="The output format of the generated image. One of `png`, `webp`, or\n`jpeg`. Default: `png`.\n",
     )
     output_compression: Optional[conint(ge=0, le=100)] = Field(
-        100, description='Compression level for the output image. Default: 100.\n'
+        100, description="Compression level for the output image. Default: 100.\n"
     )
     moderation: Optional[Moderation] = Field(
-        'auto',
-        description='Moderation level for the generated image. Default: `auto`.\n',
+        "auto",
+        description="Moderation level for the generated image. Default: `auto`.\n",
     )
     background: Optional[Background] = Field(
-        'auto',
-        description='Background type for the generated image. One of `transparent`,\n`opaque`, or `auto`. Default: `auto`.\n',
+        "auto",
+        description="Background type for the generated image. One of `transparent`,\n`opaque`, or `auto`. Default: `auto`.\n",
     )
     input_fidelity: Optional[InputFidelity] = None
     input_image_mask: Optional[InputImageMask] = Field(
         None,
-        description='Optional mask for inpainting. Contains `image_url`\n(string, optional) and `file_id` (string, optional).\n',
+        description="Optional mask for inpainting. Contains `image_url`\n(string, optional) and `file_id` (string, optional).\n",
     )
     partial_images: Optional[conint(ge=0, le=3)] = Field(
         0,
-        description='Number of partial images to generate in streaming mode, from 0 (default value) to 3.\n',
+        description="Number of partial images to generate in streaming mode, from 0 (default value) to 3.\n",
     )

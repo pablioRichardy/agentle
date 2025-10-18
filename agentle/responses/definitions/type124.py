@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type124(Enum):
-    wait = 'wait'
+    wait = "wait"

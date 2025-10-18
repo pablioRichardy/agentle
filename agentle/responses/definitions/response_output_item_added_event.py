@@ -11,19 +11,18 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .output_item import OutputItem
 
 
 class ResponseOutputItemAddedEvent(BaseModel):
-    type: Literal['ResponseOutputItemAddedEvent'] = Field(
-        ..., description='The type of the event. Always `response.output_item.added`.\n'
+    type: Literal["ResponseOutputItemAddedEvent"] = Field(
+        ..., description="The type of the event. Always `response.output_item.added`.\n"
     )
     output_index: int = Field(
-        ..., description='The index of the output item that was added.\n'
+        ..., description="The index of the output item that was added.\n"
     )
     sequence_number: int = Field(
-        ..., description='The sequence number of this event.\n'
+        ..., description="The sequence number of this event.\n"
     )
-    item: OutputItem = Field(..., description='The output item that was added.\n')
+    item: OutputItem = Field(..., description="The output item that was added.\n")

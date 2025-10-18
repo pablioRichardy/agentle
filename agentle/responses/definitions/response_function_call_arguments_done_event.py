@@ -11,12 +11,10 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class ResponseFunctionCallArgumentsDoneEvent(BaseModel):
-    type: Literal['ResponseFunctionCallArgumentsDoneEvent']
-    item_id: str = Field(..., description='The ID of the item.')
-    name: str = Field(..., description='The name of the function that was called.')
-    output_index: int = Field(..., description='The index of the output item.')
-    sequence_number: int = Field(..., description='The sequence number of this event.')
-    arguments: str = Field(..., description='The function-call arguments.')
+    type: Literal["ResponseFunctionCallArgumentsDoneEvent"]
+    item_id: str = Field(..., description="The ID of the item.")
+    name: str = Field(..., description="The name of the function that was called.")
+    output_index: int = Field(..., description="The index of the output item.")
+    sequence_number: int = Field(..., description="The sequence number of this event.")
+    arguments: str = Field(..., description="The function-call arguments.")

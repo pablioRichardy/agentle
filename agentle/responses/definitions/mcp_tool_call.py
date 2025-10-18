@@ -11,27 +11,26 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .mcp_tool_call_status import MCPToolCallStatus
 
 
 class MCPToolCall(BaseModel):
-    type: Literal['MCPToolCall'] = Field(
-        ..., description='The type of the item. Always `mcp_call`.\n'
+    type: Literal["MCPToolCall"] = Field(
+        ..., description="The type of the item. Always `mcp_call`.\n"
     )
-    id: str = Field(..., description='The unique ID of the tool call.\n')
+    id: str = Field(..., description="The unique ID of the tool call.\n")
     server_label: str = Field(
-        ..., description='The label of the MCP server running the tool.\n'
+        ..., description="The label of the MCP server running the tool.\n"
     )
-    name: str = Field(..., description='The name of the tool that was run.\n')
+    name: str = Field(..., description="The name of the tool that was run.\n")
     arguments: str = Field(
-        ..., description='A JSON string of the arguments passed to the tool.\n'
+        ..., description="A JSON string of the arguments passed to the tool.\n"
     )
     output: Optional[str] = None
     error: Optional[str] = None
     status: Optional[MCPToolCallStatus] = Field(
         None,
-        description='The status of the tool call. One of `in_progress`, `completed`, `incomplete`, `calling`, or `failed`.\n',
+        description="The status of the tool call. One of `in_progress`, `completed`, `incomplete`, `calling`, or `failed`.\n",
     )
     approval_request_id: Optional[str] = None

@@ -11,26 +11,25 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .outputs import Outputs
 from .status import Status
 
 
 class CodeInterpreterToolCall(BaseModel):
-    type: Literal['CodeInterpreterToolCall'] = Field(
+    type: Literal["CodeInterpreterToolCall"] = Field(
         ...,
-        description='The type of the code interpreter tool call. Always `code_interpreter_call`.\n',
+        description="The type of the code interpreter tool call. Always `code_interpreter_call`.\n",
     )
     id: str = Field(
-        ..., description='The unique ID of the code interpreter tool call.\n'
+        ..., description="The unique ID of the code interpreter tool call.\n"
     )
     status: Status = Field(
         ...,
-        description='The status of the code interpreter tool call. Valid values are `in_progress`, `completed`, `incomplete`, `interpreting`, and `failed`.\n',
+        description="The status of the code interpreter tool call. Valid values are `in_progress`, `completed`, `incomplete`, `interpreting`, and `failed`.\n",
     )
     container_id: str = Field(
-        ..., description='The ID of the container used to run the code.\n'
+        ..., description="The ID of the container used to run the code.\n"
     )
     code: Optional[str]
     outputs: Optional[List[Outputs]]

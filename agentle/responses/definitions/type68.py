@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type68(Enum):
-    response_created = 'response.created'
+    response_created = "response.created"

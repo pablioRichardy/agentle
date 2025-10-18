@@ -9,12 +9,9 @@
 from enum import Enum
 
 
-
-
-
 class ComputerEnvironment(Enum):
-    windows = 'windows'
-    mac = 'mac'
-    linux = 'linux'
-    ubuntu = 'ubuntu'
-    browser = 'browser'
+    windows = "windows"
+    mac = "mac"
+    linux = "linux"
+    ubuntu = "ubuntu"
+    browser = "browser"

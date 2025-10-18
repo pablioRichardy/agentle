@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type89(Enum):
-    response_mcp_call_failed = 'response.mcp_call.failed'
+    response_mcp_call_failed = "response.mcp_call.failed"

@@ -11,7 +11,5 @@ from typing import Dict, Optional
 from pydantic import RootModel
 
 
-
-
 class Metadata(RootModel[Optional[Dict[str, str]]]):
     pass

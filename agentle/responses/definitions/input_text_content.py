@@ -11,10 +11,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class InputTextContent(BaseModel):
-    type: Literal['InputTextContent'] = Field(
-        ..., description='The type of the input item. Always `input_text`.'
+    type: Literal["InputTextContent"] = Field(
+        ..., description="The type of the input item. Always `input_text`."
     )
-    text: str = Field(..., description='The text input to the model.')
+    text: str = Field(..., description="The text input to the model.")

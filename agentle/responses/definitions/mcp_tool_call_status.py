@@ -9,12 +9,9 @@
 from enum import Enum
 
 
-
-
-
 class MCPToolCallStatus(Enum):
-    in_progress = 'in_progress'
-    completed = 'completed'
-    incomplete = 'incomplete'
-    calling = 'calling'
-    failed = 'failed'
+    in_progress = "in_progress"
+    completed = "completed"
+    incomplete = "incomplete"
+    calling = "calling"
+    failed = "failed"

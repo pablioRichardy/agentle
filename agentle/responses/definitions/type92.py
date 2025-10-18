@@ -9,8 +9,5 @@
 from enum import Enum
 
 
-
-
-
 class Type92(Enum):
-    response_mcp_list_tools_failed = 'response.mcp_list_tools.failed'
+    response_mcp_list_tools_failed = "response.mcp_list_tools.failed"

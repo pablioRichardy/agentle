@@ -11,16 +11,15 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
 # Model dependencies
 from .response import Response
 
 
 class ResponseQueuedEvent(BaseModel):
-    type: Literal['ResponseQueuedEvent'] = Field(
+    type: Literal["ResponseQueuedEvent"] = Field(
         ..., description="The type of the event. Always 'response.queued'."
     )
     response: Response = Field(
-        ..., description='The full response object that is queued.'
+        ..., description="The full response object that is queued."
     )
-    sequence_number: int = Field(..., description='The sequence number for this event.')
+    sequence_number: int = Field(..., description="The sequence number for this event.")

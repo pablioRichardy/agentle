@@ -9,9 +9,6 @@
 from enum import Enum
 
 
-
-
-
 class RequireApproval1(Enum):
-    always = 'always'
-    never = 'never'
+    always = "always"
+    never = "never"

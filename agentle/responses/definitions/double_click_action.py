@@ -11,12 +11,10 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-
-
 class DoubleClickAction(BaseModel):
-    type: Literal['DoubleClickAction'] = Field(
+    type: Literal["DoubleClickAction"] = Field(
         ...,
-        description='Specifies the event type. For a double click action, this property is always set to `double_click`.',
+        description="Specifies the event type. For a double click action, this property is always set to `double_click`.",
     )
-    x: int = Field(..., description='The x-coordinate where the double click occurred.')
-    y: int = Field(..., description='The y-coordinate where the double click occurred.')
+    x: int = Field(..., description="The x-coordinate where the double click occurred.")
+    y: int = Field(..., description="The y-coordinate where the double click occurred.")

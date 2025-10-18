@@ -11,7 +11,6 @@ from typing import Optional
 from pydantic import RootModel
 
 
-
 # Model dependencies
 from .web_search_approximate_location1 import WebSearchApproximateLocation1
 
