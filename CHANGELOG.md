@@ -1,8 +1,26 @@
 # Changelog
 
 ## v0.9.1
+
+### 🎯 **Pricing Integration**
+- **feat(generations)**: Added `Pricing` model to `Generation` class with `input_pricing`, `output_pricing`, and `total_pricing` fields
+- **feat(providers)**: All major providers now automatically populate pricing information in `Generation` objects
+  - OpenRouter: Dynamic pricing from API with automatic per-token to per-million conversion
+  - OpenAI: Static pricing table with comprehensive model coverage
+  - Google (Gemini): Static pricing for all Gemini models
+  - Cerebras: Static pricing for Llama models
+  - Amazon Bedrock: Static pricing for Claude and other models
+- **feat(adapters)**: Added async `adapt_async()` methods to all provider adapters for pricing calculation
+- **fix(openrouter)**: Corrected pricing calculation - OpenRouter returns per-token prices, now properly converted to per-million-tokens
+- Pricing is calculated using the abstract methods `price_per_million_tokens_input()` and `price_per_million_tokens_output()`
+- Costs are rounded to 8 decimal places for precision
+- Graceful fallback to empty `Pricing` object if calculation fails
+
+### 🐛 **Bug Fixes**
 - fix(openrouter): when fallback models are used, use "models" in the requests, not "model"
 - fix(openrouter): accept single string in `with_fallback_models()` method (was treating string as iterable)
+
+### 🚨 **Error Handling**
 - feat(openrouter): comprehensive custom exception hierarchy with detailed error messages
   - Created 16+ custom exception classes for all documented OpenRouter errors
   - Each exception includes clear descriptions, possible causes, and actionable solutions

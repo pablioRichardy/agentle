@@ -1567,7 +1567,8 @@ class OpenRouterGenerationProvider(GenerationProvider):
                     )
                     return 0.0
             
-            return float(prompt_price)
+            # OpenRouter returns price per token, convert to price per million tokens
+            return float(prompt_price) * 1_000_000
             
         except Exception as e:
             logger.error(
@@ -1615,7 +1616,8 @@ class OpenRouterGenerationProvider(GenerationProvider):
                     )
                     return 0.0
             
-            return float(completion_price)
+            # OpenRouter returns price per token, convert to price per million tokens
+            return float(completion_price) * 1_000_000
             
         except Exception as e:
             logger.error(
