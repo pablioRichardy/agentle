@@ -699,11 +699,11 @@ class GoogleSpeechToTextProvider(SpeechToTextProvider):
         prompt_tokens_used = transcription.usage.prompt_tokens
         completion_tokens_used = transcription.usage.completion_tokens
 
-        ppmi = self._generation_provider.price_per_million_tokens_input(
+        ppmi = await self._generation_provider.price_per_million_tokens_input(
             self.model, estimate_tokens=prompt_tokens_used
         )
 
-        ppco = self._generation_provider.price_per_million_tokens_output(
+        ppco = await self._generation_provider.price_per_million_tokens_output(
             self.model, estimate_tokens=completion_tokens_used
         )
 

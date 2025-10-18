@@ -123,13 +123,13 @@ class OllamaGenerationProvider(GenerationProvider):
         ).adapt(response)  # type: ignore
 
     @override
-    def price_per_million_tokens_input(
+    async def price_per_million_tokens_input(
         self, model: str, estimate_tokens: int | None = None
     ) -> float:
         return 0.0
 
     @override
-    def price_per_million_tokens_output(
+    async def price_per_million_tokens_output(
         self, model: str, estimate_tokens: int | None = None
     ) -> float:
         return 0.0

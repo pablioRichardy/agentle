@@ -426,10 +426,10 @@ async def _process_successful_response(
         if input_tokens > 0 or output_tokens > 0:
             try:
                 pricing_start = time.perf_counter()
-                input_cost = provider_self.price_per_million_tokens_input(
+                input_cost = await provider_self.price_per_million_tokens_input(
                     model, input_tokens
                 ) * (input_tokens / 1_000_000)
-                output_cost = provider_self.price_per_million_tokens_output(
+                output_cost = await provider_self.price_per_million_tokens_output(
                     model, output_tokens
                 ) * (output_tokens / 1_000_000)
                 total_cost = input_cost + output_cost

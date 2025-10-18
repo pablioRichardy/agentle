@@ -332,7 +332,7 @@ class CerebrasGenerationProvider(GenerationProvider):
         return mapping[model_kind]
 
     @override
-    def price_per_million_tokens_input(
+    async def price_per_million_tokens_input(
         self, model: str, estimate_tokens: int | None = None
     ) -> float:
         """
@@ -363,7 +363,7 @@ class CerebrasGenerationProvider(GenerationProvider):
         return price
 
     @override
-    def price_per_million_tokens_output(
+    async def price_per_million_tokens_output(
         self, model: str, estimate_tokens: int | None = None
     ) -> float:
         """

@@ -423,7 +423,7 @@ class GenerationProvider(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def price_per_million_tokens_input(
+    async def price_per_million_tokens_input(
         self, model: str, estimate_tokens: int | None = None
     ) -> float:
         """
@@ -441,7 +441,7 @@ class GenerationProvider(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def price_per_million_tokens_output(
+    async def price_per_million_tokens_output(
         self, model: str, estimate_tokens: int | None = None
     ) -> float:
         """
