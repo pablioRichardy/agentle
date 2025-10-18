@@ -32,7 +32,7 @@ import asyncio
 import logging
 from collections.abc import AsyncGenerator, Mapping, Sequence
 from os import getenv
-from typing import TYPE_CHECKING, Any, cast, override
+from typing import TYPE_CHECKING, Any, Literal, cast, override
 
 import httpx
 
@@ -116,7 +116,7 @@ class OpenRouterGenerationProvider(GenerationProvider):
     http_client: httpx.AsyncClient | None
     provider_preferences: OpenRouterProviderPreferences | None
     plugins: Sequence[OpenRouterPlugin] | None
-    transforms: Sequence[str] | None
+    transforms: Sequence[Literal["middle-out"]] | None
     message_adapter: AgentleMessageToOpenRouterMessageAdapter
     tool_adapter: AgentleToolToOpenRouterToolAdapter
 
@@ -132,7 +132,7 @@ class OpenRouterGenerationProvider(GenerationProvider):
         http_client: httpx.AsyncClient | None = None,
         provider_preferences: OpenRouterProviderPreferences | None = None,
         plugins: Sequence[OpenRouterPlugin] | None = None,
-        transforms: Sequence[str] | None = None,
+        transforms: Sequence[Literal["middle-out"]] | None = None,
         message_adapter: AgentleMessageToOpenRouterMessageAdapter | None = None,
         tool_adapter: AgentleToolToOpenRouterToolAdapter | None = None,
     ):
@@ -333,8 +333,8 @@ class OpenRouterGenerationProvider(GenerationProvider):
                             yield chunk
 
                     # Use the streaming adapter to process the response
-                    adapter = OpenRouterStreamToGenerationAdapter[WithoutStructuredOutput](
-                        response_schema=response_schema,  # Pass schema for dynamic parsing
+                    adapter = OpenRouterStreamToGenerationAdapter[T](
+                        response_schema=response_schema,  # Pass schema for dynamic parsing 
                         model=model or self.default_model,
                     )
 
