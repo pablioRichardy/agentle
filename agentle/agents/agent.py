@@ -100,7 +100,7 @@ from agentle.generations.collections.message_sequence import MessageSequence
 from agentle.generations.models.generation.generation import Generation
 from agentle.generations.models.generation.trace_params import TraceParams
 from agentle.generations.models.message_parts.file import FilePart
-from agentle.generations.models.message_parts.text import TextPart
+from agentle.generations.models.message_parts.text import CacheControl, TextPart
 from agentle.generations.models.message_parts.tool_execution_suggestion import (
     ToolExecutionSuggestion,
 )
@@ -450,6 +450,12 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
     - 'fail_on_output_violation': bool (default: False) - Falha se output violar guardrails  
     - 'log_violations': bool (default: True) - Log violações
     - 'include_metrics': bool (default: True) - Inclui métricas de guardrails no resultado
+    """
+
+    cache_instructions: bool = Field(default=False)
+    """
+    if true, the instructions will be cached for the providers that
+    supports it.
     """
 
     # Internal fields
@@ -1529,7 +1535,9 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
             instructions += "\n\n" + static_knowledge_prompt
 
         # Create context with current input
-        context: Context = self.input2context(input, instructions=instructions)
+        context: Context = self.input2context(
+            input, instructions=instructions, cache_instructions=self.cache_instructions
+        )
         context.message_history = list(
             MessageHistoryFixer().fix_message_history(context.message_history)
         )
@@ -3515,6 +3523,7 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         cls,
         input: AgentInput | Any,
         instructions: str,
+        cache_instructions: bool,
     ) -> Context:
         """
         Converts user input to a Context object.
@@ -3532,7 +3541,16 @@ class Agent[T_Schema = WithoutStructuredOutput](BaseModel):
         Returns:
             Context: A Context object containing the messages to be processed.
         """
-        developer_message = DeveloperMessage(parts=[TextPart(text=instructions)])
+        developer_message = DeveloperMessage(
+            parts=[
+                TextPart(
+                    text=instructions,
+                    cache_control=CacheControl(type="ephemeral")
+                    if cache_instructions
+                    else None,
+                )
+            ]
+        )
 
         if isinstance(input, Context):
             # If it's already a Context, return it as is.
