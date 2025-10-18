@@ -6,9 +6,9 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
-from pydantic import BaseModel, Field, constr
+from pydantic import BaseModel, Field
 
 
 # Model dependencies
@@ -19,6 +19,6 @@ class InputImageContentParamAutoParam(BaseModel):
     type: Literal["InputImageContentParamAutoParam"] = Field(
         ..., description="The type of the input item. Always `input_image`."
     )
-    image_url: Optional[constr(max_length=20971520)] = None
+    image_url: Optional[Annotated[str, Field(max_length=20971520)]] = None
     file_id: Optional[str] = None
     detail: Optional[DetailEnum] = None

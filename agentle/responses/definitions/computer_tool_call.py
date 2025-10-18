@@ -18,7 +18,7 @@ from .status1 import Status1
 
 
 class ComputerToolCall(BaseModel):
-    type: Literal["ComputerToolCall"] = Field(
+    type: Literal["computer_call"] = Field(
         ..., description="The type of the computer call. Always `computer_call`."
     )
     id: str = Field(..., description="The unique ID of the computer call.")

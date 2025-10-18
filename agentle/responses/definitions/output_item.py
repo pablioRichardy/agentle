@@ -6,9 +6,9 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-from typing import Union
+from typing import Annotated, TypeVar, Union
 
-from pydantic import RootModel
+from pydantic import Field
 
 
 # Model dependencies
@@ -27,23 +27,23 @@ from .reasoning_item import ReasoningItem
 from .web_search_tool_call import WebSearchToolCall
 
 
-class OutputItem[TextFormatT](
-    RootModel[
-        Union[
-            OutputMessage[TextFormatT],
-            FileSearchToolCall,
-            FunctionToolCall,
-            WebSearchToolCall,
-            ComputerToolCall,
-            ReasoningItem,
-            ImageGenToolCall,
-            CodeInterpreterToolCall,
-            LocalShellToolCall,
-            MCPToolCall,
-            MCPListTools,
-            MCPApprovalRequest,
-            CustomToolCall,
-        ]
-    ]
-):
-    pass
+TextFormatT = TypeVar("TextFormatT")
+
+OutputItem = Annotated[
+    Union[
+        OutputMessage[TextFormatT],
+        FileSearchToolCall,
+        FunctionToolCall,
+        WebSearchToolCall,
+        ComputerToolCall,
+        ReasoningItem,
+        ImageGenToolCall,
+        CodeInterpreterToolCall,
+        LocalShellToolCall,
+        MCPToolCall,
+        MCPListTools,
+        MCPApprovalRequest,
+        CustomToolCall,
+    ],
+    Field(discriminator="type"),
+]

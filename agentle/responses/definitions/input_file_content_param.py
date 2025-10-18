@@ -6,9 +6,9 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
-from pydantic import BaseModel, Field, constr
+from pydantic import BaseModel, Field
 
 
 class InputFileContentParam(BaseModel):
@@ -17,5 +17,5 @@ class InputFileContentParam(BaseModel):
     )
     file_id: Optional[str] = None
     filename: Optional[str] = None
-    file_data: Optional[constr(max_length=33554432)] = None
+    file_data: Optional[Annotated[str, Field(max_length=33554432)]] = None
     file_url: Optional[str] = None

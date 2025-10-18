@@ -20,7 +20,7 @@ from .web_search_action_search import WebSearchActionSearch
 
 class WebSearchToolCall(BaseModel):
     id: str = Field(..., description="The unique ID of the web search tool call.\n")
-    type: Literal["WebSearchToolCall"] = Field(
+    type: Literal["web_search_call"] = Field(
         ...,
         description="The type of the web search tool call. Always `web_search_call`.\n",
     )

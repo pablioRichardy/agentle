@@ -17,7 +17,7 @@ from .status5 import Status5
 
 
 class LocalShellToolCall(BaseModel):
-    type: Literal["LocalShellToolCall"] = Field(
+    type: Literal["local_shell_call"] = Field(
         ...,
         description="The type of the local shell call. Always `local_shell_call`.\n",
     )

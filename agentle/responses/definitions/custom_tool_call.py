@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 
 class CustomToolCall(BaseModel):
-    type: Literal["CustomToolCall"] = Field(
+    type: Literal["custom_tool_call"] = Field(
         ...,
         description="The type of the custom tool call. Always `custom_tool_call`.\n",
     )

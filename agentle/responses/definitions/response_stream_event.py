@@ -6,9 +6,9 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-from typing import Union
+from typing import Annotated, Union
 
-from pydantic import RootModel
+from pydantic import Field
 
 
 # Model dependencies
@@ -115,63 +115,61 @@ from .response_web_search_call_searching_event import (
 )
 
 
-class ResponseStreamEvent(
-    RootModel[
-        Union[
-            ResponseAudioDeltaEvent,
-            ResponseAudioDoneEvent,
-            ResponseAudioTranscriptDeltaEvent,
-            ResponseAudioTranscriptDoneEvent,
-            ResponseCodeInterpreterCallCodeDeltaEvent,
-            ResponseCodeInterpreterCallCodeDoneEvent,
-            ResponseCodeInterpreterCallCompletedEvent,
-            ResponseCodeInterpreterCallInProgressEvent,
-            ResponseCodeInterpreterCallInterpretingEvent,
-            ResponseCompletedEvent,
-            ResponseContentPartAddedEvent,
-            ResponseContentPartDoneEvent,
-            ResponseCreatedEvent,
-            ResponseErrorEvent,
-            ResponseFileSearchCallCompletedEvent,
-            ResponseFileSearchCallInProgressEvent,
-            ResponseFileSearchCallSearchingEvent,
-            ResponseFunctionCallArgumentsDeltaEvent,
-            ResponseFunctionCallArgumentsDoneEvent,
-            ResponseInProgressEvent,
-            ResponseFailedEvent,
-            ResponseIncompleteEvent,
-            ResponseOutputItemAddedEvent,
-            ResponseOutputItemDoneEvent,
-            ResponseReasoningSummaryPartAddedEvent,
-            ResponseReasoningSummaryPartDoneEvent,
-            ResponseReasoningSummaryTextDeltaEvent,
-            ResponseReasoningSummaryTextDoneEvent,
-            ResponseReasoningTextDeltaEvent,
-            ResponseReasoningTextDoneEvent,
-            ResponseRefusalDeltaEvent,
-            ResponseRefusalDoneEvent,
-            ResponseTextDeltaEvent,
-            ResponseTextDoneEvent,
-            ResponseWebSearchCallCompletedEvent,
-            ResponseWebSearchCallInProgressEvent,
-            ResponseWebSearchCallSearchingEvent,
-            ResponseImageGenCallCompletedEvent,
-            ResponseImageGenCallGeneratingEvent,
-            ResponseImageGenCallInProgressEvent,
-            ResponseImageGenCallPartialImageEvent,
-            ResponseMCPCallArgumentsDeltaEvent,
-            ResponseMCPCallArgumentsDoneEvent,
-            ResponseMCPCallCompletedEvent,
-            ResponseMCPCallFailedEvent,
-            ResponseMCPCallInProgressEvent,
-            ResponseMCPListToolsCompletedEvent,
-            ResponseMCPListToolsFailedEvent,
-            ResponseMCPListToolsInProgressEvent,
-            ResponseOutputTextAnnotationAddedEvent,
-            ResponseQueuedEvent,
-            ResponseCustomToolCallInputDeltaEvent,
-            ResponseCustomToolCallInputDoneEvent,
-        ]
-    ]
-):
-    pass
+ResponseStreamEvent = Annotated[
+    Union[
+        ResponseAudioDeltaEvent,
+        ResponseAudioDoneEvent,
+        ResponseAudioTranscriptDeltaEvent,
+        ResponseAudioTranscriptDoneEvent,
+        ResponseCodeInterpreterCallCodeDeltaEvent,
+        ResponseCodeInterpreterCallCodeDoneEvent,
+        ResponseCodeInterpreterCallCompletedEvent,
+        ResponseCodeInterpreterCallInProgressEvent,
+        ResponseCodeInterpreterCallInterpretingEvent,
+        ResponseCompletedEvent,
+        ResponseContentPartAddedEvent,
+        ResponseContentPartDoneEvent,
+        ResponseCreatedEvent,
+        ResponseErrorEvent,
+        ResponseFileSearchCallCompletedEvent,
+        ResponseFileSearchCallInProgressEvent,
+        ResponseFileSearchCallSearchingEvent,
+        ResponseFunctionCallArgumentsDeltaEvent,
+        ResponseFunctionCallArgumentsDoneEvent,
+        ResponseInProgressEvent,
+        ResponseFailedEvent,
+        ResponseIncompleteEvent,
+        ResponseOutputItemAddedEvent,
+        ResponseOutputItemDoneEvent,
+        ResponseReasoningSummaryPartAddedEvent,
+        ResponseReasoningSummaryPartDoneEvent,
+        ResponseReasoningSummaryTextDeltaEvent,
+        ResponseReasoningSummaryTextDoneEvent,
+        ResponseReasoningTextDeltaEvent,
+        ResponseReasoningTextDoneEvent,
+        ResponseRefusalDeltaEvent,
+        ResponseRefusalDoneEvent,
+        ResponseTextDeltaEvent,
+        ResponseTextDoneEvent,
+        ResponseWebSearchCallCompletedEvent,
+        ResponseWebSearchCallInProgressEvent,
+        ResponseWebSearchCallSearchingEvent,
+        ResponseImageGenCallCompletedEvent,
+        ResponseImageGenCallGeneratingEvent,
+        ResponseImageGenCallInProgressEvent,
+        ResponseImageGenCallPartialImageEvent,
+        ResponseMCPCallArgumentsDeltaEvent,
+        ResponseMCPCallArgumentsDoneEvent,
+        ResponseMCPCallCompletedEvent,
+        ResponseMCPCallFailedEvent,
+        ResponseMCPCallInProgressEvent,
+        ResponseMCPListToolsCompletedEvent,
+        ResponseMCPListToolsFailedEvent,
+        ResponseMCPListToolsInProgressEvent,
+        ResponseOutputTextAnnotationAddedEvent,
+        ResponseQueuedEvent,
+        ResponseCustomToolCallInputDeltaEvent,
+        ResponseCustomToolCallInputDoneEvent,
+    ],
+    Field(discriminator="type"),
+]

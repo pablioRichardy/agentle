@@ -16,7 +16,7 @@ from .mcp_tool_call_status import MCPToolCallStatus
 
 
 class MCPToolCall(BaseModel):
-    type: Literal["MCPToolCall"] = Field(
+    type: Literal["mcp_call"] = Field(
         ..., description="The type of the item. Always `mcp_call`.\n"
     )
     id: str = Field(..., description="The unique ID of the tool call.\n")

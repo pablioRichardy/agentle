@@ -21,7 +21,7 @@ from .log_prob import LogProb
 
 
 class OutputTextContent[TextFormatT](BaseModel):
-    type: Literal["OutputTextContent"] = Field(
+    type: Literal["output_text"] = Field(
         ..., description="The type of the output text. Always `output_text`."
     )
     text: str = Field(..., description="The text output from the model.")

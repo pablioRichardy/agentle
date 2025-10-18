@@ -18,7 +18,7 @@ from .status2 import Status2
 
 class FileSearchToolCall(BaseModel):
     id: str = Field(..., description="The unique ID of the file search tool call.\n")
-    type: Literal["FileSearchToolCall"] = Field(
+    type: Literal["file_search_call"] = Field(
         ...,
         description="The type of the file search tool call. Always `file_search_call`.\n",
     )

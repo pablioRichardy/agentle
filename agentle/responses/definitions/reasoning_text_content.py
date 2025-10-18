@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 
 class ReasoningTextContent(BaseModel):
-    type: Literal["ReasoningTextContent"] = Field(
+    type: Literal["reasoning_text"] = Field(
         ..., description="The type of the reasoning text. Always `reasoning_text`."
     )
     text: str = Field(..., description="The reasoning text from the model.")

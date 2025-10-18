@@ -16,7 +16,7 @@ from .mcp_list_tools_tool import MCPListToolsTool
 
 
 class MCPListTools(BaseModel):
-    type: Literal["MCPListTools"] = Field(
+    type: Literal["mcp_list_tools"] = Field(
         ..., description="The type of the item. Always `mcp_list_tools`.\n"
     )
     id: str = Field(..., description="The unique ID of the list.\n")

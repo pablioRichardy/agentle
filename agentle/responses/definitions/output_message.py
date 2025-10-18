@@ -19,7 +19,7 @@ from .status5 import Status5
 
 class OutputMessage[TextFormatT](BaseModel):
     id: str = Field(..., description="The unique ID of the output message.\n")
-    type: Literal["OutputMessage"] = Field(
+    type: Literal["message"] = Field(
         ..., description="The type of the output message. Always `message`.\n"
     )
     role: Role2 = Field(

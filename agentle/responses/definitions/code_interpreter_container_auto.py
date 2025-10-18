@@ -18,7 +18,7 @@ from .type2 import Type2
 class CodeInterpreterContainerAuto(BaseModel):
     type: Type2 = Field(..., description="Always `auto`.")
     file_ids: Optional[List[str]] = Field(
-        None,
+        default=None,
         description="An optional list of uploaded files to make available to your code.",
-        max_items=50,
+        max_length=50,
     )

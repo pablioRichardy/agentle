@@ -6,9 +6,9 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-from typing import Optional
+from typing import Annotated, Optional
 
-from pydantic import Field, conint
+from pydantic import Field
 
 
 # Model dependencies
@@ -16,7 +16,7 @@ from .model_response_properties import ModelResponseProperties
 
 
 class CreateModelResponseProperties(ModelResponseProperties):
-    top_logprobs: Optional[conint(ge=0, le=20)] = Field(
-        None,
+    top_logprobs: Optional[Annotated[int, Field(ge=0, le=20)]] = Field(
+        default=None,
         description="An integer between 0 and 20 specifying the number of most likely tokens to\nreturn at each token position, each with an associated log probability.\n",
     )

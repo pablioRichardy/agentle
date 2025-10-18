@@ -6,15 +6,15 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, constr
+from pydantic import BaseModel, Field
 
 
 class InputTextContentParam(BaseModel):
     type: Literal["InputTextContentParam"] = Field(
         ..., description="The type of the input item. Always `input_text`."
     )
-    text: constr(max_length=10485760) = Field(
+    text: Annotated[str, Field(max_length=10485760)] = Field(
         ..., description="The text input to the model."
     )

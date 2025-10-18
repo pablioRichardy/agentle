@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 
 class MCPApprovalRequest(BaseModel):
-    type: Literal["MCPApprovalRequest"] = Field(
+    type: Literal["mcp_approval_request"] = Field(
         ..., description="The type of the item. Always `mcp_approval_request`.\n"
     )
     id: str = Field(..., description="The unique ID of the approval request.\n")

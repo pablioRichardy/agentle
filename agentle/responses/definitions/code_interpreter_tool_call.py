@@ -17,7 +17,7 @@ from .status import Status
 
 
 class CodeInterpreterToolCall(BaseModel):
-    type: Literal["CodeInterpreterToolCall"] = Field(
+    type: Literal["code_interpreter_call"] = Field(
         ...,
         description="The type of the code interpreter tool call. Always `code_interpreter_call`.\n",
     )

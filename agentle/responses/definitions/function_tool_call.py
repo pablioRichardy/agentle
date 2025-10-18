@@ -19,7 +19,7 @@ class FunctionToolCall(BaseModel):
     id: Optional[str] = Field(
         None, description="The unique ID of the function tool call.\n"
     )
-    type: Literal["FunctionToolCall"] = Field(
+    type: Literal["function_call"] = Field(
         ..., description="The type of the function tool call. Always `function_call`.\n"
     )
     call_id: str = Field(

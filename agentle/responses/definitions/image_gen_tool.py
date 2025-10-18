@@ -6,9 +6,9 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
-from pydantic import BaseModel, Field, conint
+from pydantic import BaseModel, Field
 
 
 # Model dependencies
@@ -28,30 +28,30 @@ class ImageGenTool(BaseModel):
         description="The type of the image generation tool. Always `image_generation`.\n",
     )
     model: Optional[Model] = Field(
-        "gpt-image-1",
+        default=Model.gpt_image_1,
         description="The image generation model to use. Default: `gpt-image-1`.\n",
     )
     quality: Optional[Quality] = Field(
-        "auto",
+        default=Quality.auto,
         description="The quality of the generated image. One of `low`, `medium`, `high`,\nor `auto`. Default: `auto`.\n",
     )
     size: Optional[Size] = Field(
-        "auto",
+        default=Size.auto,
         description="The size of the generated image. One of `1024x1024`, `1024x1536`,\n`1536x1024`, or `auto`. Default: `auto`.\n",
     )
     output_format: Optional[OutputFormat] = Field(
-        "png",
+        default=OutputFormat.png,
         description="The output format of the generated image. One of `png`, `webp`, or\n`jpeg`. Default: `png`.\n",
     )
-    output_compression: Optional[conint(ge=0, le=100)] = Field(
-        100, description="Compression level for the output image. Default: 100.\n"
+    output_compression: Optional[Annotated[int, Field(ge=0, le=100)]] = Field(
+        default=100, description="Compression level for the output image. Default: 100.\n"
     )
     moderation: Optional[Moderation] = Field(
-        "auto",
+        default=Moderation.auto,
         description="Moderation level for the generated image. Default: `auto`.\n",
     )
     background: Optional[Background] = Field(
-        "auto",
+        default=Background.auto,
         description="Background type for the generated image. One of `transparent`,\n`opaque`, or `auto`. Default: `auto`.\n",
     )
     input_fidelity: Optional[InputFidelity] = None
@@ -59,7 +59,7 @@ class ImageGenTool(BaseModel):
         None,
         description="Optional mask for inpainting. Contains `image_url`\n(string, optional) and `file_id` (string, optional).\n",
     )
-    partial_images: Optional[conint(ge=0, le=3)] = Field(
-        0,
+    partial_images: Optional[Annotated[int, Field(ge=0, le=3)]] = Field(
+        default=0,
         description="Number of partial images to generate in streaming mode, from 0 (default value) to 3.\n",
     )

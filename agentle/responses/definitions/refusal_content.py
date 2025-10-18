@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 
 class RefusalContent(BaseModel):
-    type: Literal["RefusalContent"] = Field(
+    type: Literal["refusal"] = Field(
         ..., description="The type of the refusal. Always `refusal`."
     )
     refusal: str = Field(..., description="The refusal explanation from the model.")

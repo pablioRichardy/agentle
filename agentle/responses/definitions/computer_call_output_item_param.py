@@ -6,9 +6,9 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-from typing import List, Literal, Optional
+from typing import Annotated, List, Literal, Optional
 
-from pydantic import BaseModel, Field, constr
+from pydantic import BaseModel, Field
 
 
 # Model dependencies
@@ -19,7 +19,7 @@ from .function_call_item_status import FunctionCallItemStatus
 
 class ComputerCallOutputItemParam(BaseModel):
     id: Optional[str] = None
-    call_id: constr(min_length=1, max_length=64) = Field(
+    call_id: Annotated[str, Field(min_length=1, max_length=64)] = Field(
         ..., description="The ID of the computer tool call that produced the output."
     )
     type: Literal["ComputerCallOutputItemParam"] = Field(

@@ -5,13 +5,11 @@
 #   filename:  filtered_openapi.yaml
 #   timestamp: 2025-10-18T15:02:20+00:00
 
+from __future__ import annotations
 
-from typing import List, Optional, Union
+from typing import List, Optional, Union, cast
 
 from pydantic import Field
-
-from openai import OpenAI
-OpenAI().responses.parse
 
 # Model dependencies
 from .conversation_param import ConversationParam
@@ -22,8 +20,8 @@ from .response_properties import ResponseProperties
 from .response_stream_options import ResponseStreamOptions
 
 
-class CreateResponse(CreateModelResponseProperties, ResponseProperties):
-    input: Optional[Union[str, List[InputItem]]] = Field(
+class CreateResponse[TextFormatT](CreateModelResponseProperties, ResponseProperties):
+    input: Optional[Union[str, List[InputItem[TextFormatT]]]] = Field(
         None,
         description="Text, image, or file inputs to the model, used to generate a response.\n\nLearn more:\n- [Text inputs and outputs](https://platform.openai.com/docs/guides/text)\n- [Image inputs](https://platform.openai.com/docs/guides/images)\n- [File inputs](https://platform.openai.com/docs/guides/pdf-files)\n- [Conversation state](https://platform.openai.com/docs/guides/conversation-state)\n- [Function calling](https://platform.openai.com/docs/guides/function-calling)\n",
     )
@@ -34,3 +32,12 @@ class CreateResponse(CreateModelResponseProperties, ResponseProperties):
     stream: Optional[bool] = None
     stream_options: Optional[ResponseStreamOptions] = None
     conversation: Optional[Union[str, ConversationParam]] = None
+
+    def encode(self) -> str:
+        return self.model_dump_json()
+
+    @classmethod
+    def decode[T = None](
+        cls, data: str, text_format: type[T] | None = None
+    ) -> CreateResponse[T]:
+        return cast(CreateResponse[T], cls.model_validate_json(data))

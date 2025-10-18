@@ -18,7 +18,7 @@ from .summary_model import SummaryModel
 
 
 class ReasoningItem(BaseModel):
-    type: Literal["ReasoningItem"] = Field(
+    type: Literal["reasoning"] = Field(
         ..., description="The type of the object. Always `reasoning`.\n"
     )
     id: str = Field(

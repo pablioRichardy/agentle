@@ -6,9 +6,9 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-from typing import Union
+from typing import Annotated, TypeVar, Union
 
-from pydantic import RootModel
+from pydantic import Field
 
 
 # Model dependencies
@@ -17,5 +17,9 @@ from .item import Item
 from .item_reference_param import ItemReferenceParam
 
 
-class InputItem(RootModel[Union[EasyInputMessage, Item, ItemReferenceParam]]):
-    pass
+TextFormatT = TypeVar("TextFormatT")
+
+InputItem = Annotated[
+    Union[EasyInputMessage, Item[TextFormatT], ItemReferenceParam],
+    Field(discriminator="type"),
+]

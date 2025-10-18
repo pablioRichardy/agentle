@@ -16,7 +16,7 @@ from .status4 import Status4
 
 
 class ImageGenToolCall(BaseModel):
-    type: Literal["ImageGenToolCall"] = Field(
+    type: Literal["image_generation_call"] = Field(
         ...,
         description="The type of the image generation call. Always `image_generation_call`.\n",
     )

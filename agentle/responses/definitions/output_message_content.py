@@ -6,9 +6,9 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-from typing import Union
+from typing import Annotated, TypeVar, Union
 
-from pydantic import RootModel
+from pydantic import Field
 
 
 # Model dependencies
@@ -16,7 +16,9 @@ from .output_text_content import OutputTextContent
 from .refusal_content import RefusalContent
 
 
-class OutputMessageContent[TextFormatT](
-    RootModel[Union[OutputTextContent[TextFormatT], RefusalContent]]
-):
-    pass
+TextFormatT = TypeVar("TextFormatT")
+
+OutputMessageContent = Annotated[
+    Union[OutputTextContent[TextFormatT], RefusalContent],
+    Field(discriminator="type"),
+]

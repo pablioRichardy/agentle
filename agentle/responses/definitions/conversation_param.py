@@ -11,5 +11,5 @@ from pydantic import BaseModel, Field
 
 class ConversationParam(BaseModel):
     id: str = Field(
-        ..., description="The unique ID of the conversation.", example="conv_123"
+        ..., description="The unique ID of the conversation.", examples=["conv_123"]
     )

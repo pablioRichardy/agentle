@@ -25,6 +25,6 @@ class WebSearchTool(BaseModel):
     filters: Optional[Filters1] = None
     user_location: Optional[WebSearchApproximateLocation] = None
     search_context_size: Optional[SearchContextSize] = Field(
-        "medium",
+        default=SearchContextSize.medium,
         description="High level guidance for the amount of context window space to use for the search. One of `low`, `medium`, or `high`. `medium` is the default.",
     )
