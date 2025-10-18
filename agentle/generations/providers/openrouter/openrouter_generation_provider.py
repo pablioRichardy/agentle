@@ -72,6 +72,9 @@ from agentle.generations.providers.openrouter._types import (
     OpenRouterModelsResponse,
     OpenRouterModel,
 )
+from agentle.generations.providers.openrouter.error_handler import (
+    parse_and_raise_openrouter_error,
+)
 from agentle.generations.providers.types.model_kind import ModelKind
 from agentle.generations.tools.tool import Tool
 from agentle.generations.tracing import observe
@@ -1282,31 +1285,27 @@ class OpenRouterGenerationProvider(GenerationProvider):
                     json=request_body,
                     headers=headers,
                 ) as response:
-                    # Check for errors and provide detailed error messages
+                    # Check for errors and raise custom exceptions
                     if response.status_code >= 400:
-                        error_detail = "No error details provided"
-                        error_body = b""
-                        try:
-                            error_body = await response.aread()
-                            error_json = error_body.decode('utf-8')
-                            import json
-                            error_data = json.loads(error_json)
-                            error_detail = error_data.get("error", {})
-                            if isinstance(error_detail, dict):
-                                error_message = error_detail.get("message", "Unknown error")
-                                error_code = error_detail.get("code", "unknown")
-                                error_detail = f"{error_code}: {error_message}"
-                            elif isinstance(error_detail, str):
-                                error_detail = error_detail
-                            else:
-                                error_detail = str(error_data)
-                        except Exception:
-                            error_detail = error_body.decode('utf-8') if error_body else "Unable to parse error response"
+                        error_body_dict = None
+                        error_text = None
+                        error_body_bytes = b""
                         
+                        try:
+                            error_body_bytes = await response.aread()
+                            error_json = error_body_bytes.decode('utf-8')
+                            import json
+                            error_body_dict = json.loads(error_json)
+                        except Exception:
+                            error_text = error_body_bytes.decode('utf-8') if error_body_bytes else None
+                        
+                        # Log the error for debugging
                         logger.error(
-                            f"OpenRouter API error ({response.status_code}): {error_detail}\nRequest body: {request_body}"
+                            f"OpenRouter API error ({response.status_code})\nRequest body: {request_body}\nResponse: {error_body_dict or error_text}"
                         )
-                        response.raise_for_status()
+                        
+                        # Raise appropriate custom exception
+                        parse_and_raise_openrouter_error(response.status_code, error_body_dict, error_text)
 
                     # Create async generator from response content
                     async def content_generator() -> AsyncGenerator[bytes, None]:
@@ -1453,27 +1452,23 @@ class OpenRouterGenerationProvider(GenerationProvider):
                     headers=headers,
                 )
                 
-                # Check for errors and provide detailed error messages
+                # Check for errors and raise custom exceptions
                 if response.status_code >= 400:
-                    error_detail = "No error details provided"
+                    error_body = None
+                    error_text = None
+                    
                     try:
                         error_body = response.json()
-                        error_detail = error_body.get("error", {})
-                        if isinstance(error_detail, dict):
-                            error_message = error_detail.get("message", "Unknown error")
-                            error_code = error_detail.get("code", "unknown")
-                            error_detail = f"{error_code}: {error_message}"
-                        elif isinstance(error_detail, str):
-                            error_detail = error_detail
-                        else:
-                            error_detail = str(error_body)
                     except Exception:
-                        error_detail = response.text or "Unable to parse error response"
+                        error_text = response.text
                     
+                    # Log the error for debugging
                     logger.error(
-                        f"OpenRouter API error ({response.status_code}): {error_detail}\nRequest body: {request_body}"
+                        f"OpenRouter API error ({response.status_code})\nRequest body: {request_body}\nResponse: {error_body or error_text}"
                     )
-                    response.raise_for_status()
+                    
+                    # Raise appropriate custom exception
+                    parse_and_raise_openrouter_error(response.status_code, error_body, error_text)
                 
                 openrouter_response: OpenRouterResponse = response.json()
 

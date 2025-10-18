@@ -2,6 +2,13 @@
 
 ## v0.9.1
 - fix(openrouter): when fallback models are used, use "models" in the requests, not "model"
+- fix(openrouter): accept single string in `with_fallback_models()` method (was treating string as iterable)
+- feat(openrouter): comprehensive custom exception hierarchy with detailed error messages
+  - Created 16+ custom exception classes for all documented OpenRouter errors
+  - Each exception includes clear descriptions, possible causes, and actionable solutions
+  - Automatic error parsing from response status codes and error messages
+  - Examples: `ModelNotFoundError`, `InsufficientCreditsError`, `ContextLengthExceededError`, etc.
+  - See `examples/openrouter_error_handling.py` for usage examples
 
 ## v0.9.0 🚀
 
