@@ -52,6 +52,7 @@ class Response[TextFormatT = None](ModelResponseProperties, ResponseProperties):
     )
     conversation: Optional[Conversation2] = None
 
+    @property
     def output_parsed(self) -> Optional[TextFormatT]:
         for output in self.output:
             if output.type == "message":

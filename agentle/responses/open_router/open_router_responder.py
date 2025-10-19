@@ -106,6 +106,7 @@ class OpenRouterResponder(BaseModel, ResponderMixin):
             mode="json",
             exclude_none=True,
             exclude_unset=True,
+            by_alias=True,
         )
 
         # Prepare headers

@@ -46,13 +46,15 @@ class CreateResponse(CreateModelResponseProperties, ResponseProperties):
     def set_text_format[TextFormatT: BaseModel](
         self, text_format: type[TextFormatT]
     ) -> Self:
+        schema_dict = text_format.model_json_schema()
+        schema_dict.pop("$defs", None)
         self.text = Text(
             format=TextResponseFormatJsonSchema(
                 type="json_schema",
                 description="JSON Output",
                 name=text_format.__name__,
                 schema=ResponseFormatJsonSchemaSchema(
-                    **text_format.model_json_schema()
+                    **schema_dict
                 ),
                 strict=True,
             ),

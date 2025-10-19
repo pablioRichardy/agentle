@@ -21,7 +21,8 @@ load_dotenv()
 
 
 class Response(BaseModel):
-    response: str
+    answer: str
+    note: str
 
 
 async def main():
@@ -29,13 +30,21 @@ async def main():
     responder = OpenRouterResponder()
 
     response = await responder.respond_async(
-        input="What is the meaning of life?",
+        input="What is 2+2?",
         model="openai/gpt-5-nano",
         max_output_tokens=500,
         text_format=Response,
+        stream=True
     )
 
-    print(response)
+    async for event in response:
+        print(event)
+
+    # print("Response: ")
+    # print(response)
+
+    # print("Output parsed:")
+    # print(response.output_parsed)
 
 
 if __name__ == "__main__":
