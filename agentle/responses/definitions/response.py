@@ -10,6 +10,8 @@ from typing import List, Optional, Union
 
 from pydantic import Field
 
+from agentle.responses.definitions.function_tool_call import FunctionToolCall
+
 
 # Model dependencies
 from .conversation2 import Conversation2
@@ -51,6 +53,15 @@ class Response[TextFormatT = None](ModelResponseProperties, ResponseProperties):
         ..., description="Whether to allow the model to run tool calls in parallel.\n"
     )
     conversation: Optional[Conversation2] = None
+
+    @property
+    def function_calls(self) -> list[FunctionToolCall]:
+        _function_calls: list[FunctionToolCall] = []
+        for output in self.output:
+            if output.type == "function_call":
+                _function_calls.append(output)
+
+        return _function_calls
 
     @property
     def output_parsed(self) -> Optional[TextFormatT]:

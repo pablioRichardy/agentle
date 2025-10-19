@@ -54,7 +54,7 @@ class FunctionTool(BaseModel):
                     make_all_required=True,
                     dereference=True,
                 )
-            ).extract(callable),
+            ).extract(callable)["schema"],
             strict=True,
         )
 

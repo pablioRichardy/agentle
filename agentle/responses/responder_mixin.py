@@ -1,14 +1,16 @@
 import abc
-from collections.abc import Sequence
-from typing import List, Literal, Optional, Union, overload
+from collections.abc import Callable, Sequence
+from typing import Any, Literal, Optional, Union, overload
 
 from pydantic import BaseModel
 from rsb.models.field import Field
 
 from agentle.generations.tracing.otel_client import OtelClient
+from agentle.prompts.models.prompt import Prompt as PromptModel
 from agentle.responses._streaming.async_stream import AsyncStream
 from agentle.responses.definitions.conversation_param import ConversationParam
 from agentle.responses.definitions.create_response import CreateResponse
+from agentle.responses.definitions.function_tool import FunctionTool
 from agentle.responses.definitions.include_enum import IncludeEnum
 from agentle.responses.definitions.input_item import InputItem
 from agentle.responses.definitions.metadata import Metadata
@@ -36,12 +38,12 @@ class ResponderMixin(abc.ABC):
     async def respond_async[TextFormatT = None](
         self,
         *,
-        input: Optional[Union[str, list[InputItem]]] = None,
+        input: Optional[Union[str, list[InputItem], PromptModel]] = None,
         model: Optional[str] = None,
         include: Optional[list[IncludeEnum]] = None,
         parallel_tool_calls: Optional[bool] = None,
         store: Optional[bool] = None,
-        instructions: Optional[str] = None,
+        instructions: Optional[Union[str, PromptModel]] = None,
         stream: Optional[Literal[False]] = False,
         stream_options: Optional[ResponseStreamOptions] = None,
         conversation: Optional[Union[str, ConversationParam]] = None,
@@ -53,7 +55,7 @@ class ResponderMixin(abc.ABC):
         max_output_tokens: Optional[int] = None,
         max_tool_calls: Optional[int] = None,
         text: Optional[Text] = None,
-        tools: Optional[List[Tool]] = None,
+        tools: Optional[Sequence[Tool | Callable[..., Any]]] = None,
         tool_choice: Optional[
             Union[
                 ToolChoiceOptions,
@@ -81,12 +83,12 @@ class ResponderMixin(abc.ABC):
     async def respond_async[TextFormatT = None](
         self,
         *,
-        input: Optional[Union[str, list[InputItem]]] = None,
+        input: Optional[Union[str, list[InputItem], PromptModel]] = None,
         model: Optional[str] = None,
         include: Optional[list[IncludeEnum]] = None,
         parallel_tool_calls: Optional[bool] = None,
         store: Optional[bool] = None,
-        instructions: Optional[str] = None,
+        instructions: Optional[Union[str, PromptModel]] = None,
         stream: Literal[True],
         stream_options: Optional[ResponseStreamOptions] = None,
         conversation: Optional[Union[str, ConversationParam]] = None,
@@ -98,7 +100,7 @@ class ResponderMixin(abc.ABC):
         max_output_tokens: Optional[int] = None,
         max_tool_calls: Optional[int] = None,
         text: Optional[Text] = None,
-        tools: Optional[List[Tool]] = None,
+        tools: Optional[Sequence[Tool | Callable[..., Any]]] = None,
         tool_choice: Optional[
             Union[
                 ToolChoiceOptions,
@@ -120,18 +122,18 @@ class ResponderMixin(abc.ABC):
         safety_identifier: Optional[str] = None,
         prompt_cache_key: Optional[str] = None,
         service_tier: Optional[ServiceTier] = None,
-    ) -> AsyncStream[ResponseStreamEvent]: ...
+    ) -> AsyncStream[ResponseStreamEvent, TextFormatT]: ...
 
     @overload
     async def respond_async[TextFormatT = None](
         self,
         *,
-        input: Optional[Union[str, list[InputItem]]] = None,
+        input: Optional[Union[str, list[InputItem], PromptModel]] = None,
         model: Optional[str] = None,
         include: Optional[list[IncludeEnum]] = None,
         parallel_tool_calls: Optional[bool] = None,
         store: Optional[bool] = None,
-        instructions: Optional[str] = None,
+        instructions: Optional[Union[str, PromptModel]] = None,
         stream: bool,
         stream_options: Optional[ResponseStreamOptions] = None,
         conversation: Optional[Union[str, ConversationParam]] = None,
@@ -143,7 +145,7 @@ class ResponderMixin(abc.ABC):
         max_output_tokens: Optional[int] = None,
         max_tool_calls: Optional[int] = None,
         text: Optional[Text] = None,
-        tools: Optional[List[Tool]] = None,
+        tools: Optional[Sequence[Tool | Callable[..., Any]]] = None,
         tool_choice: Optional[
             Union[
                 ToolChoiceOptions,
@@ -165,17 +167,17 @@ class ResponderMixin(abc.ABC):
         safety_identifier: Optional[str] = None,
         prompt_cache_key: Optional[str] = None,
         service_tier: Optional[ServiceTier] = None,
-    ) -> AsyncStream[ResponseStreamEvent]: ...
+    ) -> AsyncStream[ResponseStreamEvent, TextFormatT]: ...
 
     async def respond_async[TextFormatT = None](
         self,
         *,
-        input: Optional[Union[str, list[InputItem]]] = None,
+        input: Optional[Union[str, list[InputItem], PromptModel]] = None,
         model: Optional[str] = None,
         include: Optional[list[IncludeEnum]] = None,
         parallel_tool_calls: Optional[bool] = None,
         store: Optional[bool] = None,
-        instructions: Optional[str] = None,
+        instructions: Optional[Union[str, PromptModel]] = None,
         stream: Optional[Literal[False] | Literal[True]] = None,
         stream_options: Optional[ResponseStreamOptions] = None,
         conversation: Optional[Union[str, ConversationParam]] = None,
@@ -187,7 +189,7 @@ class ResponderMixin(abc.ABC):
         max_output_tokens: Optional[int] = None,
         max_tool_calls: Optional[int] = None,
         text: Optional[Text] = None,
-        tools: Optional[List[Tool]] = None,
+        tools: Optional[Sequence[Tool | Callable[..., Any]]] = None,
         tool_choice: Optional[
             Union[
                 ToolChoiceOptions,
@@ -209,14 +211,24 @@ class ResponderMixin(abc.ABC):
         safety_identifier: Optional[str] = None,
         prompt_cache_key: Optional[str] = None,
         service_tier: Optional[ServiceTier] = None,
-    ) -> Response[TextFormatT] | AsyncStream[ResponseStreamEvent]:
+    ) -> Response[TextFormatT] | AsyncStream[ResponseStreamEvent, TextFormatT]:
+        _tools: list[Tool] = []
+        if tools:
+            for tool in tools:
+                if isinstance(tool, Callable):
+                    _tools.append(FunctionTool.from_callable(tool))
+                else:
+                    _tools.append(tool)
+
         create_response = CreateResponse(
-            input=input,
+            input=str(input) if isinstance(input, PromptModel) else input,
             model=model,
             include=include,
             parallel_tool_calls=parallel_tool_calls,
             store=store,
-            instructions=instructions,
+            instructions=str(instructions)
+            if isinstance(instructions, PromptModel)
+            else instructions,
             stream=stream,
             stream_options=stream_options,
             conversation=conversation,
@@ -227,7 +239,7 @@ class ResponderMixin(abc.ABC):
             max_output_tokens=max_output_tokens,
             max_tool_calls=max_tool_calls,
             text=text,
-            tools=tools,
+            tools=_tools,
             tool_choice=tool_choice,
             prompt=prompt,
             truncation=truncation,
@@ -260,4 +272,4 @@ class ResponderMixin(abc.ABC):
         self,
         create_response: CreateResponse,
         text_format: type[TextFormatT] | None = None,
-    ) -> Response[TextFormatT] | AsyncStream[ResponseStreamEvent]: ...
+    ) -> Response[TextFormatT] | AsyncStream[ResponseStreamEvent, TextFormatT]: ...

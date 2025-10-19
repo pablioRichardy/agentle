@@ -6,9 +6,9 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-from typing import Union
+from typing import Annotated
 
-from pydantic import RootModel
+from pydantic import Field
 
 
 # Model dependencies
@@ -24,20 +24,16 @@ from .web_search_preview_tool import WebSearchPreviewTool
 from .web_search_tool import WebSearchTool
 
 
-class Tool(
-    RootModel[
-        Union[
-            FunctionTool,
-            FileSearchTool,
-            ComputerUsePreviewTool,
-            WebSearchTool,
-            MCPTool,
-            CodeInterpreterTool,
-            ImageGenTool,
-            LocalShellToolParam,
-            CustomToolParam,
-            WebSearchPreviewTool,
-        ]
-    ]
-):
-    pass
+Tool = Annotated[
+    FunctionTool
+    | FileSearchTool
+    | ComputerUsePreviewTool
+    | WebSearchTool
+    | MCPTool
+    | CodeInterpreterTool
+    | ImageGenTool
+    | LocalShellToolParam
+    | CustomToolParam
+    | WebSearchPreviewTool,
+    Field(discriminator="type"),
+]

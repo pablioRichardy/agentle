@@ -13,38 +13,36 @@ This demonstrates:
 import asyncio
 
 from dotenv import load_dotenv
-from pydantic import BaseModel
 
 from agentle.responses.open_router.open_router_responder import OpenRouterResponder
 
 load_dotenv()
 
 
-class Response(BaseModel):
-    answer: str
-    note: str
+async def sum_two_numbers(a: float, b: float):
+    return a + b
 
 
 async def main():
     """Basic text generation example."""
     responder = OpenRouterResponder()
 
+    print("Starting...")
     response = await responder.respond_async(
-        input="What is 2+2?",
+        input="What is 2+2? call the tool",
         model="openai/gpt-5-nano",
         max_output_tokens=500,
-        text_format=Response,
-        stream=True
+        tools=[sum_two_numbers],
     )
 
-    async for event in response:
-        print(event)
+    # async for event in response:
+    #     print(event)
 
-    # print("Response: ")
-    # print(response)
+    print("Response: ")
+    print(response)
 
-    # print("Output parsed:")
-    # print(response.output_parsed)
+    print("Function calls: ")
+    print(response.function_calls)
 
 
 if __name__ == "__main__":
