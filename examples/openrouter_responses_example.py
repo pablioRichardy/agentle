@@ -16,9 +16,10 @@ import os
 from dotenv import load_dotenv
 from rsb.models.base_model import BaseModel
 
-from agentle.responses.definitions.reasoning import Reasoning
-from agentle.responses.definitions.reasoning_effort import ReasoningEffort
 from agentle.responses.open_router.open_router_responder import OpenRouterResponder
+from agentle.responses.definitions.response_completed_event import (
+    ResponseCompletedEvent,
+)
 
 load_dotenv()
 
@@ -35,22 +36,23 @@ async def main():
     response = await responder.respond_async(
         input="What is 2+2?",
         model="gpt-5-nano",
-        max_output_tokens=500,
+        max_output_tokens=1024,
         text_format=MathResponse,
-        reasoning=Reasoning(
-            effort=ReasoningEffort.high,
-        ),
         stream=True,
     )
 
+    last_completed: ResponseCompletedEvent | None = None
     async for event in response:
         print(event)
+        if isinstance(event, ResponseCompletedEvent):
+            last_completed = event
 
-    print("Response: ")
-    print(response)
+    if last_completed is not None:
+        print("Response: ")
+        print(last_completed.response)
 
-    print("Output parsed: ")
-    print(response.output_parsed)
+        print("Output parsed: ")
+        print(last_completed.response.output_parsed)
 
 
 if __name__ == "__main__":
