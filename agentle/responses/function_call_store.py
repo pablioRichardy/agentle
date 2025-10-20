@@ -5,27 +5,32 @@ from agentle.responses.definitions.function_tool import FunctionTool
 from agentle.responses.definitions.function_tool_call import FunctionToolCall
 
 
-class ToolDuo(BaseModel):
+class ToolPair(BaseModel):
     function_tool: FunctionTool | None = Field(
         default=None, description="The function tool."
     )
-    function_call: FunctionToolCall | None = Field(
-        default=None, description="The function call."
+    function_calls: list[FunctionToolCall] | None = Field(
+        default=None,
+        description="The list of function calls in sequence they were called.",
     )
 
     def change_function_tool(self, function_tool: FunctionTool) -> None:
         self.function_tool = function_tool
 
     def change_function_call(self, function_call: FunctionToolCall) -> None:
-        self.function_call = function_call
+        if self.function_calls is None:
+            self.function_calls = []
+        self.function_calls.append(function_call)
 
 
 class FunctionCallStore(BaseModel):
-    store: dict[str, ToolDuo] = Field(
+    store: dict[str, ToolPair] = Field(
         ..., description="The store of function tools and calls."
     )
 
-    async def call_function_tool(self, name: str, *args: Any, **kwargs: Any) -> Any:
+    async def call_function_tool_async(
+        self, name: str, *args: Any, **kwargs: Any
+    ) -> Any:
         """
         Call a function tool with the given name and arguments.
 
@@ -50,16 +55,16 @@ class FunctionCallStore(BaseModel):
 
     def add_function_tool(self, function_tool: FunctionTool) -> None:
         if function_tool.name not in self.store:
-            self.store[function_tool.name] = ToolDuo(
-                function_tool=function_tool, function_call=None
+            self.store[function_tool.name] = ToolPair(
+                function_tool=function_tool, function_calls=None
             )
         else:
             self.store[function_tool.name].change_function_tool(function_tool)
 
     def add_function_call(self, function_call: FunctionToolCall) -> None:
         if function_call.name not in self.store:
-            self.store[function_call.name] = ToolDuo(
-                function_tool=None, function_call=function_call
+            self.store[function_call.name] = ToolPair(
+                function_tool=None, function_calls=[function_call]
             )
         else:
             self.store[function_call.name].change_function_call(function_call)
@@ -70,8 +75,39 @@ class FunctionCallStore(BaseModel):
 
         return self.store[name].function_tool
 
-    def retrieve_function_call(self, name: str) -> FunctionToolCall | None:
+    def retrieve_function_calls(self, name: str) -> list[FunctionToolCall] | None:
+        """
+        Retrieve all function calls for a given name.
+
+        Args:
+            name: The name of the function tool.
+
+        Returns:
+            List of function calls, or None if not found.
+        """
         if name not in self.store:
             return None
 
-        return self.store[name].function_call
+        return self.store[name].function_calls
+
+    def retrieve_function_call(
+        self, name: str, index: int = -1
+    ) -> FunctionToolCall | None:
+        """
+        Retrieve a specific function call by name and index.
+
+        Args:
+            name: The name of the function tool.
+            index: The index of the function call to retrieve. Defaults to -1 (last call).
+
+        Returns:
+            The function call at the specified index, or None if not found.
+        """
+        function_calls = self.retrieve_function_calls(name)
+        if function_calls is None or not function_calls:
+            return None
+
+        try:
+            return function_calls[index]
+        except IndexError:
+            return None
