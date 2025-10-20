@@ -1,25 +1,13 @@
-"""
-Example usage of OpenRouterResponder with the new Responses API.
-
-This demonstrates:
-- Basic text generation
-- Streaming responses
-- Structured output with Pydantic models
-- Tool calling
-- Web search integration
-- Reasoning capabilities
-"""
-
 import asyncio
-import os
 
 from dotenv import load_dotenv
 from rsb.models.base_model import BaseModel
 
-from agentle.responses.open_router.open_router_responder import OpenRouterResponder
+from agentle.responses.async_stream import AsyncStream
 from agentle.responses.definitions.response_completed_event import (
     ResponseCompletedEvent,
 )
+from agentle.responses.responder import Responder
 
 load_dotenv()
 
@@ -30,7 +18,7 @@ class MathResponse(BaseModel):
 
 async def main():
     """Basic text generation example."""
-    responder = OpenRouterResponder(api_key=os.getenv("OPENAI_API_KEY"))
+    responder = Responder.from_openai()
 
     print("Starting...")
     response = await responder.respond_async(
@@ -41,8 +29,11 @@ async def main():
         stream=True,
     )
 
-    last_completed: ResponseCompletedEvent | None = None
-    async for event in response:
+    # Help the type checker infer TextFormatT by annotating the stream
+    response_stream: AsyncStream[object, MathResponse] = response
+
+    last_completed: ResponseCompletedEvent[MathResponse] | None = None
+    async for event in response_stream:
         print(event)
         if isinstance(event, ResponseCompletedEvent):
             last_completed = event
@@ -52,7 +43,8 @@ async def main():
         print(last_completed.response)
 
         print("Output parsed: ")
-        print(last_completed.response.output_parsed)
+        parsed = last_completed.response.output_parsed
+        print(parsed)
 
 
 if __name__ == "__main__":

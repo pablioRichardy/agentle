@@ -6,20 +6,22 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-from typing import Literal
+from typing import Literal, TypeVar
 
 from pydantic import BaseModel, Field
-
 
 # Model dependencies
 from .response import Response
 
+TextFormatT = TypeVar("TextFormatT")
 
-class ResponseCompletedEvent(BaseModel):
+
+class ResponseCompletedEvent[TextFormatT](BaseModel):
     type: Literal["ResponseCompletedEvent"] = Field(
         ..., description="The type of the event. Always `response.completed`.\n"
     )
-    response: Response = Field(
+    # Use Response[Any] so editors don't infer TextFormatT=None -> output_parsed: None
+    response: Response[TextFormatT] = Field(
         ..., description="Properties of the completed response.\n"
     )
     sequence_number: int = Field(..., description="The sequence number for this event.")

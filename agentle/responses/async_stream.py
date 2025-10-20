@@ -5,15 +5,16 @@ Concrete implementation of AsyncStream for streaming responses.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from typing import cast, override
+from typing import AsyncContextManager, cast
 
-from agentle.responses._streaming.async_stream import AsyncStream
 from agentle.responses.definitions.response_completed_event import (
     ResponseCompletedEvent,
 )
 
 
-class AsyncStreamImpl[_T, TextFormatT](AsyncStream[_T, TextFormatT]):
+class AsyncStream[_T, TextFormatT = None](
+    AsyncIterator[_T], AsyncContextManager["AsyncStream[_T, TextFormatT]"]
+):
     """
     Concrete implementation of AsyncStream protocol.
 
@@ -116,7 +117,6 @@ class AsyncStreamImpl[_T, TextFormatT](AsyncStream[_T, TextFormatT]):
             await self._generator.aclose()  # type: ignore
 
     @property
-    @override
     def output_parsed(self) -> TextFormatT:
         """Extract parsed output from the final ResponseCompletedEvent if available."""
         if self._final_event and isinstance(self._final_event, ResponseCompletedEvent):

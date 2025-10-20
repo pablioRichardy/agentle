@@ -26,6 +26,7 @@ from .response_code_interpreter_call_in_progress_event import (
 from .response_code_interpreter_call_interpreting_event import (
     ResponseCodeInterpreterCallInterpretingEvent,
 )
+from typing import Any
 from .response_completed_event import ResponseCompletedEvent
 from .response_content_part_added_event import ResponseContentPartAddedEvent
 from .response_content_part_done_event import ResponseContentPartDoneEvent
@@ -119,7 +120,7 @@ ResponseStreamType = (
     | ResponseCodeInterpreterCallCompletedEvent
     | ResponseCodeInterpreterCallInProgressEvent
     | ResponseCodeInterpreterCallInterpretingEvent
-    | ResponseCompletedEvent
+    | ResponseCompletedEvent[Any]
     | ResponseContentPartAddedEvent
     | ResponseContentPartDoneEvent
     | ResponseCreatedEvent
