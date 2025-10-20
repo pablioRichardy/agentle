@@ -9,4 +9,4 @@ class ExtractionResult[T: BaseModel](BaseModel):
     html: str
     markdown: str
     extraction_preferences: ExtractionPreferences
-    result: T
+    output_parsed: T

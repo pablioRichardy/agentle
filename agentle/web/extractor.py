@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Sequence
 from textwrap import dedent
 
@@ -91,5 +92,34 @@ class Extractor(BaseModel):
                 html=html,
                 markdown=markdown,
                 extraction_preferences=_preferences,
-                result=response.output_parsed,
+                output_parsed=response.output_parsed,
             )
+
+
+async def main():
+    site_uniube = "https://uniube.br/"
+
+    class PossiveisRedirecionamentos(BaseModel):
+        possiveis_redirecionamentos: list[str]
+
+    extractor = Extractor(
+        responder=Responder.from_openai(),
+        model="gpt-5-nano",
+    )
+
+    result = await extractor.extract_async(
+        urls=[site_uniube],
+        output=PossiveisRedirecionamentos,
+        prompt="Extract the possible redirects from the page.",
+    )
+
+    for link in result.output_parsed.possiveis_redirecionamentos:
+        print(f"Link: {link}")
+
+
+if __name__ == "__main__":
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    asyncio.run(main())

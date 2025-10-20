@@ -379,18 +379,7 @@ class Responder(BaseModel):
         """Handle non-streaming response from OpenRouter Responses API."""
         # Read raw text for debugging, then parse JSON
         response_text = await response.text()
-        try:
-            response_data = orjson.loads(response_text)
-        except orjson.JSONDecodeError:
-            logger.error("Failed to decode response JSON: %s", response_text)
-            raise
-
-        # Debug: log the raw JSON response to help diagnose missing structured outputs
-        try:
-            print("HTTP response JSON:")
-            print(response_data)
-        except Exception:
-            pass
+        response_data = orjson.loads(response_text)
 
         # Parse the response using Pydantic
         parsed_response = (
