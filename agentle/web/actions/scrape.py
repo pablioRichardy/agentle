@@ -13,4 +13,7 @@ class Scrape(BaseModel):
         description="Scrape the current page content, returns the url and the html.",
     )
 
-    async def execute(self, page: Page) -> None: ...
+    async def execute(self, page: Page) -> dict[str, str]:
+        url = page.url
+        html = await page.content()
+        return {"url": url, "html": html}

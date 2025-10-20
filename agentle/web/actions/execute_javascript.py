@@ -18,4 +18,5 @@ class ExecuteJavascript(BaseModel):
         examples=["document.querySelector('.button').click();"],
     )
 
-    async def execute(self, page: Page) -> None: ...
+    async def execute(self, page: Page) -> None:
+        await page.evaluate(self.script)

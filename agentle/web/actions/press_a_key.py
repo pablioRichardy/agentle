@@ -17,4 +17,5 @@ class PressAKey(BaseModel):
         examples=["Enter", "Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"],
     )
 
-    async def execute(self, page: Page) -> None: ...
+    async def execute(self, page: Page) -> None:
+        await page.keyboard.press(self.key)

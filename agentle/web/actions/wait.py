@@ -13,4 +13,6 @@ class Wait(BaseModel):
     milliseconds: int = Field(..., description="Number of milliseconds to wait")
     selector: str = Field(..., description="Query selector to find the element by")
 
-    async def execute(self, page: Page) -> None: ...
+    async def execute(self, page: Page) -> None:
+        # Wait for the selector to be visible
+        await page.wait_for_selector(self.selector, timeout=self.milliseconds)

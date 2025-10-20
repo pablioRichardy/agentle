@@ -18,4 +18,10 @@ class Click(BaseModel):
         description="Clicks all elements matched by the selector, not just the first one. Does not throw an error if no elements match the selector.",
     )
 
-    async def execute(self, page: Page) -> None: ...
+    async def execute(self, page: Page) -> None:
+        if self.all:
+            elements = await page.query_selector_all(self.selector)
+            for element in elements:
+                await element.click()
+        else:
+            await page.click(self.selector)

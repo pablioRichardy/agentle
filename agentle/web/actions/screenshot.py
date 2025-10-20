@@ -27,4 +27,15 @@ class Screenshot(BaseModel):
     )
     viewport: Viewport | None = Field(default=None)
 
-    async def execute(self, page: Page) -> None: ...
+    async def execute(self, page: Page) -> bytes:
+        if self.viewport:
+            await page.set_viewport_size(
+                {"width": self.viewport.width, "height": self.viewport.height}
+            )
+
+        screenshot_bytes = await page.screenshot(
+            full_page=self.full_page,
+            quality=self.quality,
+            type="jpeg",
+        )
+        return screenshot_bytes

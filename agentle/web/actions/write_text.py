@@ -17,4 +17,5 @@ class WriteText(BaseModel):
         examples=["Hello, world!"],
     )
 
-    async def execute(self, page: Page) -> None: ...
+    async def execute(self, page: Page) -> None:
+        await page.keyboard.type(self.text)

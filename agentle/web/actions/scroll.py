@@ -32,4 +32,29 @@ class Scroll(BaseModel):
         examples=["#load-more-button"],
     )
 
-    async def execute(self, page: Page) -> None: ...
+    async def execute(self, page: Page) -> None:
+        # Determine scroll delta based on direction
+        delta_x = 0
+        delta_y = 0
+
+        if self.direction == "down":
+            delta_y = self.amount
+        elif self.direction == "up":
+            delta_y = -self.amount
+        elif self.direction == "right":
+            delta_x = self.amount
+        elif self.direction == "left":
+            delta_x = -self.amount
+
+        # Scroll the element
+        await page.evaluate(
+            """
+            (args) => {
+                const element = document.querySelector(args.selector);
+                if (element) {
+                    element.scrollBy(args.deltaX, args.deltaY);
+                }
+            }
+            """,
+            {"selector": self.selector, "deltaX": delta_x, "deltaY": delta_y},
+        )
