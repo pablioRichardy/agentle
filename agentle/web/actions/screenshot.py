@@ -1,9 +1,14 @@
-from typing import Literal
+from __future__ import annotations
+from typing import TYPE_CHECKING, Literal
 
 from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
 
 from agentle.web.actions.viewport import Viewport
+
+
+if TYPE_CHECKING:
+    from playwright.async_api import Page
 
 
 class Screenshot(BaseModel):
@@ -21,3 +26,5 @@ class Screenshot(BaseModel):
         le=100,
     )
     viewport: Viewport | None = Field(default=None)
+
+    async def execute(self, page: Page) -> None: ...

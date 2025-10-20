@@ -1,5 +1,9 @@
-from typing import Literal
+from __future__ import annotations
+from typing import TYPE_CHECKING, Literal
 from rsb.models import BaseModel, Field
+
+if TYPE_CHECKING:
+    from playwright.async_api import Page
 
 
 class Click(BaseModel):
@@ -13,3 +17,5 @@ class Click(BaseModel):
         default=False,
         description="Clicks all elements matched by the selector, not just the first one. Does not throw an error if no elements match the selector.",
     )
+
+    async def execute(self, page: Page) -> None: ...

@@ -1,5 +1,10 @@
-from typing import Literal
+from __future__ import annotations
+from typing import TYPE_CHECKING, Literal
 from rsb.models import BaseModel, Field
+
+
+if TYPE_CHECKING:
+    from playwright.async_api import Page
 
 
 class GeneratePdf(BaseModel):
@@ -39,3 +44,5 @@ class GeneratePdf(BaseModel):
         le=10.0,
         examples=[0.1, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
     )
+
+    async def execute(self, page: Page) -> None: ...

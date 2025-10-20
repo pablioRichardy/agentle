@@ -1,5 +1,10 @@
-from typing import Literal
+from __future__ import annotations
+from typing import TYPE_CHECKING, Literal
 from rsb.models import BaseModel, Field
+
+
+if TYPE_CHECKING:
+    from playwright.async_api import Page
 
 
 class Scroll(BaseModel):
@@ -26,3 +31,5 @@ class Scroll(BaseModel):
         description="Query selector for the element to scroll.",
         examples=["#load-more-button"],
     )
+
+    async def execute(self, page: Page) -> None: ...
