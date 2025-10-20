@@ -1,8 +1,10 @@
 import asyncio
 from collections.abc import Sequence
 from textwrap import dedent
+from typing import Any
 
 from html_to_markdown import convert
+from playwright.async_api import Geolocation, ViewportSize
 from rsb.models import Field
 from rsb.models.base_model import BaseModel
 
@@ -62,19 +64,143 @@ class Extractor(BaseModel):
         _preferences = extraction_preferences or ExtractionPreferences()
         _actions: Sequence[Action] = _preferences.actions or []
 
+        # Configure browser launch options
+        launch_options: dict[str, Any] = {
+            "headless": True,
+        }
+
+        # Configure proxy if specified
+        if _preferences.proxy in ["basic", "stealth"]:
+            # You would need to configure actual proxy servers here
+            # This is a placeholder for proxy configuration
+            pass
+
         async with async_api.async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
+            browser = await p.chromium.launch(**launch_options)
+
+            # Build context options properly based on preferences
+            if _preferences.mobile:
+                viewport: ViewportSize | None = ViewportSize(width=375, height=667)
+                user_agent = "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15"
+                is_mobile = True
+            else:
+                viewport = None
+                user_agent = None
+                is_mobile = None
+
+            # Handle geolocation
+            geolocation: Geolocation | None = None
+            permissions = None
+            if _preferences.location:
+                geolocation = Geolocation(
+                    latitude=getattr(_preferences.location, "latitude", 0),
+                    longitude=getattr(_preferences.location, "longitude", 0),
+                )
+                permissions = ["geolocation"]
+
+            context = await browser.new_context(
+                viewport=viewport,
+                user_agent=user_agent,
+                is_mobile=is_mobile,
+                extra_http_headers=_preferences.headers,
+                ignore_https_errors=_preferences.skip_tls_verification,
+                geolocation=geolocation,
+                permissions=permissions,
+            )
+
+            # Block ads if specified
+            if _preferences.block_ads:
+                await context.route(
+                    "**/*",
+                    lambda route: route.abort()
+                    if route.request.resource_type in ["image", "media", "font"]
+                    and any(
+                        ad_domain in route.request.url
+                        for ad_domain in [
+                            "doubleclick.net",
+                            "googlesyndication.com",
+                            "adservice.google.com",
+                            "ads",
+                            "analytics",
+                            "tracking",
+                        ]
+                    )
+                    else route.continue_(),
+                )
+
+            page = await context.new_page()
 
             for url in urls:
-                await page.goto(url, timeout=10000)
+                # Set timeout if specified
+                timeout = _preferences.timeout_ms if _preferences.timeout_ms else 30000
 
-                for action in _actions:
-                    await action.execute(page)
+                try:
+                    await page.goto(url, timeout=timeout)
+
+                    # Wait for specified time if configured
+                    if _preferences.wait_for_ms:
+                        await page.wait_for_timeout(_preferences.wait_for_ms)
+
+                    # Execute actions
+                    for action in _actions:
+                        await action.execute(page)
+
+                except Exception as e:
+                    if ignore_invalid_urls:
+                        print(f"Warning: Failed to load {url}: {e}")
+                        continue
+                    else:
+                        raise
 
             html = await page.content()
+
+            # Process HTML based on preferences
+            if _preferences.remove_base_64_images:
+                import re
+
+                html = re.sub(
+                    r'<img[^>]+src="data:image/[^"]+"[^>]*>',
+                    "",
+                    html,
+                    flags=re.IGNORECASE,
+                )
+
+            # Filter HTML by tags if specified
+            if _preferences.include_tags or _preferences.exclude_tags:
+                from bs4 import BeautifulSoup
+
+                soup = BeautifulSoup(html, "html.parser")
+
+                if _preferences.only_main_content:
+                    # Try to find main content area
+                    main_content = (
+                        soup.find("main")
+                        or soup.find("article")
+                        or soup.find("div", {"id": "content"})
+                        or soup.find("div", {"class": "content"})
+                    )
+                    if main_content:
+                        soup = BeautifulSoup(str(main_content), "html.parser")
+
+                if _preferences.exclude_tags:
+                    for tag in _preferences.exclude_tags:
+                        for element in soup.find_all(tag):
+                            element.decompose()
+
+                if _preferences.include_tags:
+                    # Keep only specified tags
+                    new_soup = BeautifulSoup("", "html.parser")
+                    for tag in _preferences.include_tags:
+                        for element in soup.find_all(tag):
+                            new_soup.append(element)
+                    soup = new_soup
+
+                html = str(soup)
+
+            # Convert to markdown
             markdown = convert(html)
 
+            # Prepare and send prompt
             _prompt = _PROMPT.compile(
                 user_instructions=prompt or "Not provided.", markdown=markdown
             )
@@ -86,6 +212,8 @@ class Extractor(BaseModel):
                 reasoning=self.reasoning,
                 text_format=output,
             )
+
+            await browser.close()
 
             return ExtractionResult[T](
                 urls=urls,
@@ -107,10 +235,20 @@ async def main():
         model="gpt-5-nano",
     )
 
+    # Example with custom extraction preferences
+    preferences = ExtractionPreferences(
+        only_main_content=True,
+        wait_for_ms=2000,
+        block_ads=True,
+        remove_base_64_images=True,
+        timeout_ms=15000,
+    )
+
     result = await extractor.extract_async(
         urls=[site_uniube],
         output=PossiveisRedirecionamentos,
         prompt="Extract the possible redirects from the page.",
+        extraction_preferences=preferences,
     )
 
     for link in result.output_parsed.possiveis_redirecionamentos:
