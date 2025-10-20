@@ -290,15 +290,14 @@ class OpenRouterResponder(BaseModel, ResponderMixin):
                     )
 
                     # Ensure response objects inside events know the requested text_format
-                    if (
-                        text_format
-                        and hasattr(event, "response")
-                        and getattr(event, "response") is not None
-                    ):
-                        try:
-                            event.response = event.response.set_text_format(text_format)
-                        except Exception:
-                            pass
+                    if text_format:
+                        resp_obj = getattr(event, "response", None)
+                        if resp_obj is not None:
+                            try:
+                                # Call setter on the response object (no reassignment needed)
+                                resp_obj.set_text_format(text_format)
+                            except Exception:
+                                pass
 
                     # Accumulate text for structured output parsing
                     if event_type == "response.output_text.delta":
