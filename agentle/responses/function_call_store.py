@@ -426,6 +426,20 @@ class FunctionCallStore(BaseModel):
     def clear_all_calls(self) -> None:
         """
         Clear all function calls from all tools, but keep the tools themselves.
+
+        This method removes all call history while preserving the tool definitions.
+        Useful for resetting call tracking without losing registered tools.
+
+        Example:
+            >>> store = FunctionCallStore()
+            >>> tool = FunctionTool.from_callable(lambda x: x + 1)
+            >>> store.add_function_tool(tool)
+            >>> store.add_function_call(FunctionToolCall(name="lambda", arguments={"x": 1}))
+            >>> store.add_function_call(FunctionToolCall(name="lambda", arguments={"x": 2}))
+            >>> assert store.get_call_count("lambda") == 2
+            >>> store.clear_all_calls()
+            >>> assert store.get_call_count("lambda") == 0
+            >>> assert store.retrieve_function_tool("lambda") is not None  # Tool still exists
         """
         for tool_pair in self.store.values():
             tool_pair.function_calls = None
@@ -439,6 +453,14 @@ class FunctionCallStore(BaseModel):
 
         Returns:
             True if the tool is present, False otherwise.
+
+        Example:
+            >>> store = FunctionCallStore()
+            >>> tool1 = FunctionTool.from_callable(lambda x: x + 1)
+            >>> tool2 = FunctionTool.from_callable(lambda x: x * 2)
+            >>> store.add_function_tool(tool1)
+            >>> assert store.is_function_tool_present(tool1) is True
+            >>> assert store.is_function_tool_present(tool2) is False
         """
         if function_tool.name not in self.store:
             return False
@@ -452,6 +474,17 @@ class FunctionCallStore(BaseModel):
 
         Returns:
             List of tool names that have function calls.
+
+        Example:
+            >>> store = FunctionCallStore()
+            >>> tool1 = FunctionTool.from_callable(lambda x: x + 1)
+            >>> tool2 = FunctionTool.from_callable(lambda x: x * 2)
+            >>> store.add_function_tool(tool1)
+            >>> store.add_function_tool(tool2)
+            >>> store.add_function_call(FunctionToolCall(name="lambda", arguments={"x": 1}))
+            >>> called_tools = store.get_tools_with_calls()
+            >>> assert "lambda" in called_tools
+            >>> assert len(called_tools) == 1
         """
         return [
             name
@@ -465,6 +498,17 @@ class FunctionCallStore(BaseModel):
 
         Returns:
             List of tool names that have no function calls.
+
+        Example:
+            >>> store = FunctionCallStore()
+            >>> tool1 = FunctionTool.from_callable(lambda x: x + 1)
+            >>> tool2 = FunctionTool.from_callable(lambda x: x * 2)
+            >>> store.add_function_tool(tool1)
+            >>> store.add_function_tool(tool2)
+            >>> store.add_function_call(FunctionToolCall(name="lambda", arguments={"x": 1}))
+            >>> unused_tools = store.get_tools_without_calls()
+            >>> assert "lambda" not in unused_tools  # lambda was called
+            >>> assert len(unused_tools) == 0  # Both tools have the same name "lambda"
         """
         return [
             name
@@ -478,6 +522,17 @@ class FunctionCallStore(BaseModel):
 
         Returns:
             Total number of function calls in the store.
+
+        Example:
+            >>> store = FunctionCallStore()
+            >>> tool1 = FunctionTool.from_callable(lambda x: x + 1)
+            >>> tool2 = FunctionTool.from_callable(lambda x: x * 2)
+            >>> store.add_function_tool(tool1)
+            >>> store.add_function_tool(tool2)
+            >>> store.add_function_call(FunctionToolCall(name="lambda", arguments={"x": 1}))
+            >>> store.add_function_call(FunctionToolCall(name="lambda", arguments={"x": 2}))
+            >>> total = store.get_total_call_count()
+            >>> assert total == 2
         """
         return sum(
             len(tool_pair.function_calls) if tool_pair.function_calls else 0
@@ -490,6 +545,18 @@ class FunctionCallStore(BaseModel):
 
         Returns:
             Tuple of (tool_name, call_count) for the most called tool, or None if no calls exist.
+
+        Example:
+            >>> store = FunctionCallStore()
+            >>> tool1 = FunctionTool.from_callable(lambda x: x + 1)
+            >>> tool2 = FunctionTool.from_callable(lambda x: x * 2)
+            >>> store.add_function_tool(tool1)
+            >>> store.add_function_tool(tool2)
+            >>> store.add_function_call(FunctionToolCall(name="lambda", arguments={"x": 1}))
+            >>> store.add_function_call(FunctionToolCall(name="lambda", arguments={"x": 2}))
+            >>> store.add_function_call(FunctionToolCall(name="lambda", arguments={"x": 3}))
+            >>> most_called = store.get_most_called_tool()
+            >>> assert most_called == ("lambda", 3)
         """
         if not self.store:
             return None
