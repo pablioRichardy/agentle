@@ -1,5 +1,66 @@
 # Changelog
 
+## v0.9.3
+
+### 🚀 **New Responses API (Experimental)**
+- **feat(responses)**: Brand new experimental Responses API with comprehensive OpenRouter integration
+  - Complete OpenRouter API compatibility with streaming support and structured outputs
+  - Advanced function tool management with `FunctionCallStore` for tracking and executing function calls
+  - Enhanced `FunctionTool` class with robust type safety and parameter conversion
+  - `ToolPair` system for managing tool definitions and call history
+  - Support for both synchronous and asynchronous tool execution
+  - Comprehensive response streaming with `AsyncStream` implementation
+  - Integration with `orjson` for improved JSON handling performance
+  - Support for reasoning, background processing, and conversation management
+  - Factory methods for easy instantiation (`from_openrouter()`, `from_openai()`)
+
+### 🌐 **Web Extraction & Automation**
+- **feat(web)**: Complete web extraction and automation system
+  - **Extractor class**: Intelligent web content extraction with structured output support
+  - **Browser automation**: Full Playwright integration with configurable options
+  - **Action system**: Comprehensive set of web actions including:
+    - Click, scroll, write text, take screenshots
+    - Generate PDFs, execute JavaScript, press keys
+    - Wait for conditions, viewport management
+  - **Extraction preferences**: Advanced configuration options:
+    - Geolocation support, mobile/desktop modes
+    - Ad blocking, TLS verification control
+    - Custom headers, timeouts, and proxy settings
+    - Content filtering (include/exclude tags)
+  - **Structured prompts**: AI-powered content analysis with markdown conversion
+  - **Error handling**: Graceful handling of invalid URLs and extraction failures
+
+### 🔧 **Enhanced Assistant & Tracing**
+- **feat(assistant)**: Enhanced Assistant model with new fields and Responder integration
+- **feat(tracing)**: Improved tracing system with BaseModel inheritance
+  - Refactored `LangfuseOtelClient` and `NoOpOtelClient` to inherit from BaseModel
+  - Enhanced type safety and error handling across tracing components
+  - Better parameter conversion and callable management
+
+### 🛠️ **Function Call Management**
+- **feat(responses)**: Advanced function call management system
+  - Methods for retrieving, removing, and clearing function calls
+  - Enhanced tool presence checking and call count retrieval
+  - Support for multiple function calls with improved access patterns
+  - Example usage documentation for better developer experience
+
+### 🐛 **Bug Fixes & Improvements**
+- **fix(responses)**: Multiple fixes for structured outputs and JSON schema handling
+  - Proper JSON schema "additionalProperties" setting and retrieval
+  - Improved handling of incomplete structured outputs with clearer error messaging
+  - Fixed tool calls and response object text format handling
+  - Streamlined response object creation and event handling
+- **refactor(file)**: Commented out MIME type validation for broader file type acceptance
+- **fix(responses)**: Enhanced OpenRouter example with updated max output tokens
+
+### 📈 **Performance & Developer Experience**
+- **feat(responses)**: AsyncStream implementation for efficient streaming responses
+- **refactor(responses, web)**: Simplified JSON response handling and improved output parsing
+- **feat(utils)**: Added `needs` utility for dependency management
+- Enhanced error messaging and debugging capabilities across all new features
+
+---
+
 ## v0.9.2
 
 - feat(agent): cache instructions in Agent class and Developer message for the providers that supports it (cache ephemeral)
