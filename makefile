@@ -1,7 +1,10 @@
-.PHONY: release docs clear-cache evolution evolution-down
+.PHONY: release ngrok docs clear-cache evolution evolution-down
 
 release:
 	uv run release.py
+
+ngrok:
+	ngrok http --url=wrongly-delicate-trout.ngrok-free.app 8000
 
 docs:
 	@echo "Gerando documentação..."
