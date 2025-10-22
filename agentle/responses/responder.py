@@ -515,7 +515,7 @@ class Responder(BaseModel):
         create_response: CreateResponse,
         text_format: Type[TextFormatT] | None = None,
     ) -> Response[TextFormatT] | AsyncStream[ResponseStreamEvent, TextFormatT]:
-        _api_key = self.api_key or os.getenv("OPENROUTER_API_KEY")
+        _api_key = self.api_key
         if not _api_key:
             raise ValueError("No API key provided")
 
@@ -537,8 +537,7 @@ class Responder(BaseModel):
         is_streaming = create_response.stream or False
 
         # Make API request
-        base_url = "https://api.openai.com/v1"
-        url = f"{base_url}/responses"
+        url = f"{self.base_url}/responses"
 
         # Initialize tracing
         start_time = datetime.now()
