@@ -21,12 +21,14 @@ class Message(BaseModel):
         ...,
         description="The role of the message input. One of `user`, `assistant`, `system`, or\n`developer`.\n",
     )
+
     content: MessageContentType = Field(
         ...,
         description="Text, image, or audio input to the model, used to generate a response.\nCan also contain previous assistant responses.\n",
     )
-    type: Literal["input_message"] = Field(
-        default="input_message",
+
+    type: Literal["message"] = Field(
+        default="message",
         description="The type of the message input. Always `message`.\n",
     )
 
