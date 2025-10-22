@@ -27,9 +27,9 @@ class Message(BaseModel):
         description="Text, image, or audio input to the model, used to generate a response.\nCan also contain previous assistant responses.\n",
     )
 
-    type: Literal["message"] = Field(
-        default="message",
-        description="The type of the message input. Always `message`.\n",
+    type: Literal["message_param"] = Field(
+        default="message_param",
+        description="The type of the message input. Always `message_param`.\n",
     )
 
     @classmethod

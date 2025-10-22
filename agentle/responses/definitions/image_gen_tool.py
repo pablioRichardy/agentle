@@ -44,7 +44,8 @@ class ImageGenTool(BaseModel):
         description="The output format of the generated image. One of `png`, `webp`, or\n`jpeg`. Default: `png`.\n",
     )
     output_compression: Optional[Annotated[int, Field(ge=0, le=100)]] = Field(
-        default=100, description="Compression level for the output image. Default: 100.\n"
+        default=100,
+        description="Compression level for the output image. Default: 100.\n",
     )
     moderation: Optional[Moderation] = Field(
         default=Moderation.auto,

@@ -18,8 +18,6 @@ from .text_response_format_json_schema import TextResponseFormatJsonSchema
 
 
 TextResponseFormatConfiguration = Annotated[
-    Union[
-        ResponseFormatText, TextResponseFormatJsonSchema, ResponseFormatJsonObject
-    ],
+    Union[ResponseFormatText, TextResponseFormatJsonSchema, ResponseFormatJsonObject],
     Field(discriminator="type"),
 ]

@@ -18,8 +18,9 @@ from .status5 import Status5
 
 
 class InputMessage(BaseModel):
-    type: Literal["InputMessage"] = Field(
-        ..., description="The type of the message input. Always set to `message`.\n"
+    type: Literal["input_message"] = Field(
+        ...,
+        description="The type of the message input. Always set to `input_message`.\n",
     )
     role: Role1 = Field(
         ...,
