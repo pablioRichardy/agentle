@@ -1,10 +1,11 @@
 """OpenRouter pricing service with dynamic pricing from API."""
 
 import logging
-from typing import Any
+from typing import Any, Literal
 
 import httpx
-from rsb.models.base_model import BaseModel
+from pydantic import PrivateAttr
+from rsb.models import BaseModel, Field
 
 from agentle.responses.pricing.modality import Modality
 
@@ -28,31 +29,25 @@ class OpenRouterPricingService(BaseModel):
         _models_cache: Internal cache of model pricing data
     """
 
-    type: str = "openrouter"
+    type: Literal["openrouter"] = Field(default="openrouter")
     api_key: str | None = None
     base_url: str = "https://openrouter.ai/api/v1"
-    http_client: httpx.AsyncClient | None = None
+    _http_client: httpx.AsyncClient | None = PrivateAttr(default=None)
     _models_cache: dict[str, dict[str, Any]] | None = None
 
-    def __init__(
-        self,
-        api_key: str | None = None,
-        base_url: str = "https://openrouter.ai/api/v1",
-        http_client: httpx.AsyncClient | None = None,
-    ):
-        """
-        Initialize the OpenRouter pricing service.
+    @property
+    def http_client(self) -> httpx.AsyncClient:
+        if self._http_client is None:
+            raise ValueError("Client is None.")
 
-        Args:
-            api_key: OpenRouter API key. If not provided, reads from OPENROUTER_API_KEY env var.
-            base_url: Base URL for OpenRouter API
-            http_client: Optional custom HTTP client for requests
-        """
-        super().__init__()
-        self.api_key = api_key
-        self.base_url = base_url
-        self.http_client = http_client
-        self._models_cache = None
+        return self._http_client
+
+    def model_post_init(self, context: Any, /) -> None:
+        super().model_post_init(context)
+        self._http_client = httpx.AsyncClient()
+
+    def change_http_client(self, client: httpx.AsyncClient) -> None:
+        self._http_client = client
 
     async def _fetch_models(self) -> dict[str, dict[str, Any]]:
         """
@@ -109,8 +104,7 @@ class OpenRouterPricingService(BaseModel):
             self._models_cache = {}
             return self._models_cache
         finally:
-            if self.http_client is None:
-                await client.aclose()
+            await client.aclose()
 
     async def get_input_price_per_million(
         self,

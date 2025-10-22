@@ -1,7 +1,8 @@
 """Default pricing service with static pricing data."""
 
-from typing import Any
-from rsb.models.base_model import BaseModel
+from typing import Any, Literal
+
+from rsb.models import BaseModel, Field
 
 from agentle.responses.pricing.modality import Modality
 
@@ -242,24 +243,16 @@ class DefaultPricingService(BaseModel):
     Prices are approximate and based on publicly available pricing information.
     """
 
-    type: str = "default"
+    type: Literal["default"] = Field(default="default")
+    custom_pricing: dict[str, dict[str, dict[str, float]]] | None = Field(default=None)
+    pricing: dict[str, dict[str, dict[str, Any]]] = Field(default_factory=dict)
 
-    def __init__(
-        self,
-        custom_pricing: dict[str, dict[str, dict[str, float]]] | None = None,
-    ):
-        """
-        Initialize the default pricing service.
-
-        Args:
-            custom_pricing: Optional dictionary to override or extend default pricing.
-                           Format: {"model": {"modality": {"input": float, "cached_input": float, "output": float}}}
-        """
-        super().__init__()
+    def model_post_init(self, context: Any, /) -> None:
+        """Initialize pricing after model creation."""
         self.pricing = MODEL_PRICING.copy()
-        if custom_pricing:
+        if self.custom_pricing:
             # Deep merge custom pricing
-            for model, modalities in custom_pricing.items():
+            for model, modalities in self.custom_pricing.items():
                 if model in self.pricing:
                     self.pricing[model].update(modalities)
                 else:

@@ -19,6 +19,7 @@ def add(a: int, b: int) -> int:
 
 async def main():
     """Basic text generation example."""
+
     responder = Responder.openai()
 
     print("Starting...")
