@@ -11,7 +11,7 @@ from pydantic import BaseModel, TypeAdapter
 from rsb.models.field import Field
 
 from agentle.generations.tracing.otel_client_type import OtelClientType
-from agentle.prompts.models.prompt import Prompt as PromptModel
+from agentle.prompts.models.prompt import Prompt as AgentlePromptType
 from agentle.responses.async_stream import AsyncStream
 from agentle.responses.definitions.conversation_param import ConversationParam
 from agentle.responses.definitions.create_response import CreateResponse
@@ -73,12 +73,12 @@ class Responder(BaseModel):
     async def respond_async[TextFormatT = None](
         self,
         *,
-        input: Optional[Union[str, list[InputItem], PromptModel]] = None,
+        input: Optional[Union[str, list[InputItem], AgentlePromptType]] = None,
         model: Optional[str] = None,
         include: Optional[list[IncludeEnum]] = None,
         parallel_tool_calls: Optional[bool] = None,
         store: Optional[bool] = None,
-        instructions: Optional[Union[str, PromptModel]] = None,
+        instructions: Optional[Union[str, AgentlePromptType]] = None,
         stream: Optional[Literal[False]] = False,
         stream_options: Optional[ResponseStreamOptions] = None,
         conversation: Optional[Union[str, ConversationParam]] = None,
@@ -118,12 +118,12 @@ class Responder(BaseModel):
     async def respond_async[TextFormatT = None](
         self,
         *,
-        input: Optional[Union[str, list[InputItem], PromptModel]] = None,
+        input: Optional[Union[str, list[InputItem], AgentlePromptType]] = None,
         model: Optional[str] = None,
         include: Optional[list[IncludeEnum]] = None,
         parallel_tool_calls: Optional[bool] = None,
         store: Optional[bool] = None,
-        instructions: Optional[Union[str, PromptModel]] = None,
+        instructions: Optional[Union[str, AgentlePromptType]] = None,
         stream: Literal[True],
         stream_options: Optional[ResponseStreamOptions] = None,
         conversation: Optional[Union[str, ConversationParam]] = None,
@@ -163,12 +163,12 @@ class Responder(BaseModel):
     async def respond_async[TextFormatT = None](
         self,
         *,
-        input: Optional[Union[str, list[InputItem], PromptModel]] = None,
+        input: Optional[Union[str, list[InputItem], AgentlePromptType]] = None,
         model: Optional[str] = None,
         include: Optional[list[IncludeEnum]] = None,
         parallel_tool_calls: Optional[bool] = None,
         store: Optional[bool] = None,
-        instructions: Optional[Union[str, PromptModel]] = None,
+        instructions: Optional[Union[str, AgentlePromptType]] = None,
         stream: bool,
         stream_options: Optional[ResponseStreamOptions] = None,
         conversation: Optional[Union[str, ConversationParam]] = None,
@@ -207,12 +207,12 @@ class Responder(BaseModel):
     async def respond_async[TextFormatT = None](
         self,
         *,
-        input: Optional[Union[str, list[InputItem], PromptModel]] = None,
+        input: Optional[Union[str, list[InputItem], AgentlePromptType]] = None,
         model: Optional[str] = None,
         include: Optional[list[IncludeEnum]] = None,
         parallel_tool_calls: Optional[bool] = None,
         store: Optional[bool] = None,
-        instructions: Optional[Union[str, PromptModel]] = None,
+        instructions: Optional[Union[str, AgentlePromptType]] = None,
         stream: Optional[Literal[False] | Literal[True]] = None,
         stream_options: Optional[ResponseStreamOptions] = None,
         conversation: Optional[Union[str, ConversationParam]] = None,
@@ -256,13 +256,13 @@ class Responder(BaseModel):
                     _tools.append(tool)
 
         create_response = CreateResponse(
-            input=str(input) if isinstance(input, PromptModel) else input,
+            input=str(input) if isinstance(input, AgentlePromptType) else input,
             model=model,
             include=include,
             parallel_tool_calls=parallel_tool_calls,
             store=store,
             instructions=str(instructions)
-            if isinstance(instructions, PromptModel)
+            if isinstance(instructions, AgentlePromptType)
             else instructions,
             stream=stream,
             stream_options=stream_options,

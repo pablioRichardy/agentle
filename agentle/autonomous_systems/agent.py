@@ -1,12 +1,12 @@
-from collections.abc import Callable, Sequence
 import time
 import uuid
+from collections.abc import Callable, Sequence
 from typing import Any, Literal, Optional
 
 from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
 
-from agentle.assistants.assistant_input_type import AssistantInputType
+from agentle.autonomous_systems.agent_input_type import AgentInputType
 from agentle.prompts.models.prompt import Prompt
 from agentle.responses.definitions.conversation_param import ConversationParam
 from agentle.responses.definitions.include_enum import IncludeEnum
@@ -21,13 +21,12 @@ from agentle.responses.definitions.tool_choice_custom import ToolChoiceCustom
 from agentle.responses.definitions.tool_choice_function import ToolChoiceFunction
 from agentle.responses.definitions.tool_choice_mcp import ToolChoiceMCP
 from agentle.responses.definitions.tool_choice_options import ToolChoiceOptions
-
 from agentle.responses.definitions.tool_choice_types import ToolChoiceTypes
 from agentle.responses.definitions.truncation import Truncation
 from agentle.responses.responder import Responder
 
 
-class Assistant[ResponseSchema = None](BaseModel):
+class Agent[ResponseSchema = None](BaseModel):
     created_at: int = Field(
         default=int(time.time()),
         description="""The time the assistant was created.""",
@@ -91,21 +90,34 @@ class Assistant[ResponseSchema = None](BaseModel):
     )
 
     include: Optional[list[IncludeEnum]] = None
+
     parallel_tool_calls: Optional[bool] = None
+
     store: Optional[bool] = None
+
     instructions: Optional[str | Prompt] = None
 
     stream_options: Optional[ResponseStreamOptions] = None
+
     conversation: Optional[str | ConversationParam] = None
+
     text_format: type[ResponseSchema] | None = None
+
     # ResponseProperties parameters
     previous_response_id: Optional[str] = None
+
     reasoning: Optional[Reasoning] = None
+
     background: Optional[bool] = None
+
     max_output_tokens: Optional[int] = None
+
     max_tool_calls: Optional[int] = None
+
     text: Optional[Text] = None
+
     tools: Optional[Sequence[Tool | Callable[..., Any]]] = None
+
     tool_choice: Optional[
         ToolChoiceOptions
         | ToolChoiceAllowed
@@ -114,17 +126,24 @@ class Assistant[ResponseSchema = None](BaseModel):
         | ToolChoiceMCP
         | ToolChoiceCustom
     ] = None
+
     prompt: Optional[Prompt] = None
+
     truncation: Optional[Truncation] = None
+
     # ModelResponseProperties parameters
     top_logprobs: Optional[int] = None
+
     user: Optional[str] = None
+
     safety_identifier: Optional[str] = None
+
     prompt_cache_key: Optional[str] = None
+
     service_tier: Optional[ServiceTier] = None
 
     async def execute_async(
         self,
-        input: AssistantInputType,
+        input: AgentInputType,
         stream: Optional[Literal[False] | Literal[True]] = None,
     ) -> Response[ResponseSchema]: ...

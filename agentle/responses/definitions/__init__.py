@@ -73,7 +73,7 @@
 
 # from .drag_point import DragPoint
 
-# from .easy_input_message import EasyInputMessage
+# from .message import Message
 
 # from .file_citation_body import FileCitationBody
 
@@ -774,7 +774,7 @@
 #     'DoubleClickAction',
 #     'Drag',
 #     'DragPoint',
-#     'EasyInputMessage',
+#     'Message',
 #     'FileCitationBody',
 #     'FilePath',
 #     'FileSearchTool',

@@ -6,11 +6,7 @@
 #   timestamp: 2025-10-18T15:02:20+00:00
 
 
-from enum import Enum
+from typing import Literal
 
 
-class Role(Enum):
-    user = "user"
-    assistant = "assistant"
-    system = "system"
-    developer = "developer"
+Role = Literal["user", "assistant", "system"]
