@@ -19,6 +19,13 @@ from agentle.responses.async_stream import AsyncStream
 from agentle.responses.pricing.default_pricing_service import (
     DefaultPricingService as DefaultPricingServiceImpl,
 )
+from agentle.responses.tracing_models import (
+    CostDetails,
+    TraceInputData,
+    TraceMetadata,
+    TracingContext,
+    UsageDetails,
+)
 
 from agentle.responses.definitions.conversation_param import ConversationParam
 from agentle.responses.definitions.create_response import CreateResponse
@@ -535,15 +542,13 @@ class Responder(BaseModel):
 
         # Initialize tracing
         start_time = datetime.now()
-        active_contexts: list[dict[str, Any]] = []
+        active_contexts: list[TracingContext] = []
         model = create_response.model or "unknown"
 
         # Prepare generation config for tracing
-        generation_config: dict[str, Any] = {
-            "metadata": create_response.metadata.model_dump()
-            if create_response.metadata
-            else {},
-        }
+        custom_metadata: dict[str, Any] = (
+            create_response.metadata.model_dump() if create_response.metadata else {}
+        )
 
         try:
             # Create tracing contexts if otel_clients are present
@@ -551,8 +556,8 @@ class Responder(BaseModel):
                 try:
                     active_contexts = await self._create_tracing_contexts(
                         model=model,
-                        request_payload=request_payload,
-                        generation_config=generation_config,
+                        create_response=create_response,
+                        custom_metadata=custom_metadata,
                     )
                 except Exception as e:
                     # Log error but don't fail the request
@@ -630,7 +635,7 @@ class Responder(BaseModel):
                     trace_metadata = self._prepare_trace_metadata(
                         model=model,
                         base_url=self.base_url,
-                        generation_config=generation_config,
+                        custom_metadata=custom_metadata,
                     )
                     await self._update_tracing_error(
                         active_contexts=active_contexts,
@@ -845,7 +850,7 @@ class Responder(BaseModel):
         self,
         content_lines: list[bytes],
         text_format: Type[TextFormatT] | None,
-        active_contexts: list[dict[str, Any]],
+        active_contexts: list[TracingContext],
         start_time: datetime,
         model: str,
     ) -> AsyncIterator[ResponseStreamEvent]:
@@ -907,11 +912,10 @@ class Responder(BaseModel):
             # Update tracing with error
             if active_contexts:
                 try:
-                    generation_config: dict[str, Any] = {"metadata": {}}
                     trace_metadata = self._prepare_trace_metadata(
                         model=model,
                         base_url=self.base_url,
-                        generation_config=generation_config,
+                        custom_metadata={},
                     )
                     await self._update_tracing_error(
                         active_contexts=active_contexts,
@@ -942,110 +946,107 @@ class Responder(BaseModel):
 
     def _prepare_trace_input_data(
         self,
-        request_payload: dict[str, Any],
-    ) -> dict[str, Any]:
+        create_response: CreateResponse,
+    ) -> TraceInputData:
         """
-        Prepare input data for trace context from request payload.
+        Prepare input data for trace context from CreateResponse.
 
         Extracts relevant fields like input/messages, model, tools, reasoning settings,
         temperature, top_p, etc. for observability tracking.
 
         Args:
-            request_payload: The request payload dictionary sent to the API
+            create_response: The CreateResponse object
 
         Returns:
-            Dictionary containing structured input data for tracing
+            TraceInputData containing structured input data for tracing
         """
-        # Extract basic input
-        input_data = request_payload.get("input")
-
-        # Extract model
-        model = request_payload.get("model")
+        # Extract basic input - convert to serializable format
+        input_data: str | list[dict[str, Any]] | None = None
+        if isinstance(create_response.input, str):
+            input_data = create_response.input
+        elif create_response.input is not None:
+            # Convert InputItem objects to dicts
+            input_data = [item.model_dump() for item in create_response.input]
 
         # Extract tools information
-        tools = request_payload.get("tools", [])
+        tools = create_response.tools or []
         has_tools = len(tools) > 0
         tools_count = len(tools)
 
         # Extract structured output information
-        text_config = request_payload.get("text", {})
         has_structured_output = (
-            text_config.get("type") == "json_schema" if text_config else False
+            create_response.text is not None
+            and hasattr(create_response.text, "format")
+            and create_response.text.format is not None
+            and hasattr(create_response.text.format, "type")
+            and create_response.text.format.type == "json_schema"
         )
 
         # Extract reasoning information
-        reasoning = request_payload.get("reasoning")
-        reasoning_enabled = reasoning is not None
-        reasoning_effort = None
-        if reasoning and isinstance(reasoning, dict):
-            reasoning_effort = reasoning.get("effort")
+        reasoning_enabled = create_response.reasoning is not None
+        reasoning_effort: str | None = None
+        if create_response.reasoning is not None and hasattr(
+            create_response.reasoning, "effort"
+        ):
+            effort_value = create_response.reasoning.effort
+            if effort_value is not None:
+                reasoning_effort = (
+                    effort_value.value
+                    if hasattr(effort_value, "value")
+                    else str(effort_value)
+                )
 
-        # Extract model parameters
-        temperature = request_payload.get("temperature")
-        top_p = request_payload.get("top_p")
-        max_output_tokens = request_payload.get("max_output_tokens")
-
-        # Extract streaming flag
-        stream = request_payload.get("stream", False)
-
-        return {
-            "input": input_data,
-            "model": model,
-            "has_tools": has_tools,
-            "tools_count": tools_count,
-            "has_structured_output": has_structured_output,
-            "reasoning_enabled": reasoning_enabled,
-            "reasoning_effort": reasoning_effort,
-            "temperature": temperature,
-            "top_p": top_p,
-            "max_output_tokens": max_output_tokens,
-            "stream": stream,
-        }
+        return TraceInputData(
+            input=input_data,
+            model=create_response.model,
+            has_tools=has_tools,
+            tools_count=tools_count,
+            has_structured_output=has_structured_output,
+            reasoning_enabled=reasoning_enabled,
+            reasoning_effort=reasoning_effort,
+            temperature=create_response.temperature,
+            top_p=create_response.top_p,
+            max_output_tokens=create_response.max_output_tokens,
+            stream=create_response.stream or False,
+        )
 
     def _prepare_trace_metadata(
         self,
         *,
         model: str,
         base_url: str,
-        generation_config: dict[str, Any],
-    ) -> dict[str, Any]:
+        custom_metadata: dict[str, Any],
+    ) -> TraceMetadata:
         """
         Prepare metadata for trace context.
 
         Extracts model name, provider, base_url, and merges custom metadata
-        from generation_config for observability tracking.
+        for observability tracking.
 
         Args:
             model: The model identifier
             base_url: The API base URL
-            generation_config: Configuration dictionary that may contain custom metadata
+            custom_metadata: Custom metadata dictionary to include
 
         Returns:
-            Dictionary containing metadata for tracing
+            TraceMetadata containing metadata for tracing
         """
         # Determine provider from base_url
         provider = "openai"
         if "openrouter" in base_url.lower():
             provider = "openrouter"
 
-        # Start with base metadata
-        metadata = {
-            "model": model,
-            "provider": provider,
-            "base_url": base_url,
-        }
-
-        # Merge custom metadata from generation_config if present
-        custom_metadata: dict[str, Any] = generation_config.get("metadata", {})
-        if custom_metadata:
-            metadata.update(custom_metadata)
-
-        return metadata
+        return TraceMetadata(
+            model=model,
+            provider=provider,
+            base_url=base_url,
+            custom_metadata=custom_metadata,
+        )
 
     def _extract_usage_from_response(
         self,
         response: Response[Any],
-    ) -> dict[str, Any] | None:
+    ) -> UsageDetails | None:
         """
         Extract token usage information from a Response object.
 
@@ -1056,8 +1057,7 @@ class Responder(BaseModel):
             response: The Response object from the API
 
         Returns:
-            Dictionary with usage details (input, output, total tokens, reasoning tokens),
-            or None if usage data is not available
+            UsageDetails with usage information, or None if usage data is not available
         """
         if not response.usage:
             return None
@@ -1074,19 +1074,13 @@ class Responder(BaseModel):
         if usage.output_tokens_details:
             reasoning_tokens = usage.output_tokens_details.reasoning_tokens
 
-        # Build usage dictionary
-        usage_dict = {
-            "input": input_tokens,
-            "output": output_tokens,
-            "total": total_tokens,
-            "unit": "TOKENS",
-        }
-
-        # Add reasoning tokens if present
-        if reasoning_tokens is not None and reasoning_tokens > 0:
-            usage_dict["reasoning_tokens"] = reasoning_tokens
-
-        return usage_dict
+        return UsageDetails(
+            input=input_tokens,
+            output=output_tokens,
+            total=total_tokens,
+            unit="TOKENS",
+            reasoning_tokens=reasoning_tokens,
+        )
 
     async def _calculate_costs(
         self,
@@ -1094,7 +1088,7 @@ class Responder(BaseModel):
         model: str,
         input_tokens: int,
         output_tokens: int,
-    ) -> dict[str, Any] | None:
+    ) -> CostDetails | None:
         """
         Calculate cost metrics based on token usage.
 
@@ -1107,8 +1101,7 @@ class Responder(BaseModel):
             output_tokens: Number of output tokens used
 
         Returns:
-            Dictionary with cost breakdown (input, output, total costs with currency),
-            or None if pricing is not available for the model
+            CostDetails with cost breakdown, or None if pricing is not available
         """
         try:
             # Get pricing from the pricing service
@@ -1133,14 +1126,14 @@ class Responder(BaseModel):
             output_cost = (output_tokens / 1_000_000) * output_price_per_million
             total_cost = input_cost + output_cost
 
-            return {
-                "input": input_cost,
-                "output": output_cost,
-                "total": total_cost,
-                "currency": "USD",
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-            }
+            return CostDetails(
+                input=input_cost,
+                output=output_cost,
+                total=total_cost,
+                currency="USD",
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+            )
 
         except Exception as e:
             # Log error but don't fail the request
@@ -1151,9 +1144,9 @@ class Responder(BaseModel):
         self,
         *,
         model: str,
-        request_payload: dict[str, Any],
-        generation_config: dict[str, Any],
-    ) -> list[dict[str, Any]]:
+        create_response: CreateResponse,
+        custom_metadata: dict[str, Any],
+    ) -> list[TracingContext]:
         """
         Create trace and generation contexts for all configured OtelClients.
 
@@ -1163,18 +1156,13 @@ class Responder(BaseModel):
 
         Args:
             model: The model identifier
-            request_payload: The request payload dictionary sent to the API
-            generation_config: Configuration dictionary containing metadata and settings
+            create_response: The CreateResponse object
+            custom_metadata: Custom metadata dictionary to include in traces
 
         Returns:
-            List of context dictionaries, each containing:
-            - client: The OtelClient instance
-            - trace_gen: The trace context generator
-            - trace_ctx: The trace context object
-            - generation_gen: The generation context generator
-            - generation_ctx: The generation context object
+            List of TracingContext objects containing client and context information
         """
-        active_contexts: list[dict[str, Any]] = []
+        active_contexts: list[TracingContext] = []
 
         if not self.otel_clients:
             logger.debug(
@@ -1187,11 +1175,11 @@ class Responder(BaseModel):
         )
 
         # Prepare input data and metadata for tracing
-        input_data = self._prepare_trace_input_data(request_payload)
+        input_data = self._prepare_trace_input_data(create_response)
         metadata = self._prepare_trace_metadata(
             model=model,
             base_url=self.base_url,
-            generation_config=generation_config,
+            custom_metadata=custom_metadata,
         )
 
         # Create contexts for each client
@@ -1203,8 +1191,8 @@ class Responder(BaseModel):
                 # Create trace context
                 trace_gen = client.trace_context(
                     name="responder_api_call",
-                    input_data=input_data,
-                    metadata=metadata,
+                    input_data=input_data.to_dict(),
+                    metadata=metadata.to_dict(),
                 )
                 trace_ctx = await trace_gen.__anext__()
 
@@ -1216,9 +1204,9 @@ class Responder(BaseModel):
                     trace_context=trace_ctx,
                     name="response_generation",
                     model=model,
-                    provider=metadata.get("provider", "unknown"),
-                    input_data=input_data,
-                    metadata=metadata,
+                    provider=metadata.provider,
+                    input_data=input_data.to_dict(),
+                    metadata=metadata.to_dict(),
                 )
                 generation_ctx = await generation_gen.__anext__()
 
@@ -1226,13 +1214,13 @@ class Responder(BaseModel):
 
                 # Store contexts
                 active_contexts.append(
-                    {
-                        "client": client,
-                        "trace_gen": trace_gen,
-                        "trace_ctx": trace_ctx,
-                        "generation_gen": generation_gen,
-                        "generation_ctx": generation_ctx,
-                    }
+                    TracingContext(
+                        client=client,
+                        trace_gen=trace_gen,
+                        trace_ctx=trace_ctx,
+                        generation_gen=generation_gen,
+                        generation_ctx=generation_ctx,
+                    )
                 )
 
                 logger.debug(
@@ -1256,7 +1244,7 @@ class Responder(BaseModel):
     async def _update_tracing_success(
         self,
         *,
-        active_contexts: list[dict[str, Any]],
+        active_contexts: list[TracingContext],
         response: Response[Any] | None = None,
         accumulated_text: str = "",
         start_time: datetime,
@@ -1298,7 +1286,7 @@ class Responder(BaseModel):
             usage_details = self._extract_usage_from_response(response)
             if usage_details:
                 logger.debug(
-                    f"Extracted usage: {usage_details.get('input', 0)} input tokens, {usage_details.get('output', 0)} output tokens"
+                    f"Extracted usage: {usage_details.input} input tokens, {usage_details.output} output tokens"
                 )
             else:
                 logger.debug("No usage details available in response")
@@ -1308,12 +1296,12 @@ class Responder(BaseModel):
         if usage_details:
             cost_details = await self._calculate_costs(
                 model=model,
-                input_tokens=usage_details.get("input", 0),
-                output_tokens=usage_details.get("output", 0),
+                input_tokens=usage_details.input,
+                output_tokens=usage_details.output,
             )
             if cost_details:
                 logger.debug(
-                    f"Calculated costs: ${cost_details.get('total', 0):.6f} (input: ${cost_details.get('input', 0):.6f}, output: ${cost_details.get('output', 0):.6f})"
+                    f"Calculated costs: ${cost_details.total:.6f} (input: ${cost_details.input:.6f}, output: ${cost_details.output:.6f})"
                 )
             else:
                 logger.debug(f"Cost calculation not available for model: {model}")
@@ -1362,70 +1350,69 @@ class Responder(BaseModel):
         }
 
         if usage_details:
-            metadata["usage"] = usage_details
+            metadata["usage"] = usage_details.to_dict()
 
         if cost_details:
-            metadata["cost"] = cost_details
+            metadata["cost"] = cost_details.to_dict()
 
         # Update contexts for each client
-        for context_dict in active_contexts:
-            client_name = type(context_dict.get("client", "unknown")).__name__
+        for ctx in active_contexts:
             try:
-                client = context_dict["client"]
-                generation_ctx = context_dict["generation_ctx"]
-                trace_ctx = context_dict["trace_ctx"]
-
-                logger.debug(f"Updating tracing contexts for client: {client_name}")
+                logger.debug(f"Updating tracing contexts for client: {ctx.client_name}")
 
                 # Update generation context
-                if generation_ctx:
+                if ctx.generation_ctx:
                     try:
                         logger.debug(
-                            f"Updating generation context for client: {client_name}"
+                            f"Updating generation context for client: {ctx.client_name}"
                         )
-                        await client.update_generation(
-                            generation_ctx,
+                        await ctx.client.update_generation(
+                            ctx.generation_ctx,
                             output_data=output_data,
-                            usage_details=usage_details,
-                            cost_details=cost_details,
+                            usage_details=usage_details.to_dict()
+                            if usage_details
+                            else None,
+                            cost_details=cost_details.to_dict()
+                            if cost_details
+                            else None,
                             metadata=metadata,
                             end_time=end_time,
                         )
                         logger.debug(
-                            f"Successfully updated generation context for client: {client_name}"
+                            f"Successfully updated generation context for client: {ctx.client_name}"
                         )
                     except Exception as e:
                         logger.error(
-                            f"Failed to update generation context for client {client_name}: {e}",
+                            f"Failed to update generation context for client {ctx.client_name}: {e}",
                             exc_info=True,
                         )
 
                 # Update trace context
-                if trace_ctx:
+                if ctx.trace_ctx:
                     try:
                         logger.debug(
-                            f"Updating trace context for client: {client_name}"
+                            f"Updating trace context for client: {ctx.client_name}"
                         )
-                        await client.update_trace(
-                            trace_ctx,
+                        await ctx.client.update_trace(
+                            ctx.trace_ctx,
                             output_data=output_data,
                             success=True,
                             metadata=metadata,
                             end_time=end_time,
                         )
                         logger.debug(
-                            f"Successfully updated trace context for client: {client_name}"
+                            f"Successfully updated trace context for client: {ctx.client_name}"
                         )
                     except Exception as e:
                         logger.error(
-                            f"Failed to update trace context for client {client_name}: {e}",
+                            f"Failed to update trace context for client {ctx.client_name}: {e}",
                             exc_info=True,
                         )
 
             except Exception as e:
                 # Log error but continue with other clients
                 logger.error(
-                    f"Failed to update tracing for client {client_name}: {e}",
+                    f"Failed to update tracing for client {ctx.client_name}: {e}",
                     exc_info=True,
                 )
                 continue
@@ -1437,10 +1424,10 @@ class Responder(BaseModel):
     async def _update_tracing_error(
         self,
         *,
-        active_contexts: list[dict[str, Any]],
+        active_contexts: list[TracingContext],
         error: Exception,
         start_time: datetime,
-        metadata: dict[str, Any],
+        metadata: TraceMetadata,
     ) -> None:
         """
         Update all tracing contexts with error information.
@@ -1470,7 +1457,7 @@ class Responder(BaseModel):
         logger.debug(f"Latency until error: {latency:.3f}s")
 
         # Prepare error metadata
-        error_metadata = dict(metadata)
+        error_metadata = metadata.to_dict()
         error_metadata.update(
             {
                 "error_type": type(error).__name__,
@@ -1481,37 +1468,34 @@ class Responder(BaseModel):
         )
 
         # Update contexts for each client
-        for context_dict in active_contexts:
-            client_name = type(context_dict.get("client", "unknown")).__name__
+        for ctx in active_contexts:
             try:
-                client = context_dict["client"]
-                generation_ctx = context_dict.get("generation_ctx")
-                trace_ctx = context_dict.get("trace_ctx")
-
-                logger.debug(f"Recording error in tracing for client: {client_name}")
+                logger.debug(
+                    f"Recording error in tracing for client: {ctx.client_name}"
+                )
 
                 # Use the client's handle_error method if available
                 try:
-                    await client.handle_error(
-                        trace_context=trace_ctx,
-                        generation_context=generation_ctx,
+                    await ctx.client.handle_error(
+                        trace_context=ctx.trace_ctx,
+                        generation_context=ctx.generation_ctx,
                         error=error,
                         start_time=start_time,
                         metadata=error_metadata,
                     )
                     logger.debug(
-                        f"Successfully recorded error in tracing for client: {client_name}"
+                        f"Successfully recorded error in tracing for client: {ctx.client_name}"
                     )
                 except Exception as e:
                     logger.error(
-                        f"Failed to record error in tracing for client {client_name}: {e}",
+                        f"Failed to record error in tracing for client {ctx.client_name}: {e}",
                         exc_info=True,
                     )
 
             except Exception as e:
                 # Log error but don't re-raise - we're already handling an error
                 logger.error(
-                    f"Failed to update error tracing for client {client_name}: {e}",
+                    f"Failed to update error tracing for client {ctx.client_name}: {e}",
                     exc_info=True,
                 )
                 continue
@@ -1522,7 +1506,7 @@ class Responder(BaseModel):
 
     async def _cleanup_tracing_contexts(
         self,
-        active_contexts: list[dict[str, Any]],
+        active_contexts: list[TracingContext],
     ) -> None:
         """
         Cleanup all tracing contexts by closing generators.
@@ -1540,49 +1524,48 @@ class Responder(BaseModel):
 
         logger.debug(f"Cleaning up {len(active_contexts)} tracing context(s)")
 
-        for context_dict in active_contexts:
-            client_name = type(context_dict.get("client", "unknown")).__name__
+        for ctx in active_contexts:
             try:
-                logger.debug(f"Cleaning up tracing contexts for client: {client_name}")
+                logger.debug(
+                    f"Cleaning up tracing contexts for client: {ctx.client_name}"
+                )
 
                 # Close generation context generator
-                generation_gen = context_dict.get("generation_gen")
-                if generation_gen:
+                if ctx.generation_gen:
                     try:
                         logger.debug(
-                            f"Closing generation context generator for client: {client_name}"
+                            f"Closing generation context generator for client: {ctx.client_name}"
                         )
-                        await generation_gen.aclose()
+                        await ctx.generation_gen.aclose()
                         logger.debug(
-                            f"Closed generation context generator for client: {client_name}"
+                            f"Closed generation context generator for client: {ctx.client_name}"
                         )
                     except Exception as e:
                         logger.error(
-                            f"Failed to close generation context for client {client_name}: {e}",
+                            f"Failed to close generation context for client {ctx.client_name}: {e}",
                             exc_info=True,
                         )
 
                 # Close trace context generator
-                trace_gen = context_dict.get("trace_gen")
-                if trace_gen:
+                if ctx.trace_gen:
                     try:
                         logger.debug(
-                            f"Closing trace context generator for client: {client_name}"
+                            f"Closing trace context generator for client: {ctx.client_name}"
                         )
-                        await trace_gen.aclose()
+                        await ctx.trace_gen.aclose()
                         logger.debug(
-                            f"Closed trace context generator for client: {client_name}"
+                            f"Closed trace context generator for client: {ctx.client_name}"
                         )
                     except Exception as e:
                         logger.error(
-                            f"Failed to close trace context for client {client_name}: {e}",
+                            f"Failed to close trace context for client {ctx.client_name}: {e}",
                             exc_info=True,
                         )
 
             except Exception as e:
                 # Log error but continue with other contexts
                 logger.error(
-                    f"Failed to cleanup tracing context for client {client_name}: {e}",
+                    f"Failed to cleanup tracing context for client {ctx.client_name}: {e}",
                     exc_info=True,
                 )
                 continue
