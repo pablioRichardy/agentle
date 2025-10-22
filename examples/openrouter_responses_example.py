@@ -4,9 +4,10 @@ from dotenv import load_dotenv
 from rsb.models.base_model import BaseModel
 
 
+from agentle.generations.tracing.langfuse_otel_client import LangfuseOtelClient
 from agentle.responses.responder import Responder
 
-load_dotenv()
+load_dotenv(override=True)
 
 
 class MathResponse(BaseModel):
@@ -20,7 +21,8 @@ def add(a: int, b: int) -> int:
 async def main():
     """Basic text generation example."""
 
-    responder = Responder.openai()
+    responder = Responder.openrouter()
+    responder.append_otel_client(LangfuseOtelClient())
 
     print("Starting...")
     response = await responder.respond_async(
