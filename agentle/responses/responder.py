@@ -13,6 +13,7 @@ from pydantic import BaseModel, TypeAdapter
 # from rsb.coroutines import fire_and_forget
 from rsb.models.field import Field
 
+from agentle.generations.models.generation.trace_params import TraceParams
 from agentle.generations.tracing.otel_client_type import OtelClientType
 from agentle.prompts.models.prompt import Prompt as AgentlePromptType
 from agentle.responses.async_stream import AsyncStream
@@ -279,6 +280,7 @@ class Responder(BaseModel):
         stream_options: Optional[ResponseStreamOptions] = None,
         conversation: Optional[Union[str, ConversationParam]] = None,
         text_format: type[TextFormatT] | None = None,
+        trace_params: Optional[TraceParams] = None,
         # ResponseProperties parameters
         previous_response_id: Optional[str] = None,
         reasoning: Optional[Reasoning] = None,
@@ -324,6 +326,7 @@ class Responder(BaseModel):
         stream_options: Optional[ResponseStreamOptions] = None,
         conversation: Optional[Union[str, ConversationParam]] = None,
         text_format: type[TextFormatT] | None = None,
+        trace_params: Optional[TraceParams] = None,
         # ResponseProperties parameters
         previous_response_id: Optional[str] = None,
         reasoning: Optional[Reasoning] = None,
@@ -369,6 +372,7 @@ class Responder(BaseModel):
         stream_options: Optional[ResponseStreamOptions] = None,
         conversation: Optional[Union[str, ConversationParam]] = None,
         text_format: type[TextFormatT] | None = None,
+        trace_params: Optional[TraceParams] = None,
         # ResponseProperties parameters
         previous_response_id: Optional[str] = None,
         reasoning: Optional[Reasoning] = None,
@@ -413,6 +417,7 @@ class Responder(BaseModel):
         stream_options: Optional[ResponseStreamOptions] = None,
         conversation: Optional[Union[str, ConversationParam]] = None,
         text_format: type[TextFormatT] | None = None,
+        trace_params: Optional[TraceParams] = None,
         # ResponseProperties parameters
         previous_response_id: Optional[str] = None,
         reasoning: Optional[Reasoning] = None,
@@ -508,12 +513,14 @@ class Responder(BaseModel):
         return await self._respond_async(
             create_response,
             text_format=text_format,
+            trace_params=trace_params,
         )
 
     async def _respond_async[TextFormatT](
         self,
         create_response: CreateResponse,
         text_format: Type[TextFormatT] | None = None,
+        trace_params: Optional[TraceParams] = None,
     ) -> Response[TextFormatT] | AsyncStream[ResponseStreamEvent, TextFormatT]:
         _api_key = self.api_key
         if not _api_key:
@@ -557,6 +564,7 @@ class Responder(BaseModel):
                         model=model,
                         create_response=create_response,
                         custom_metadata=custom_metadata,
+                        trace_params=trace_params,
                     )
                 except Exception as e:
                     # Log error but don't fail the request
@@ -1136,6 +1144,7 @@ class Responder(BaseModel):
         model: str,
         create_response: CreateResponse,
         custom_metadata: dict[str, Any],
+        trace_params: Optional[TraceParams] = None,
     ) -> list[TracingContext]:
         """
         Create trace and generation contexts for all configured OtelClients.
@@ -1148,6 +1157,7 @@ class Responder(BaseModel):
             model: The model identifier
             create_response: The CreateResponse object
             custom_metadata: Custom metadata dictionary to include in traces
+            trace_params: Optional trace parameters for observability
 
         Returns:
             List of TracingContext objects containing client and context information
@@ -1164,13 +1174,41 @@ class Responder(BaseModel):
             f"Creating tracing contexts for {len(self.otel_clients)} OTel client(s) with model: {model}"
         )
 
+        # Initialize trace_params if not provided
+        if trace_params is None:
+            trace_params = TraceParams()
+
+        # Extract trace parameters
+        trace_name = trace_params.get("name", "responder_api_call")
+        user_id = trace_params.get("user_id")
+        session_id = trace_params.get("session_id")
+        tags = trace_params.get("tags")
+        trace_version = trace_params.get("version")
+        trace_release = trace_params.get("release")
+        trace_public = trace_params.get("public")
+        # parent_trace_id = trace_params.get("parent_trace_id")  # Reserved for future use
+
+        # Merge custom metadata from trace_params
+        merged_metadata = dict(custom_metadata)
+        if "metadata" in trace_params:
+            trace_metadata_val = trace_params["metadata"]
+            merged_metadata.update(trace_metadata_val)
+
         # Prepare input data and metadata for tracing
         input_data = self._prepare_trace_input_data(create_response)
         metadata = self._prepare_trace_metadata(
             model=model,
             base_url=self.base_url,
-            custom_metadata=custom_metadata,
+            custom_metadata=merged_metadata,
         )
+
+        # Add trace_params specific fields to metadata
+        if trace_version:
+            metadata.custom_metadata["version"] = trace_version
+        if trace_release:
+            metadata.custom_metadata["release"] = trace_release
+        if trace_public is not None:
+            metadata.custom_metadata["public"] = trace_public
 
         # Create contexts for each client
         for client in self.otel_clients:
@@ -1178,11 +1216,14 @@ class Responder(BaseModel):
             try:
                 logger.debug(f"Creating trace context for client: {client_name}")
 
-                # Create trace context
+                # Create trace context with trace_params
                 trace_gen = client.trace_context(
-                    name="responder_api_call",
+                    name=trace_name,
                     input_data=input_data.model_dump(),
                     metadata=metadata.to_api_dict(),
+                    user_id=user_id,
+                    session_id=session_id,
+                    tags=tags,
                 )
                 trace_ctx = await trace_gen.__anext__()
 
@@ -1190,9 +1231,10 @@ class Responder(BaseModel):
 
                 # Create generation context
                 logger.debug(f"Creating generation context for client: {client_name}")
+                generation_name = trace_params.get("name", "response_generation")
                 generation_gen = client.generation_context(
                     trace_context=trace_ctx,
-                    name="response_generation",
+                    name=generation_name,
                     model=model,
                     provider=metadata.provider,
                     input_data=input_data.model_dump(),

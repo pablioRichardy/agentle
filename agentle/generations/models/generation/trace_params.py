@@ -53,7 +53,7 @@ class TraceParams(TypedDict, total=False):
     session_id: NotRequired[str]
     version: NotRequired[str]
     release: NotRequired[str]
-    metadata: NotRequired[Any]
+    metadata: NotRequired[dict[str, Any]]
     tags: NotRequired[Sequence[str]]
     public: NotRequired[bool]
     parent_trace_id: NotRequired[str]
