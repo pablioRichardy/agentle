@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Literal, Optional, cast, override
 
 from pydantic import PrivateAttr
+from rsb.coroutines.fire_and_forget import fire_and_forget
 from rsb.models import BaseModel
 
 from .otel_client import GenerationContext, OtelClient, TraceContext
@@ -191,85 +192,92 @@ class LangfuseOtelClient(BaseModel, OtelClient):
 
         Esta implementação garante que as contagens de tokens e custos
         sejam registrados com precisão no Langfuse UI.
+
+        Usa fire-and-forget para não bloquear a execução, já que não precisamos
+        esperar pela confirmação da atualização.
         """
         if not isinstance(generation_context, _LangfuseGenerationContext):
             return
 
-        try:
-            generation = generation_context.generation
+        async def _do_update() -> None:
+            try:
+                generation = generation_context.generation
 
-            # Preparar dados para atualização em uma única chamada
-            update_params = {"output": dict(output_data)}
+                # Preparar dados para atualização em uma única chamada
+                update_params = {"output": dict(output_data)}
 
-            # Adicionar metadados se fornecidos
-            if metadata:
-                update_params["metadata"] = dict(metadata)
+                # Adicionar metadados se fornecidos
+                if metadata:
+                    update_params["metadata"] = dict(metadata)
 
-            # ✅ FIX: Mapear para o formato correto esperado pelo Langfuse V3
-            if usage_details:
-                langfuse_usage = {
-                    "prompt_tokens": usage_details.get("input", 0),
-                    "completion_tokens": usage_details.get("output", 0),
-                    "total_tokens": usage_details.get("total", 0),
-                }
-                update_params["usage_details"] = langfuse_usage
-
-            # ✅ FIX: Try multiple cost field name formats to ensure compatibility
-            if cost_details:
-                input_cost = float(cost_details.get("input", 0.0))
-                output_cost = float(cost_details.get("output", 0.0))
-                total_cost = float(cost_details.get("total", 0.0))
-
-                # Ensure we have meaningful cost values (not zero)
-                if total_cost > 0 or input_cost > 0 or output_cost > 0:
-                    # Try the format that Langfuse V3 documentation suggests
-                    langfuse_cost = {
-                        "total": total_cost,
+                # ✅ FIX: Mapear para o formato correto esperado pelo Langfuse V3
+                if usage_details:
+                    langfuse_usage = {
+                        "prompt_tokens": usage_details.get("input", 0),
+                        "completion_tokens": usage_details.get("output", 0),
+                        "total_tokens": usage_details.get("total", 0),
                     }
+                    update_params["usage_details"] = langfuse_usage
 
-                    # Also include breakdown if available
-                    if input_cost > 0:
-                        langfuse_cost["input"] = input_cost
-                    if output_cost > 0:
-                        langfuse_cost["output"] = output_cost
+                # ✅ FIX: Try multiple cost field name formats to ensure compatibility
+                if cost_details:
+                    input_cost = float(cost_details.get("input", 0.0))
+                    output_cost = float(cost_details.get("output", 0.0))
+                    total_cost = float(cost_details.get("total", 0.0))
 
-                    update_params["cost_details"] = langfuse_cost
+                    # Ensure we have meaningful cost values (not zero)
+                    if total_cost > 0 or input_cost > 0 or output_cost > 0:
+                        # Try the format that Langfuse V3 documentation suggests
+                        langfuse_cost = {
+                            "total": total_cost,
+                        }
 
-                    # Also add cost information to metadata for better visibility
-                    cost_metadata = {
-                        "cost_usd_input": input_cost,
-                        "cost_usd_output": output_cost,
-                        "cost_usd_total": total_cost,
-                        "currency": "USD",
-                    }
+                        # Also include breakdown if available
+                        if input_cost > 0:
+                            langfuse_cost["input"] = input_cost
+                        if output_cost > 0:
+                            langfuse_cost["output"] = output_cost
 
-                    if "metadata" not in update_params:
-                        update_params["metadata"] = {}
-                    update_params["metadata"].update(cost_metadata)
+                        update_params["cost_details"] = langfuse_cost
 
-            # ✅ FIX: Fazer uma única chamada de update com todos os parâmetros
-            generation.update(**update_params)  # type: ignore
+                        # Also add cost information to metadata for better visibility
+                        cost_metadata = {
+                            "cost_usd_input": input_cost,
+                            "cost_usd_output": output_cost,
+                            "cost_usd_total": total_cost,
+                            "currency": "USD",
+                        }
 
-            # ✅ FIX: Also try setting cost details as generation attributes
-            if cost_details and hasattr(generation, "_otel_span"):
-                try:
-                    # Set cost as span attributes for better visibility
-                    span = generation._otel_span  # type: ignore
-                    span.set_attribute(
-                        "cost.total", float(cost_details.get("total", 0.0))
-                    )
-                    span.set_attribute(
-                        "cost.input", float(cost_details.get("input", 0.0))
-                    )
-                    span.set_attribute(
-                        "cost.output", float(cost_details.get("output", 0.0))
-                    )
-                    span.set_attribute("cost.currency", "USD")
-                except Exception as e:
-                    logger.debug(f"Could not set cost attributes: {e}")
+                        if "metadata" not in update_params:
+                            update_params["metadata"] = {}
+                        update_params["metadata"].update(cost_metadata)
 
-        except Exception as e:
-            logger.error(f"Erro ao atualizar geração: {e}")
+                # ✅ FIX: Fazer uma única chamada de update com todos os parâmetros
+                generation.update(**update_params)  # type: ignore
+
+                # ✅ FIX: Also try setting cost details as generation attributes
+                if cost_details and hasattr(generation, "_otel_span"):
+                    try:
+                        # Set cost as span attributes for better visibility
+                        span = generation._otel_span  # type: ignore
+                        span.set_attribute(
+                            "cost.total", float(cost_details.get("total", 0.0))
+                        )
+                        span.set_attribute(
+                            "cost.input", float(cost_details.get("input", 0.0))
+                        )
+                        span.set_attribute(
+                            "cost.output", float(cost_details.get("output", 0.0))
+                        )
+                        span.set_attribute("cost.currency", "USD")
+                    except Exception as e:
+                        logger.debug(f"Could not set cost attributes: {e}")
+
+            except Exception as e:
+                logger.error(f"Erro ao atualizar geração: {e}")
+
+        # Fire-and-forget: não bloqueia a execução
+        fire_and_forget(_do_update())
 
     async def update_trace(
         self,
@@ -280,76 +288,85 @@ class LangfuseOtelClient(BaseModel, OtelClient):
         metadata: Optional[Mapping[str, Any]] = None,
         end_time: Optional[datetime] = None,
     ) -> None:
-        """Atualiza um trace com dados finais."""
+        """
+        Atualiza um trace com dados finais.
+
+        Usa fire-and-forget para não bloquear a execução, já que não precisamos
+        esperar pela confirmação da atualização.
+        """
         if not isinstance(trace_context, _LangfuseTraceContext):
             return
 
-        try:
-            span = trace_context.span
+        async def _do_update() -> None:
+            try:
+                span = trace_context.span
 
-            # Preparar metadados do trace
-            trace_metadata = dict(metadata) if metadata else {}
-            trace_metadata["success"] = success
+                # Preparar metadados do trace
+                trace_metadata = dict(metadata) if metadata else {}
+                trace_metadata["success"] = success
 
-            # ✅ FIX: Extract cost information from output_data and add to trace
-            if isinstance(output_data, dict):
-                # Check if cost summary is in output data
-                if "cost_summary" in output_data:
-                    cost_summary = output_data["cost_summary"]
-                    trace_metadata.update(
-                        {
-                            "cost_details": {
-                                "input": cost_summary.get("input_cost", 0.0),
-                                "output": cost_summary.get("output_cost", 0.0),
-                            },
-                        }
-                    )
+                # ✅ FIX: Extract cost information from output_data and add to trace
+                if isinstance(output_data, dict):
+                    # Check if cost summary is in output data
+                    if "cost_summary" in output_data:
+                        cost_summary = output_data["cost_summary"]
+                        trace_metadata.update(
+                            {
+                                "cost_details": {
+                                    "input": cost_summary.get("input_cost", 0.0),
+                                    "output": cost_summary.get("output_cost", 0.0),
+                                },
+                            }
+                        )
 
-                # Check if usage summary is in output data
-                if "usage_summary" in output_data:
-                    usage_summary = output_data["usage_summary"]
-                    trace_metadata.update(
-                        {
-                            "tokens_total": usage_summary.get("total_tokens", 0),
-                            "tokens_input": usage_summary.get("input_tokens", 0),
-                            "tokens_output": usage_summary.get("output_tokens", 0),
-                        }
-                    )
+                    # Check if usage summary is in output data
+                    if "usage_summary" in output_data:
+                        usage_summary = output_data["usage_summary"]
+                        trace_metadata.update(
+                            {
+                                "tokens_total": usage_summary.get("total_tokens", 0),
+                                "tokens_input": usage_summary.get("input_tokens", 0),
+                                "tokens_output": usage_summary.get("output_tokens", 0),
+                            }
+                        )
 
-            # ✅ FIX: Update trace with cost information using the span's update_trace method
-            span.update_trace(
-                output=cast(dict[str, Any], output_data),
-                metadata=trace_metadata,
-            )
+                # ✅ FIX: Update trace with cost information using the span's update_trace method
+                span.update_trace(
+                    output=cast(dict[str, Any], output_data),
+                    metadata=trace_metadata,
+                )
 
-            # ✅ FIX: Also try to set cost directly on the trace if possible
-            if hasattr(span, "_otel_span"):
-                try:
-                    otel_span = span._otel_span  # type: ignore[reportPrivateUsage]
-                    if hasattr(otel_span, "set_attribute"):
-                        # Set cost attributes on the span
-                        if "cost_total" in trace_metadata:
-                            otel_span.set_attribute(
-                                "cost.total", float(trace_metadata["cost_total"])
-                            )
-                        if "cost_input" in trace_metadata:
-                            otel_span.set_attribute(
-                                "cost.input", float(trace_metadata["cost_input"])
-                            )
-                        if "cost_output" in trace_metadata:
-                            otel_span.set_attribute(
-                                "cost.output", float(trace_metadata["cost_output"])
-                            )
-                        if "tokens_total" in trace_metadata:
-                            otel_span.set_attribute(
-                                "usage.total_tokens",
-                                int(trace_metadata["tokens_total"]),
-                            )
-                except Exception as e:
-                    logger.debug(f"Could not set trace attributes: {e}")
+                # ✅ FIX: Also try to set cost directly on the trace if possible
+                if hasattr(span, "_otel_span"):
+                    try:
+                        otel_span = span._otel_span  # type: ignore[reportPrivateUsage]
+                        if hasattr(otel_span, "set_attribute"):
+                            # Set cost attributes on the span
+                            if "cost_total" in trace_metadata:
+                                otel_span.set_attribute(
+                                    "cost.total", float(trace_metadata["cost_total"])
+                                )
+                            if "cost_input" in trace_metadata:
+                                otel_span.set_attribute(
+                                    "cost.input", float(trace_metadata["cost_input"])
+                                )
+                            if "cost_output" in trace_metadata:
+                                otel_span.set_attribute(
+                                    "cost.output", float(trace_metadata["cost_output"])
+                                )
+                            if "tokens_total" in trace_metadata:
+                                otel_span.set_attribute(
+                                    "usage.total_tokens",
+                                    int(trace_metadata["tokens_total"]),
+                                )
+                    except Exception as e:
+                        logger.debug(f"Could not set trace attributes: {e}")
 
-        except Exception as e:
-            logger.error(f"Erro ao atualizar trace: {e}")
+            except Exception as e:
+                logger.error(f"Erro ao atualizar trace: {e}")
+
+        # Fire-and-forget: não bloqueia a execução
+        fire_and_forget(_do_update())
 
     async def add_trace_score(
         self,
@@ -359,20 +376,29 @@ class LangfuseOtelClient(BaseModel, OtelClient):
         value: float | str,
         comment: Optional[str] = None,
     ) -> None:
-        """Adiciona uma pontuação ao trace."""
+        """
+        Adiciona uma pontuação ao trace.
+
+        Usa fire-and-forget para não bloquear a execução, já que não precisamos
+        esperar pela confirmação da pontuação.
+        """
         if not isinstance(trace_context, _LangfuseTraceContext):
             return
 
-        try:
-            # Usar o método score_current_trace do SDK V3
-            self.langfuse.score_current_trace(
-                name=name,
-                value=value,
-                comment=comment,
-            )
+        async def _do_score() -> None:
+            try:
+                # Usar o método score_current_trace do SDK V3
+                self.langfuse.score_current_trace(
+                    name=name,
+                    value=value,
+                    comment=comment,
+                )
 
-        except Exception as e:
-            logger.error(f"Erro ao adicionar pontuação: {e}")
+            except Exception as e:
+                logger.error(f"Erro ao adicionar pontuação: {e}")
+
+        # Fire-and-forget: não bloqueia a execução
+        fire_and_forget(_do_score())
 
     async def handle_error(
         self,
@@ -460,9 +486,19 @@ class LangfuseOtelClient(BaseModel, OtelClient):
             return "other"
 
     async def flush(self) -> None:
-        """Força o envio imediato de todos os eventos pendentes."""
-        try:
-            self.langfuse.flush()
-            logger.debug("Eventos enviados com sucesso para Langfuse")
-        except Exception as e:
-            logger.error(f"Erro ao enviar eventos para Langfuse: {e}")
+        """
+        Força o envio imediato de todos os eventos pendentes.
+
+        Usa fire-and-forget para não bloquear a execução, já que flush
+        é uma operação de I/O que pode ser lenta.
+        """
+
+        async def _do_flush() -> None:
+            try:
+                self.langfuse.flush()
+                logger.debug("Eventos enviados com sucesso para Langfuse")
+            except Exception as e:
+                logger.error(f"Erro ao enviar eventos para Langfuse: {e}")
+
+        # Fire-and-forget: não bloqueia a execução
+        fire_and_forget(_do_flush())
