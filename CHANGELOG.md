@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.9.5
+fix(whatsapp): Improve WhatsApp webhook payload phone number ID extraction
+
+- Update phone number ID extraction logic for WhatsApp webhook payloads
+- Add fallback extraction method using remoteJid when remoteJidAlt is not available
+- Ensure consistent phone number ID extraction across different webhook scenarios
+- Prevent potential null or incomplete phone number ID assignments
+
 ## v0.9.4
 feat(whatsapp): Improve WhatsApp webhook payload and key handling
 
