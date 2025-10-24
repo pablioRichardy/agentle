@@ -84,11 +84,45 @@ class OpenRouterMessageToGeneratedAssistantMessageAdapter[T](
         tool_parts: list[ToolExecutionSuggestion] = []
         for tool_call in tool_calls_data:
             function_data = tool_call.get("function", {})
+
+            # Parse arguments with error handling for malformed JSON
+            args_str = str(function_data.get("arguments", "{}"))
+            args: dict[str, object] = {}
+            try:
+                args = json.loads(args_str)
+            except json.JSONDecodeError as e:
+                # Log the error and try to extract the first valid JSON object
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    f"Malformed JSON in tool call arguments: {e}. "
+                    + "Attempting to parse first valid JSON object. "
+                    + f"Raw arguments: {args_str[:200]}..."
+                )
+
+                # Try to find the first complete JSON object
+                try:
+                    # Use JSONDecoder to parse incrementally
+                    decoder = json.JSONDecoder()
+                    args, idx = decoder.raw_decode(args_str)
+                    if idx < len(args_str.strip()):
+                        logger.warning(
+                            f"Extra data found after position {idx}. "
+                            + "Using first valid JSON object only."
+                        )
+                except (json.JSONDecodeError, ValueError) as e2:
+                    logger.error(
+                        f"Failed to parse tool call arguments even with recovery: {e2}. "
+                        + "Using empty dict."
+                    )
+                    args = {}
+
             tool_parts.append(
                 ToolExecutionSuggestion(
                     id=str(tool_call.get("id", "")),
                     tool_name=str(function_data.get("name", "")),
-                    args=json.loads(str(function_data.get("arguments", "{}"))),
+                    args=args,
                 )
             )
 
