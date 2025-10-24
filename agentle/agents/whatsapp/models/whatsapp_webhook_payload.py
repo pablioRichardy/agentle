@@ -84,6 +84,7 @@ class WhatsAppWebhookPayload(BaseModel):
         key = self.data.key
         if "@lid" in key.remoteJid:
             self.phone_number_id = key.remoteJidAlt.split("@")[0]
+            self.data.key.remoteJid = key.remoteJidAlt
             return
 
         self.phone_number_id = key.remoteJid.split("@")[0]
