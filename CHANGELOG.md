@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.9.9
+fix(openrouter-adapter): Improve tool call argument parsing with robust error handling
+
+- Add comprehensive JSON parsing error handling for tool call arguments
+- Implement fallback mechanism to extract first valid JSON object when parsing fails
+- Log detailed warnings and errors for malformed JSON input
+- Prevent adapter from breaking when encountering invalid JSON in tool call arguments
+- Ensure graceful degradation by using empty dict if parsing completely fails
+
 ## v0.9.8
 fix(whatsapp): Improve phone number ID extraction for WhatsApp webhook payloads
 
