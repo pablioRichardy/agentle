@@ -20,6 +20,7 @@ from typing import Literal, Any
 from rsb.models.field import Field
 
 
+from agentle.generations.models.generation.generation_config import GenerationConfig
 from agentle.generations.models.message_parts.file import FilePart
 from agentle.generations.models.structured_outputs_store.visual_media_description import (
     VisualMediaDescription,
@@ -181,6 +182,9 @@ class DocxFileParser(DocumentParser):
     
     Note: When this is enabled, most other configuration options are ignored as the AI handles all processing.
     """
+
+    max_output_tokens: int | None = Field(default=None)
+    """Maximum number of tokens to generate in the response."""
 
     async def parse_async(
         self,
@@ -517,6 +521,9 @@ class DocxFileParser(DocumentParser):
                                             "Output clear, concise descriptions suitable for a 'Visual Content' section."
                                         ),
                                         response_schema=VisualMediaDescription,
+                                        generation_config=GenerationConfig(
+                                            max_output_tokens=self.max_output_tokens
+                                        ),
                                     )
                                     page_description = agent_response.parsed.md
                                     image_cache[page_hash] = (page_description, "")
@@ -663,6 +670,7 @@ class DocxFileParser(DocumentParser):
                 model=self.model,
                 use_native_pdf_processing=True,
                 strategy=self.strategy,
+                max_output_tokens=self.max_output_tokens,
             )
 
             logger.debug("Delegating to PDFFileParser with native processing")

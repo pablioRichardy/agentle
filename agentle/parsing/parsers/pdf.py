@@ -258,6 +258,9 @@ class PDFFileParser(DocumentParser):
     # Metrics state
     last_parse_metrics: PDFParseMetrics | None = None
 
+    max_output_tokens: int | None = Field(default=None)
+    """Maximum number of tokens to generate in the response."""
+
     async def parse_async(self, document_path: str) -> ParsedFile:
         """
         Asynchronously parse a PDF document and convert it to a structured representation.
@@ -741,7 +744,7 @@ class PDFFileParser(DocumentParser):
                             response_schema=VisualMediaDescription,
                             generation_config=GenerationConfig(
                                 max_output_tokens=self.max_output_tokens
-                            )
+                            ),
                         ),
                         timeout=self.image_description_timeout,
                     )
@@ -858,8 +861,7 @@ class PDFFileParser(DocumentParser):
                 prompt=[pdf_file_part, prompt],
                 response_schema=PDFPageExtraction,
                 generation_config=GenerationConfig(
-                    timeout_s=300.0,
-                    max_output_tokens=self.max_output_tokens
+                    timeout_s=300.0, max_output_tokens=self.max_output_tokens
                 ),
                 model=self.model,
             )
