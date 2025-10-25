@@ -574,7 +574,7 @@ class EvolutionAPIProvider(WhatsAppProvider):
         if isinstance(expected_status, int):
             expected_status = [expected_status]
 
-        if response.status not in expected_status:
+        if response.status in expected_status:
             try:
                 response_data = await response.json()
                 logger.debug(f"Response data received: {response_data}")

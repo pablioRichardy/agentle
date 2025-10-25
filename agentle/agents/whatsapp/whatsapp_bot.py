@@ -2147,6 +2147,19 @@ class WhatsAppBot(BaseModel):
         messages = self._split_message_by_line_breaks(response_text)
         logger.info(f"[SEND_RESPONSE] Split response into {len(messages)} parts")
 
+        # Show typing indicator ONCE before sending all messages
+        if self.config.typing_indicator:
+            try:
+                logger.debug(
+                    f"[SEND_RESPONSE] Sending typing indicator to {to} before sending {len(messages)} message(s)"
+                )
+                await self.provider.send_typing_indicator(
+                    to, self.config.typing_duration
+                )
+            except Exception as e:
+                # Don't let typing indicator failures break message sending
+                logger.warning(f"[SEND_RESPONSE] Failed to send typing indicator: {e}")
+
         # Track sending state to handle partial failures
         successfully_sent_count = 0
         failed_parts: list[dict[str, Any]] = []
@@ -2155,21 +2168,6 @@ class WhatsAppBot(BaseModel):
             logger.debug(
                 f"[SEND_RESPONSE] Sending message part {i + 1}/{len(messages)} to {to}"
             )
-
-            # Show typing indicator before each message if configured
-            if self.config.typing_indicator:
-                try:
-                    logger.debug(
-                        f"[SEND_RESPONSE] Sending typing indicator to {to} for message {i + 1}"
-                    )
-                    await self.provider.send_typing_indicator(
-                        to, self.config.typing_duration
-                    )
-                except Exception as e:
-                    # Don't let typing indicator failures break message sending
-                    logger.warning(
-                        f"[SEND_RESPONSE] Failed to send typing indicator: {e}"
-                    )
 
             # Only quote the first message if quote_messages is enabled
             quoted_id = reply_to if i == 0 else None
