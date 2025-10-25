@@ -54,6 +54,7 @@ from agentle.generations.models.messages.generated_assistant_message import (
 from agentle.generations.models.messages.user_message import UserMessage
 from agentle.generations.tools.tool import Tool
 from agentle.generations.tools.tool_execution_result import ToolExecutionResult
+from agentle.storage.file_storage_manager import FileStorageManager
 from agentle.tts.tts_provider import TtsProvider
 
 if TYPE_CHECKING:
@@ -136,6 +137,7 @@ class WhatsAppBot(BaseModel):
     agent: Agent[Any]
     provider: WhatsAppProvider
     tts_provider: TtsProvider | None = Field(default=None)
+    file_storage_manager: FileStorageManager | None = Field(default=None)
     config: WhatsAppBotConfig = Field(default_factory=WhatsAppBotConfig)
 
     # REMOVED: context_manager field - no longer needed
@@ -2116,14 +2118,71 @@ class WhatsAppBot(BaseModel):
                         response_text, config=self.config.speech_config
                     )
 
-                    # Send audio message
-                    await self.provider.send_audio_message(
-                        to=to,
-                        audio_base64=speech_result.audio,
-                        quoted_message_id=reply_to
-                        if self.config.quote_messages
-                        else None,
-                    )
+                    # Try to upload to file storage if available
+                    audio_url = None
+                    if self.file_storage_manager:
+                        try:
+                            import base64
+                            import time
+
+                            # Decode base64 to bytes
+                            audio_bytes = base64.b64decode(speech_result.audio)
+
+                            # Generate unique filename
+                            timestamp = int(time.time())
+                            extension = self._get_audio_extension(speech_result.format)
+                            filename = f"tts_{timestamp}.{extension}"
+
+                            # Upload to storage
+                            audio_url = await self.file_storage_manager.upload_file(
+                                file_data=audio_bytes,
+                                filename=filename,
+                                mime_type=str(speech_result.mime_type),
+                            )
+
+                            logger.info(f"[TTS] Audio uploaded to storage: {audio_url}")
+
+                        except Exception as e:
+                            logger.warning(
+                                f"[TTS] Failed to upload to storage, falling back to base64: {e}"
+                            )
+                            audio_url = None
+
+                    # Send audio message (URL or base64)
+                    if audio_url:
+                        # Try URL method first
+                        try:
+                            await self.provider.send_audio_message_by_url(
+                                to=to,
+                                audio_url=audio_url,
+                                quoted_message_id=reply_to
+                                if self.config.quote_messages
+                                else None,
+                            )
+                            logger.info(f"[TTS] Audio sent via URL to {to}")
+                        except Exception as e:
+                            logger.warning(
+                                f"[TTS] URL method failed, falling back to base64: {e}"
+                            )
+                            # Fallback to base64
+                            await self.provider.send_audio_message(
+                                to=to,
+                                audio_base64=speech_result.audio,
+                                quoted_message_id=reply_to
+                                if self.config.quote_messages
+                                else None,
+                            )
+                            logger.info(f"[TTS] Audio sent via base64 to {to}")
+                    else:
+                        # Use base64 method (current behavior)
+                        await self.provider.send_audio_message(
+                            to=to,
+                            audio_base64=speech_result.audio,
+                            quoted_message_id=reply_to
+                            if self.config.quote_messages
+                            else None,
+                        )
+                        logger.info(f"[TTS] Audio sent via base64 to {to}")
 
                     logger.info(
                         f"[TTS] Successfully sent audio response to {to}",
@@ -2318,6 +2377,18 @@ class WhatsAppBot(BaseModel):
                 f"[TTS_VALIDATION] Failed to validate TTS configuration: {e}"
             )
             return False
+
+    def _get_audio_extension(self, format_type: Any) -> str:
+        """Get file extension from TTS format."""
+        format_str = str(format_type)
+        if "mp3" in format_str:
+            return "mp3"
+        elif "wav" in format_str:
+            return "wav"
+        elif "ogg" in format_str:
+            return "ogg"
+        else:
+            return "mp3"  # default
 
     def _split_message_by_line_breaks(self, text: str) -> Sequence[str]:
         """Split message by line breaks first, then by length if needed with enhanced validation."""

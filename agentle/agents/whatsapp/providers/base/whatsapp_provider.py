@@ -102,6 +102,26 @@ class WhatsAppProvider(abc.ABC):
         pass
 
     @abstractmethod
+    async def send_audio_message_by_url(
+        self,
+        to: str,
+        audio_url: str,
+        quoted_message_id: str | None = None,
+    ) -> WhatsAppMediaMessage:
+        """
+        Send an audio message via URL.
+
+        Args:
+            to: Recipient phone number
+            audio_url: URL of the audio file
+            quoted_message_id: Optional ID of message to quote/reply to
+
+        Returns:
+            The sent audio message
+        """
+        pass
+
+    @abstractmethod
     async def send_typing_indicator(self, to: str, duration: int = 3) -> None:
         """
         Send typing indicator to show the bot is processing.

@@ -837,3 +837,129 @@ class MetaWhatsAppProvider(WhatsAppProvider):
         base_stats["session_stats"] = session_stats
 
         return base_stats
+
+    async def send_audio_message(
+        self,
+        to: str,
+        audio_base64: str,
+        quoted_message_id: str | None = None,
+    ) -> WhatsAppMediaMessage:
+        """Send an audio message via Meta WhatsApp Business API."""
+        logger.info(f"Sending audio message to {to}")
+
+        try:
+            # Upload audio to Meta first
+            media_id = await self._upload_audio_base64(audio_base64)
+
+            # Send audio message
+            payload = {
+                "messaging_product": "whatsapp",
+                "to": self._normalize_phone(to),
+                "type": "audio",
+                "audio": {"id": media_id},
+            }
+
+            if quoted_message_id:
+                payload["context"] = {"message_id": quoted_message_id}
+
+            url = self._build_url(f"{self.config.phone_number_id}/messages")
+            response_data = await self._make_request("POST", url, payload)
+
+            message_id = response_data["messages"][0]["id"]
+
+            return WhatsAppAudioMessage(
+                id=message_id,
+                from_number=self.config.phone_number_id,
+                to_number=to,
+                timestamp=datetime.now(),
+                status=WhatsAppMessageStatus.SENT,
+                media_url=media_id,
+                media_mime_type="audio/ogg",
+                quoted_message_id=quoted_message_id,
+                is_voice_note=True,
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to send audio message: {e}")
+            raise MetaWhatsAppError(f"Failed to send audio message: {e}")
+
+    async def send_audio_message_by_url(
+        self,
+        to: str,
+        audio_url: str,
+        quoted_message_id: str | None = None,
+    ) -> WhatsAppMediaMessage:
+        """Send an audio message via URL using Meta WhatsApp Business API."""
+        logger.info(f"Sending audio message via URL to {to}: {audio_url}")
+
+        try:
+            # Upload audio from URL to Meta
+            media_id = await self._upload_media(audio_url, "audio")
+
+            # Send audio message
+            payload = {
+                "messaging_product": "whatsapp",
+                "to": self._normalize_phone(to),
+                "type": "audio",
+                "audio": {"id": media_id},
+            }
+
+            if quoted_message_id:
+                payload["context"] = {"message_id": quoted_message_id}
+
+            url = self._build_url(f"{self.config.phone_number_id}/messages")
+            response_data = await self._make_request("POST", url, payload)
+
+            message_id = response_data["messages"][0]["id"]
+
+            return WhatsAppAudioMessage(
+                id=message_id,
+                from_number=self.config.phone_number_id,
+                to_number=to,
+                timestamp=datetime.now(),
+                status=WhatsAppMessageStatus.SENT,
+                media_url=audio_url,
+                media_mime_type="audio/ogg",
+                quoted_message_id=quoted_message_id,
+                is_voice_note=True,
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to send audio message via URL: {e}")
+            raise MetaWhatsAppError(f"Failed to send audio message via URL: {e}")
+
+    async def _upload_audio_base64(self, audio_base64: str) -> str:
+        """Upload base64 audio to Meta and return media ID."""
+        try:
+            import base64
+
+            # Decode base64 to bytes
+            audio_data = base64.b64decode(audio_base64)
+
+            # Upload to Meta
+            upload_url = self._build_url(f"{self.config.phone_number_id}/media")
+
+            form_data = aiohttp.FormData()
+            form_data.add_field("messaging_product", "whatsapp")
+            form_data.add_field("type", "audio")
+            form_data.add_field(
+                "file",
+                audio_data,
+                filename="audio.ogg",
+                content_type="audio/ogg",
+            )
+
+            # Create a separate session for file upload
+            headers = {"Authorization": f"Bearer {self.config.access_token}"}
+            timeout = aiohttp.ClientTimeout(total=self.config.timeout)
+
+            async with aiohttp.ClientSession(
+                headers=headers, timeout=timeout
+            ) as upload_session:
+                async with upload_session.post(upload_url, data=form_data) as response:
+                    response_data = await self._handle_response(response, 200)
+                    return response_data["id"]
+
+        except Exception as e:
+            logger.error(f"Failed to upload audio base64: {e}")
+            raise MetaWhatsAppError(f"Failed to upload audio base64: {e}")

@@ -1029,6 +1029,89 @@ class EvolutionAPIProvider(WhatsAppProvider):
             )
             raise EvolutionAPIError(f"Failed to send audio message: {e}")
 
+    async def send_audio_message_by_url(
+        self,
+        to: str,
+        audio_url: str,
+        quoted_message_id: str | None = None,
+    ) -> WhatsAppMediaMessage:
+        """Send an audio message via URL using Evolution API."""
+        logger.info(f"Sending audio message via URL to {to}: {audio_url}")
+        if quoted_message_id:
+            logger.debug(f"Audio message is quoting message ID: {quoted_message_id}")
+
+        try:
+            # CRITICAL FIX: Check if there's a stored remoteJid for this contact
+            session = await self.get_session(to)
+            remote_jid = session.context_data.get("remote_jid") if session else None
+
+            if remote_jid:
+                logger.info(
+                    f"🔑 Using stored remoteJid for audio URL to {to}: {remote_jid}"
+                )
+                normalized_to = remote_jid
+            else:
+                normalized_to = self._normalize_phone(to)
+                logger.debug(f"Normalized phone number: {to} -> {normalized_to}")
+
+            payload: MutableMapping[str, Any] = {
+                "number": normalized_to,
+                "audioUrl": audio_url,  # Use URL instead of base64
+            }
+
+            if quoted_message_id:
+                payload["quoted"] = {"key": {"id": quoted_message_id}}
+
+            url = self._build_url(f"sendWhatsAppAudio/{self.config.instance_name}")
+            response_data = await self._make_request_with_resilience(
+                "POST", url, payload, expected_status=[200, 201]
+            )
+
+            message_id = response_data["key"]["id"]
+            from_jid = response_data["key"]["remoteJid"]
+
+            message = WhatsAppAudioMessage(
+                id=message_id,
+                from_number=from_jid,
+                to_number=to,
+                timestamp=datetime.now(),
+                status=WhatsAppMessageStatus.SENT,
+                media_url=audio_url,  # Store the URL
+                media_mime_type="audio/ogg",
+                quoted_message_id=quoted_message_id,
+                is_voice_note=True,
+            )
+
+            logger.info(
+                f"Audio message sent successfully via URL to {to}: {message_id}",
+                extra={
+                    "message_id": message_id,
+                    "to_number": to,
+                    "normalized_to": normalized_to,
+                    "from_jid": from_jid,
+                    "audio_url": audio_url,
+                    "has_quote": quoted_message_id is not None,
+                },
+            )
+            return message
+
+        except EvolutionAPIError:
+            logger.error(
+                f"Evolution API error while sending audio message via URL to {to}"
+            )
+            raise
+        except Exception as e:
+            logger.error(
+                f"Failed to send audio message via URL to {to}: {type(e).__name__}: {e}",
+                extra={
+                    "to_number": to,
+                    "audio_url": audio_url,
+                    "error_type": type(e).__name__,
+                    "has_quote": quoted_message_id is not None,
+                },
+            )
+            raise EvolutionAPIError(f"Failed to send audio message via URL: {e}")
+
     async def send_typing_indicator(self, to: str, duration: int = 3) -> None:
         """Send typing indicator via Evolution API."""
         logger.debug(f"Sending typing indicator to {to} for {duration}s")
