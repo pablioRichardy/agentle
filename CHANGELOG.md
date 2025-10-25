@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.9.10
+feat(docx-parser, pdf-parser): Implement max_output_tokens for response generation
+
+- Add max_output_tokens attribute to DocxFileParser and PDFFileParser for controlling token generation in responses
+- Update relevant methods to utilize max_output_tokens in generation configuration
+
 ## v0.9.9
 fix(openrouter-adapter): Improve tool call argument parsing with robust error handling
 
