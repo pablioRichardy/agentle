@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 import re
 import time
-from collections.abc import Mapping, MutableMapping
+from collections.abc import Mapping, MutableMapping, Sequence
 from datetime import datetime
 from typing import Any, override
 from urllib.parse import urljoin
@@ -307,7 +307,7 @@ class EvolutionAPIProvider(WhatsAppProvider):
         method: str,
         url: str,
         data: Mapping[str, Any] | None = None,
-        expected_status: int = 200,
+        expected_status: int | Sequence[int] = 200,
     ) -> Mapping[str, Any]:
         """
         Make HTTP request with comprehensive resilience mechanisms.
@@ -416,7 +416,7 @@ class EvolutionAPIProvider(WhatsAppProvider):
         method: str,
         url: str,
         data: Mapping[str, Any] | None = None,
-        expected_status: int = 200,
+        expected_status: int | Sequence[int] = 200,
     ) -> Mapping[str, Any]:
         """
         Make HTTP request with proper error handling and metrics.
@@ -531,7 +531,7 @@ class EvolutionAPIProvider(WhatsAppProvider):
     async def _handle_response(
         self,
         response: aiohttp.ClientResponse,
-        expected_status: int,
+        expected_status: int | Sequence[int],
         request_url: str,
         request_data: Mapping[str, Any] | None,
         start_time: float,
@@ -571,7 +571,10 @@ class EvolutionAPIProvider(WhatsAppProvider):
             },
         )
 
-        if response.status == expected_status:
+        if isinstance(expected_status, int):
+            expected_status = [expected_status]
+
+        if response.status not in expected_status:
             try:
                 response_data = await response.json()
                 logger.debug(f"Response data received: {response_data}")
@@ -771,7 +774,7 @@ class EvolutionAPIProvider(WhatsAppProvider):
 
             url = self._build_url(f"sendText/{self.config.instance_name}")
             response_data = await self._make_request_with_resilience(
-                "POST", url, payload, expected_status=201
+                "POST", url, payload, expected_status=[200, 201]
             )
 
             message_id = response_data["key"]["id"]
@@ -885,7 +888,7 @@ class EvolutionAPIProvider(WhatsAppProvider):
 
             url = self._build_url(f"{endpoint}/{self.config.instance_name}")
             response_data = await self._make_request_with_resilience(
-                "POST", url, payload, expected_status=201
+                "POST", url, payload, expected_status=[200, 201]
             )
 
             message_id = response_data["key"]["id"]
@@ -982,7 +985,7 @@ class EvolutionAPIProvider(WhatsAppProvider):
 
             url = self._build_url(f"sendWhatsAppAudio/{self.config.instance_name}")
             response_data = await self._make_request_with_resilience(
-                "POST", url, payload, expected_status=201
+                "POST", url, payload, expected_status=[200, 201]
             )
 
             message_id = response_data["key"]["id"]
@@ -1060,7 +1063,7 @@ class EvolutionAPIProvider(WhatsAppProvider):
                 use_message_prefix=False,
             )
             await self._make_request_with_resilience(
-                "POST", url, payload, expected_status=201
+                "POST", url, payload, expected_status=[200, 201]
             )
 
             logger.debug(
@@ -1122,7 +1125,7 @@ class EvolutionAPIProvider(WhatsAppProvider):
                 use_message_prefix=False,
             )
             await self._make_request_with_resilience(
-                "POST", url, payload, expected_status=201
+                "POST", url, payload, expected_status=[200, 201]
             )
 
             logger.debug(
@@ -1173,7 +1176,7 @@ class EvolutionAPIProvider(WhatsAppProvider):
                 use_message_prefix=False,
             )
             await self._make_request_with_resilience(
-                "POST", url, payload, expected_status=201
+                "POST", url, payload, expected_status=[200, 201]
             )
 
             logger.debug(
@@ -1423,7 +1426,7 @@ class EvolutionAPIProvider(WhatsAppProvider):
             payload = {"message": {"key": {"id": media_id}}}
 
             response_data = await self._make_request_with_resilience(
-                "POST", url, payload, expected_status=201
+                "POST", url, payload, expected_status=[200, 201]
             )
 
             if "base64" not in response_data:
