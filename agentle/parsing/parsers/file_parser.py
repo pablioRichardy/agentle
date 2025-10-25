@@ -261,6 +261,9 @@ class FileParser(DocumentParser):
     Note: When this is enabled, most other configuration options are ignored as the AI handles all processing.
     """
 
+    max_output_tokens: int | None = Field(default=None)
+    """Maximum number of tokens to generate in the response."""
+
     async def parse_async(self, document_path: str) -> ParsedFile:
         """
         Asynchronously parse a document using the appropriate parser for its file type.
@@ -378,4 +381,5 @@ class FileParser(DocumentParser):
             use_native_docx_processing=self.use_native_docx_processing,
             strategy=self.strategy,
             model=self.model,
+            max_output_tokens=self.max_output_tokens,
         ).parse_async(document_path=str(resolved_path))
