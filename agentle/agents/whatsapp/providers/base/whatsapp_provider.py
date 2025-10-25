@@ -82,6 +82,26 @@ class WhatsAppProvider(abc.ABC):
         pass
 
     @abstractmethod
+    async def send_audio_message(
+        self,
+        to: str,
+        audio_base64: str,
+        quoted_message_id: str | None = None,
+    ) -> WhatsAppMediaMessage:
+        """
+        Send an audio message (optimized for voice/TTS).
+
+        Args:
+            to: Recipient phone number
+            audio_base64: Base64-encoded audio data
+            quoted_message_id: Optional ID of message to quote/reply to
+
+        Returns:
+            The sent audio message
+        """
+        pass
+
+    @abstractmethod
     async def send_typing_indicator(self, to: str, duration: int = 3) -> None:
         """
         Send typing indicator to show the bot is processing.

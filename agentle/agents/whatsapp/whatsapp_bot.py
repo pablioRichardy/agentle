@@ -54,7 +54,7 @@ from agentle.generations.models.messages.generated_assistant_message import (
 from agentle.generations.models.messages.user_message import UserMessage
 from agentle.generations.tools.tool import Tool
 from agentle.generations.tools.tool_execution_result import ToolExecutionResult
-
+from agentle.tts.tts_provider import TtsProvider
 
 if TYPE_CHECKING:
     from blacksheep import Application
@@ -135,6 +135,7 @@ class WhatsAppBot(BaseModel):
 
     agent: Agent[Any]
     provider: WhatsAppProvider
+    tts_provider: TtsProvider | None = Field(default=None)
     config: WhatsAppBotConfig = Field(default_factory=WhatsAppBotConfig)
 
     # REMOVED: context_manager field - no longer needed
@@ -2079,6 +2080,59 @@ class WhatsAppBot(BaseModel):
         logger.info(
             f"[SEND_RESPONSE] Sending response to {to} (length: {len(response_text)}, reply_to: {reply_to})"
         )
+
+        # Check if we should send audio via TTS
+        if (
+            self.tts_provider
+            and self.config.speech_config
+            and self.config.speech_play_chance > 0
+        ):
+            import random
+
+            # Determine if we should play speech based on chance
+            should_play_speech = random.random() < self.config.speech_play_chance
+
+            if should_play_speech:
+                logger.info(
+                    f"[TTS] Attempting to send audio response to {to} (chance: {self.config.speech_play_chance * 100}%)"
+                )
+                try:
+                    # Synthesize speech
+                    speech_result = await self.tts_provider.synthesize(
+                        response_text, config=self.config.speech_config
+                    )
+
+                    # Send audio message
+                    await self.provider.send_audio_message(
+                        to=to,
+                        audio_base64=speech_result.audio,
+                        quoted_message_id=reply_to
+                        if self.config.quote_messages
+                        else None,
+                    )
+
+                    logger.info(
+                        f"[TTS] Successfully sent audio response to {to}",
+                        extra={
+                            "to_number": to,
+                            "text_length": len(response_text),
+                            "mime_type": str(speech_result.mime_type),
+                            "format": str(speech_result.format),
+                        },
+                    )
+                    # Audio sent successfully, return early
+                    return
+
+                except Exception as e:
+                    logger.warning(
+                        f"[TTS] Failed to send audio response to {to}, falling back to text: {e}",
+                        extra={
+                            "to_number": to,
+                            "error_type": type(e).__name__,
+                            "error": str(e),
+                        },
+                    )
+                    # Fall through to send text message instead
 
         # Split messages by line breaks and length
         messages = self._split_message_by_line_breaks(response_text)

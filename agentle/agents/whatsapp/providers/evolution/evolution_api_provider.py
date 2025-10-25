@@ -947,6 +947,85 @@ class EvolutionAPIProvider(WhatsAppProvider):
 
     # [Continue with remaining methods using enhanced patterns...]
 
+    async def send_audio_message(
+        self,
+        to: str,
+        audio_base64: str,
+        quoted_message_id: str | None = None,
+    ) -> WhatsAppMediaMessage:
+        """Send an audio message via Evolution API with enhanced error handling."""
+        logger.info(f"Sending audio message to {to}")
+        if quoted_message_id:
+            logger.debug(f"Audio message is quoting message ID: {quoted_message_id}")
+
+        try:
+            # CRITICAL FIX: Check if there's a stored remoteJid for this contact
+            session = await self.get_session(to)
+            remote_jid = session.context_data.get("remote_jid") if session else None
+
+            if remote_jid:
+                logger.info(
+                    f"🔑 Using stored remoteJid for audio to {to}: {remote_jid}"
+                )
+                normalized_to = remote_jid
+            else:
+                normalized_to = self._normalize_phone(to)
+                logger.debug(f"Normalized phone number: {to} -> {normalized_to}")
+
+            payload: MutableMapping[str, Any] = {
+                "number": normalized_to,
+                "audio": audio_base64,
+            }
+
+            if quoted_message_id:
+                payload["quoted"] = {"key": {"id": quoted_message_id}}
+
+            url = self._build_url(f"sendWhatsAppAudio/{self.config.instance_name}")
+            response_data = await self._make_request_with_resilience(
+                "POST", url, payload, expected_status=201
+            )
+
+            message_id = response_data["key"]["id"]
+            from_jid = response_data["key"]["remoteJid"]
+
+            message = WhatsAppAudioMessage(
+                id=message_id,
+                from_number=from_jid,
+                to_number=to,
+                timestamp=datetime.now(),
+                status=WhatsAppMessageStatus.SENT,
+                media_url="",  # Base64 audio doesn't have a URL
+                media_mime_type="audio/ogg",
+                quoted_message_id=quoted_message_id,
+                is_voice_note=True,
+            )
+
+            logger.info(
+                f"Audio message sent successfully to {to}: {message_id}",
+                extra={
+                    "message_id": message_id,
+                    "to_number": to,
+                    "normalized_to": normalized_to,
+                    "from_jid": from_jid,
+                    "has_quote": quoted_message_id is not None,
+                },
+            )
+            return message
+
+        except EvolutionAPIError:
+            logger.error(f"Evolution API error while sending audio message to {to}")
+            raise
+        except Exception as e:
+            logger.error(
+                f"Failed to send audio message to {to}: {type(e).__name__}: {e}",
+                extra={
+                    "to_number": to,
+                    "error_type": type(e).__name__,
+                    "has_quote": quoted_message_id is not None,
+                },
+            )
+            raise EvolutionAPIError(f"Failed to send audio message: {e}")
+
     async def send_typing_indicator(self, to: str, duration: int = 3) -> None:
         """Send typing indicator via Evolution API."""
         logger.debug(f"Sending typing indicator to {to} for {duration}s")

@@ -6,6 +6,8 @@ from typing import Any
 from rsb.models.base_model import BaseModel
 from rsb.models.field import Field
 
+from agentle.tts.speech_config import SpeechConfig
+
 
 class WhatsAppBotConfig(BaseModel):
     """Configuration for WhatsApp bot behavior with simplified constructors and better organization."""
@@ -85,6 +87,18 @@ class WhatsAppBotConfig(BaseModel):
         default=10.0, description="Threshold for logging slow responses"
     )
 
+    # === Text-to-Speech (TTS) ===
+    speech_play_chance: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Probability (0.0-1.0) of sending audio response instead of text",
+    )
+    speech_config: SpeechConfig | None = Field(
+        default=None,
+        description="Optional SpeechConfig for TTS provider customization",
+    )
+
     # === Error Handling ===
     retry_failed_messages: bool = Field(
         default=True, description="Retry processing failed messages"
@@ -153,6 +167,9 @@ class WhatsAppBotConfig(BaseModel):
         retry_failed_messages: bool | None = None,
         max_retry_attempts: int | None = None,
         retry_delay_seconds: float | None = None,
+        # Text-to-Speech
+        speech_play_chance: float | None = None,
+        speech_config: SpeechConfig | None = None,
     ) -> "WhatsAppBotConfig":
         """
         Create a new configuration instance with specified parameters overridden.
@@ -258,6 +275,12 @@ class WhatsAppBotConfig(BaseModel):
             overrides["max_retry_attempts"] = max_retry_attempts
         if retry_delay_seconds is not None:
             overrides["retry_delay_seconds"] = retry_delay_seconds
+
+        # Text-to-Speech
+        if speech_play_chance is not None:
+            overrides["speech_play_chance"] = speech_play_chance
+        if speech_config is not None:
+            overrides["speech_config"] = speech_config
 
         # Update configuration with overrides
         current_config.update(overrides)

@@ -6,7 +6,7 @@ from agentle.tts.output_format_type import OutputFormatType
 
 class SpeechResult(BaseModel):
     audio: str = Field(...)
-    """the raw audio bytes in base-64 format"""
+    """The speech in base-64 format"""
 
     mime_type: AudioFormat = Field(...)
     """`audio/mpeg`, `audio/wav`, `audio/opus`"""
