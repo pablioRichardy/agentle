@@ -1,6 +1,5 @@
 # Changelog
 
-## v0.9.21
+## v0.9.22
 
-- feat(apis): new boolean type, recursive object schema serialization, request config and more
-
+- fix(apis): import cycle errors
