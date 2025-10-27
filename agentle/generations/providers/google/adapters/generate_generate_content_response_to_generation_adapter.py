@@ -253,16 +253,19 @@ class GenerateGenerateContentResponseToGenerationAdapter[T](
                 _all_parts.extend(_parts)
 
                 if _optional_model is not None:
-                    optional_model = parse_streaming_json(
-                        "".join([str(p.text) for p in _all_parts]),
+                    # Parse streaming JSON and update final_parsed
+                    accumulated_json_text = "".join([str(p.text) for p in _all_parts])
+                    parsed_optional_model = parse_streaming_json(
+                        accumulated_json_text,
                         model=_optional_model,
                     )
-                    chunk.parsed = optional_model
+                    # Cast the optional model back to T for use in the generation
+                    final_parsed = cast(T, parsed_optional_model)
                 else:
-                    chunk.parsed = None
+                    final_parsed = None
 
-            # Extract parsed data (usually only available in final chunk)
-            if hasattr(chunk, "parsed") and chunk.parsed is not None:
+            # Also check if chunk has parsed attribute from Google API
+            elif hasattr(chunk, "parsed") and chunk.parsed is not None:
                 final_parsed = cast(T | None, chunk.parsed)
 
             # Extract usage (usually only in final chunk)

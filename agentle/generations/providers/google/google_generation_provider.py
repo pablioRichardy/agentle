@@ -182,6 +182,37 @@ class GoogleGenerationProvider(GenerationProvider):
         """
         return "google"
 
+    @overload
+    def stream_async[T](
+        self,
+        *,
+        model: str | ModelKind | None = None,
+        messages: Sequence[Message],
+        response_schema: type[T],
+        generation_config: GenerationConfig | GenerationConfigDict | None = None,
+    ) -> AsyncGenerator[Generation[T], None]: ...
+
+    @overload
+    def stream_async(
+        self,
+        *,
+        model: str | ModelKind | None = None,
+        messages: Sequence[Message],
+        response_schema: None = None,
+        generation_config: GenerationConfig | GenerationConfigDict | None = None,
+        tools: Sequence[Tool],
+    ) -> AsyncGenerator[Generation[WithoutStructuredOutput], None]: ...
+
+    @overload
+    def stream_async(
+        self,
+        *,
+        model: str | ModelKind | None = None,
+        messages: Sequence[Message],
+        response_schema: None = None,
+        generation_config: GenerationConfig | GenerationConfigDict | None = None,
+    ) -> AsyncGenerator[Generation[WithoutStructuredOutput], None]: ...
+
     async def stream_async[T = WithoutStructuredOutput](
         self,
         *,
@@ -190,7 +221,7 @@ class GoogleGenerationProvider(GenerationProvider):
         response_schema: type[T] | None = None,
         generation_config: GenerationConfig | GenerationConfigDict | None = None,
         tools: Sequence[Tool] | None = None,
-    ) -> AsyncGenerator[Generation[WithoutStructuredOutput], None]:
+    ) -> AsyncGenerator[Generation[T], None]:
         from google.genai import types
 
         if self._normalize_generation_config(generation_config).n > 1:
@@ -260,6 +291,7 @@ class GoogleGenerationProvider(GenerationProvider):
             tools=_tools,
             max_output_tokens=_generation_config.max_output_tokens,
             response_schema=response_schema if bool(response_schema) else None,
+            response_mime_type="application/json" if bool(response_schema) else None,
             automatic_function_calling=types.AutomaticFunctionCallingConfig(
                 disable=disable_function_calling,
                 maximum_remote_calls=maximum_remote_calls,
@@ -295,10 +327,8 @@ class GoogleGenerationProvider(GenerationProvider):
             raise
 
         # Create the response
-        response = GenerateGenerateContentResponseToGenerationAdapter[
-            WithoutStructuredOutput
-        ](
-            response_schema=None,
+        response = GenerateGenerateContentResponseToGenerationAdapter[T](
+            response_schema=response_schema,
             model=used_model,
         ).adapt(generate_content_response_stream)
 
