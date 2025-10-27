@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.9.22
+## v0.9.23
 
-- fix(apis): import cycle errors
+- fix(google_provider): wrongly setting "parsed" attribute on generation
