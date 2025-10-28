@@ -1,5 +1,5 @@
 # Changelog
 
-## v0.9.24
+## v0.9.25
 
-- fix(agent): populating "parsed" attribute in the "Agent" class.
+- fix(streming) accumulating json parsing when streaming is True
