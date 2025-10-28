@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 import logging
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator
 from logging import Logger
 from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
@@ -88,11 +88,11 @@ class GenerateGenerateContentResponseToGenerationAdapter[T](
     @overload
     def adapt(
         self, _f: AsyncIterator["GenerateContentResponse"]
-    ) -> AsyncIterator[Generation[T]]: ...
+    ) -> AsyncGenerator[Generation[T], None]: ...
 
     def adapt(
         self, _f: "GenerateContentResponse | AsyncIterator[GenerateContentResponse]"
-    ) -> Generation[T] | AsyncIterator[Generation[T]]:
+    ) -> Generation[T] | AsyncGenerator[Generation[T], None]:
         """
         Convert Google response(s) to Agentle Generation object(s).
 
@@ -214,7 +214,7 @@ class GenerateGenerateContentResponseToGenerationAdapter[T](
 
     async def _adapt_streaming(
         self, response_stream: AsyncIterator["GenerateContentResponse"]
-    ) -> AsyncIterator[Generation[T]]:
+    ) -> AsyncGenerator[Generation[T], None]:
         """Adapt a streaming response with proper text accumulation."""
         generation_id = self.preferred_id or uuid.uuid4()
         created_time = datetime.datetime.now()

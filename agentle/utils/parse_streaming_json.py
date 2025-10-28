@@ -21,8 +21,6 @@ def parse_streaming_json[T: BaseModel](potential_json: str | None, model: type[T
     if potential_json is None:
         return model()
 
-    # print(f"parsing: {potential_json}")
-
     def find_json_boundaries(text: str) -> tuple[int, int]:
         """Find the start and potential end of JSON in the text."""
 
@@ -95,16 +93,31 @@ def parse_streaming_json[T: BaseModel](potential_json: str | None, model: type[T
         # Remove any leading/trailing whitespace
         json_str = json_str.strip()
 
-        # Fix missing closing quotes on string values (at the end)
-        # Look for patterns like: "key": "value without closing quote
-        json_str = re.sub(r':\s*"([^"]*?)(?:\s*[,}]|$)', r': "\1"', json_str)
-
-        # Fix missing closing quotes for keys
-        # Look for patterns like: "key without quotes:
-        json_str = re.sub(r'"([^"]*?)(?=\s*:)', r'"\1"', json_str)
-
         # Remove trailing commas before closing braces/brackets
         json_str = re.sub(r",\s*([}\]])", r"\1", json_str)
+
+        # For streaming JSON, we need to handle incomplete strings carefully
+        # Check if we have an unclosed string at the end
+        in_string = False
+        escape_next = False
+        last_quote_pos = -1
+        
+        for i, char in enumerate(json_str):
+            if escape_next:
+                escape_next = False
+                continue
+            if char == '\\':
+                escape_next = True
+                continue
+            if char == '"':
+                in_string = not in_string
+                if in_string:
+                    last_quote_pos = i
+
+        # If we're in a string at the end (incomplete), close it properly
+        if in_string and last_quote_pos != -1:
+            # Add closing quote for the incomplete string
+            json_str += '"'
 
         # Ensure the JSON has proper closing braces if it appears incomplete
         open_braces = json_str.count("{") - json_str.count("}")
@@ -124,12 +137,25 @@ def parse_streaming_json[T: BaseModel](potential_json: str | None, model: type[T
         data = {}
 
         # Extract string key-value pairs with quoted keys
-        # Pattern: "key": "value" or 'key': 'value'
-        string_pattern = r'["\']([^"\']+)["\']:\s*["\']([^"\']*)["\']?'
-        string_matches = re.findall(string_pattern, json_str)
+        # IMPROVED: Handle long strings that may contain newlines, special chars, etc.
+        # Pattern: "key": "value..." - capture everything until the next unescaped quote or EOF
+        string_pattern = r'["\']([\w]+)["\']:\s*["\']([^"\']*?)(?:["\']|$)'
+        string_matches = re.findall(string_pattern, json_str, re.DOTALL)
+        
+        # Also try to capture very long strings that span multiple lines
+        # This catches incomplete strings during streaming
+        long_string_pattern = r'["\']([\w_]+)["\']:\s*["\'](.+?)(?:["\'],?\s*["}]|$)'
+        long_matches = re.findall(long_string_pattern, json_str, re.DOTALL)
 
         for key, value in string_matches:
             data[key] = value
+        
+        # Prefer long_matches for fields that might be truncated in string_matches
+        for key, value in long_matches:
+            # Only override if the long match has more content
+            existing = data.get(key, "")
+            if key not in data or (isinstance(existing, str) and len(value) > len(existing)):
+                data[key] = value
 
         # Extract string key-value pairs with unquoted keys
         # Pattern: key: "value" (no quotes around key)
