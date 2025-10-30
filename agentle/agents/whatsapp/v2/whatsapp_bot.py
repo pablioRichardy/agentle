@@ -1,7 +1,10 @@
 from collections.abc import Callable
 from typing import Any
+
 from pydantic import ConfigDict
 from rsb.models.base_model import BaseModel
+
+from agentle.agents.whatsapp.v2.batch_processor_manager import BatchProcessorManager
 
 
 class WhatsAppBot(BaseModel):
