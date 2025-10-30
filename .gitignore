@@ -110,3 +110,4 @@ docker/storage
 docker/snapshots
 exemples/servers
 .conversations
+.kiro

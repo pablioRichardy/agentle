@@ -10,7 +10,65 @@ from agentle.tts.speech_config import SpeechConfig
 
 
 class WhatsAppBotConfig(BaseModel):
-    """Configuration for WhatsApp bot behavior with simplified constructors and better organization."""
+    """Configuration for WhatsApp bot behavior with simplified constructors and better organization.
+
+    This configuration class provides comprehensive control over WhatsApp bot behavior including:
+    - Core bot behavior (typing indicators, message reading, quoting)
+    - Message batching for handling rapid message sequences
+    - Spam protection and rate limiting
+    - Human-like delays to simulate realistic human behavior patterns
+    - Text-to-speech integration
+    - Error handling and retry logic
+    - Debug and monitoring settings
+
+    Human-Like Delays Feature:
+        The human-like delays feature simulates realistic human behavior patterns by introducing
+        configurable delays at three critical points in message processing:
+
+        1. Read Delay: Time between receiving a message and marking it as read
+           - Simulates the time a human takes to read and comprehend a message
+           - Calculated based on message length using realistic reading speeds
+
+        2. Typing Delay: Time between generating a response and sending it
+           - Simulates the time a human takes to compose and type a response
+           - Calculated based on response length using realistic typing speeds
+
+        3. Send Delay: Brief final delay before message transmission
+           - Simulates the final review time before a human sends a message
+           - Random delay within configured bounds
+
+        These delays help prevent platform detection and account restrictions while
+        maintaining natural interaction timing. All delays support jitter (random variation)
+        to prevent detectable patterns.
+
+    Configuration Presets:
+        Use the class methods to create pre-configured instances optimized for specific use cases:
+        - development(): Fast iteration with delays disabled
+        - production(): Balanced configuration with delays enabled
+        - high_volume(): Optimized for throughput with balanced delays
+        - customer_service(): Professional timing with thoughtful delays
+        - minimal(): Bare minimum configuration with delays disabled
+
+    Examples:
+        >>> # Create a production configuration with default delay settings
+        >>> config = WhatsAppBotConfig.production()
+
+        >>> # Create a custom configuration with specific delay bounds
+        >>> config = WhatsAppBotConfig(
+        ...     enable_human_delays=True,
+        ...     min_read_delay_seconds=3.0,
+        ...     max_read_delay_seconds=20.0,
+        ...     min_typing_delay_seconds=5.0,
+        ...     max_typing_delay_seconds=60.0
+        ... )
+
+        >>> # Override delay settings on an existing configuration
+        >>> prod_config = WhatsAppBotConfig.production()
+        >>> custom_config = prod_config.with_overrides(
+        ...     min_read_delay_seconds=5.0,
+        ...     max_typing_delay_seconds=90.0
+        ... )
+    """
 
     # === Core Bot Behavior ===
     typing_indicator: bool = Field(
@@ -110,6 +168,56 @@ class WhatsAppBotConfig(BaseModel):
         default=1.0, description="Delay between retry attempts"
     )
 
+    # === Human-Like Delays ===
+    enable_human_delays: bool = Field(
+        default=False,
+        description="Enable human-like delays for message processing to simulate realistic human behavior patterns",
+    )
+    min_read_delay_seconds: float = Field(
+        default=2.0,
+        ge=0.0,
+        description="Minimum delay before marking message as read (seconds). Simulates time to read incoming messages.",
+    )
+    max_read_delay_seconds: float = Field(
+        default=15.0,
+        ge=0.0,
+        description="Maximum delay before marking message as read (seconds). Prevents excessively long read delays.",
+    )
+    min_typing_delay_seconds: float = Field(
+        default=3.0,
+        ge=0.0,
+        description="Minimum delay before sending response (seconds). Simulates time to compose a response.",
+    )
+    max_typing_delay_seconds: float = Field(
+        default=45.0,
+        ge=0.0,
+        description="Maximum delay before sending response (seconds). Prevents excessively long typing delays.",
+    )
+    min_send_delay_seconds: float = Field(
+        default=0.5,
+        ge=0.0,
+        description="Minimum delay before message transmission (seconds). Simulates final message review time.",
+    )
+    max_send_delay_seconds: float = Field(
+        default=4.0,
+        ge=0.0,
+        description="Maximum delay before message transmission (seconds). Prevents excessively long send delays.",
+    )
+    enable_delay_jitter: bool = Field(
+        default=True,
+        description="Enable random variation (±20%) in delay calculations to prevent detectable patterns and simulate natural human behavior variability",
+    )
+    show_typing_during_delay: bool = Field(
+        default=True,
+        description="Show typing indicator during typing delays to provide visual feedback to users while the bot is 'composing' a response",
+    )
+    batch_read_compression_factor: float = Field(
+        default=0.7,
+        ge=0.1,
+        le=1.0,
+        description="Compression factor (0.1-1.0) applied to batch read delays. Lower values simulate faster batch reading (e.g., 0.7 = 30% faster than reading individually)",
+    )
+
     # === Backward Compatibility (Deprecated) ===
     # These are kept for backward compatibility but map to the simplified parameters
     @property
@@ -170,6 +278,17 @@ class WhatsAppBotConfig(BaseModel):
         # Text-to-Speech
         speech_play_chance: float | None = None,
         speech_config: SpeechConfig | None = None,
+        # Human-Like Delays
+        enable_human_delays: bool | None = None,
+        min_read_delay_seconds: float | None = None,
+        max_read_delay_seconds: float | None = None,
+        min_typing_delay_seconds: float | None = None,
+        max_typing_delay_seconds: float | None = None,
+        min_send_delay_seconds: float | None = None,
+        max_send_delay_seconds: float | None = None,
+        enable_delay_jitter: bool | None = None,
+        show_typing_during_delay: bool | None = None,
+        batch_read_compression_factor: float | None = None,
     ) -> "WhatsAppBotConfig":
         """
         Create a new configuration instance with specified parameters overridden.
@@ -207,6 +326,16 @@ class WhatsAppBotConfig(BaseModel):
             >>> combined = cs_config.with_overrides(
             ...     base_config=hv_config,
             ...     welcome_message="Welcome to our high-volume support!"
+            ... )
+
+            >>> # Enable human-like delays with custom timing
+            >>> prod_config = WhatsAppBotConfig.production()
+            >>> natural_config = prod_config.with_overrides(
+            ...     enable_human_delays=True,
+            ...     min_read_delay_seconds=3.0,
+            ...     max_read_delay_seconds=20.0,
+            ...     min_typing_delay_seconds=5.0,
+            ...     max_typing_delay_seconds=60.0
             ... )
         """
         # Determine starting configuration
@@ -282,6 +411,28 @@ class WhatsAppBotConfig(BaseModel):
         if speech_config is not None:
             overrides["speech_config"] = speech_config
 
+        # Human-Like Delays
+        if enable_human_delays is not None:
+            overrides["enable_human_delays"] = enable_human_delays
+        if min_read_delay_seconds is not None:
+            overrides["min_read_delay_seconds"] = min_read_delay_seconds
+        if max_read_delay_seconds is not None:
+            overrides["max_read_delay_seconds"] = max_read_delay_seconds
+        if min_typing_delay_seconds is not None:
+            overrides["min_typing_delay_seconds"] = min_typing_delay_seconds
+        if max_typing_delay_seconds is not None:
+            overrides["max_typing_delay_seconds"] = max_typing_delay_seconds
+        if min_send_delay_seconds is not None:
+            overrides["min_send_delay_seconds"] = min_send_delay_seconds
+        if max_send_delay_seconds is not None:
+            overrides["max_send_delay_seconds"] = max_send_delay_seconds
+        if enable_delay_jitter is not None:
+            overrides["enable_delay_jitter"] = enable_delay_jitter
+        if show_typing_during_delay is not None:
+            overrides["show_typing_during_delay"] = show_typing_during_delay
+        if batch_read_compression_factor is not None:
+            overrides["batch_read_compression_factor"] = batch_read_compression_factor
+
         # Update configuration with overrides
         current_config.update(overrides)
 
@@ -302,10 +453,22 @@ class WhatsAppBotConfig(BaseModel):
         Create a configuration optimized for development.
 
         Features:
-        - Debug mode enabled
-        - Faster response times
-        - Lenient rate limiting
-        - Detailed logging
+        - Debug mode enabled for comprehensive logging
+        - Faster response times for quick iteration
+        - Lenient rate limiting (100 messages/minute)
+        - Detailed logging and performance tracking
+        - Human-like delays DISABLED for fast iteration and testing
+        - Fast batching (1s delay, 5s timeout)
+
+        Delay Settings:
+        - enable_human_delays: False (disabled for development speed)
+
+        Use this preset during development and testing when you need fast feedback
+        and don't want to wait for realistic human-like delays.
+
+        Example:
+            >>> config = WhatsAppBotConfig.development()
+            >>> bot = WhatsAppBot(agent=agent, provider=provider, config=config)
         """
         return cls(
             # Core behavior
@@ -329,6 +492,8 @@ class WhatsAppBotConfig(BaseModel):
             # Error handling
             retry_failed_messages=True,
             max_retry_attempts=2,
+            # Human-like delays (disabled for development)
+            enable_human_delays=False,
         )
 
     @classmethod
@@ -343,10 +508,29 @@ class WhatsAppBotConfig(BaseModel):
         Create a configuration optimized for production.
 
         Features:
-        - Robust spam protection
-        - Efficient batching
-        - Conservative rate limiting
-        - Minimal debug output
+        - Robust spam protection (20 messages/minute limit)
+        - Efficient batching (10s delay, 60s timeout)
+        - Conservative rate limiting with 60s cooldown
+        - Minimal debug output for performance
+        - Human-like delays ENABLED with recommended baseline values
+        - Typing indicators shown during delays for user feedback
+
+        Delay Settings:
+        - enable_human_delays: True
+        - Read delays: 2.0s - 15.0s (simulates reading incoming messages)
+        - Typing delays: 3.0s - 45.0s (simulates composing responses)
+        - Send delays: 0.5s - 4.0s (simulates final review)
+        - Jitter enabled: ±20% random variation
+        - Typing indicator: Shown during typing delays
+        - Batch compression: 0.7x (30% faster batch reading)
+
+        These delay settings provide a good balance between natural behavior and
+        reasonable response times. They help prevent platform detection while
+        maintaining acceptable user experience.
+
+        Example:
+            >>> config = WhatsAppBotConfig.production()
+            >>> bot = WhatsAppBot(agent=agent, provider=provider, config=config)
         """
         return cls(
             # Core behavior
@@ -372,6 +556,17 @@ class WhatsAppBotConfig(BaseModel):
             retry_failed_messages=True,
             max_retry_attempts=3,
             retry_delay_seconds=1.0,
+            # Human-like delays (enabled with baseline values)
+            enable_human_delays=True,
+            min_read_delay_seconds=2.0,
+            max_read_delay_seconds=15.0,
+            min_typing_delay_seconds=3.0,
+            max_typing_delay_seconds=45.0,
+            min_send_delay_seconds=0.5,
+            max_send_delay_seconds=4.0,
+            enable_delay_jitter=True,
+            show_typing_during_delay=True,
+            batch_read_compression_factor=0.7,
         )
 
     @classmethod
@@ -385,10 +580,29 @@ class WhatsAppBotConfig(BaseModel):
         Create a configuration optimized for high-volume scenarios.
 
         Features:
-        - Aggressive batching
-        - Strong rate limiting
-        - Fast processing
-        - Minimal overhead
+        - Aggressive batching (1s delay, 10s timeout, up to 20 messages)
+        - Strong rate limiting (15 messages/minute, 120s cooldown)
+        - Fast processing with minimal overhead
+        - Typing indicators disabled for performance
+        - Human-like delays ENABLED with balanced timing optimized for throughput
+
+        Delay Settings:
+        - enable_human_delays: True
+        - Read delays: 1.5s - 12.0s (shorter for faster processing)
+        - Typing delays: 2.5s - 35.0s (shorter for faster responses)
+        - Send delays: 0.3s - 3.0s (shorter for faster transmission)
+        - Jitter enabled: ±20% random variation
+        - Typing indicator: DISABLED for performance
+        - Batch compression: 0.7x (30% faster batch reading)
+
+        These delay settings are optimized for high-volume scenarios where throughput
+        is important but you still want to maintain natural behavior patterns to
+        prevent platform detection. Delays are shorter than production but still
+        provide realistic timing.
+
+        Example:
+            >>> config = WhatsAppBotConfig.high_volume()
+            >>> bot = WhatsAppBot(agent=agent, provider=provider, config=config)
         """
         return cls(
             # Fast core behavior
@@ -413,6 +627,17 @@ class WhatsAppBotConfig(BaseModel):
             retry_failed_messages=True,
             max_retry_attempts=2,  # Fewer retries
             retry_delay_seconds=0.5,  # Faster retries
+            # Human-like delays (enabled with balanced timing)
+            enable_human_delays=True,
+            min_read_delay_seconds=1.5,
+            max_read_delay_seconds=12.0,
+            min_typing_delay_seconds=2.5,
+            max_typing_delay_seconds=35.0,
+            min_send_delay_seconds=0.3,
+            max_send_delay_seconds=3.0,
+            enable_delay_jitter=True,
+            show_typing_during_delay=False,  # Disabled for performance
+            batch_read_compression_factor=0.7,
         )
 
     @classmethod
@@ -427,10 +652,30 @@ class WhatsAppBotConfig(BaseModel):
         Create a configuration optimized for customer service.
 
         Features:
-        - Message quoting for context
-        - Moderate batching
-        - Professional response times
-        - Welcome message
+        - Message quoting enabled for conversation context
+        - Moderate batching (5s delay, 20s timeout, up to 8 messages)
+        - Professional response times with thoughtful delays
+        - Welcome message for first-time users
+        - Human-like delays ENABLED with thoughtful, professional timing
+        - Typing indicators shown for premium user experience
+
+        Delay Settings:
+        - enable_human_delays: True
+        - Read delays: 5.0s - 30.0s (longer for thoughtful reading)
+        - Typing delays: 10.0s - 90.0s (longer for careful composition)
+        - Send delays: 1.0s - 5.0s (longer for final review)
+        - Jitter enabled: ±20% random variation
+        - Typing indicator: Shown during typing delays
+        - Batch compression: 0.7x (30% faster batch reading)
+
+        These delay settings are optimized for customer service scenarios where
+        users expect thoughtful, professional responses. Longer delays give the
+        impression of careful consideration and attention to detail, which can
+        improve perceived service quality.
+
+        Example:
+            >>> config = WhatsAppBotConfig.customer_service()
+            >>> bot = WhatsAppBot(agent=agent, provider=provider, config=config)
         """
         return cls(
             # Professional behavior
@@ -459,6 +704,17 @@ class WhatsAppBotConfig(BaseModel):
             # Custom error message for customer service
             error_message=support_hours_message
             or "I apologize for the inconvenience. Please try again, or contact our support team if the issue persists.",
+            # Human-like delays (enabled with thoughtful timing)
+            enable_human_delays=True,
+            min_read_delay_seconds=5.0,
+            max_read_delay_seconds=30.0,
+            min_typing_delay_seconds=10.0,
+            max_typing_delay_seconds=90.0,
+            min_send_delay_seconds=1.0,
+            max_send_delay_seconds=5.0,
+            enable_delay_jitter=True,
+            show_typing_during_delay=True,
+            batch_read_compression_factor=0.7,
         )
 
     @classmethod
@@ -471,10 +727,25 @@ class WhatsAppBotConfig(BaseModel):
         Create a minimal configuration with basic functionality.
 
         Features:
-        - No batching
+        - No batching for immediate processing
         - No spam protection
-        - Immediate responses
-        - Minimal overhead
+        - Immediate responses with no delays
+        - Minimal overhead and resource usage
+        - Human-like delays DISABLED for minimal configuration
+        - No typing indicators
+        - No retry logic
+
+        Delay Settings:
+        - enable_human_delays: False (disabled for minimal overhead)
+
+        This preset provides the absolute minimum configuration with no delays,
+        batching, or spam protection. Use this only when you need the fastest
+        possible responses and don't care about natural behavior patterns or
+        platform detection.
+
+        Example:
+            >>> config = WhatsAppBotConfig.minimal()
+            >>> bot = WhatsAppBot(agent=agent, provider=provider, config=config)
         """
         return cls(
             # Basic behavior
@@ -492,14 +763,36 @@ class WhatsAppBotConfig(BaseModel):
             # Basic error handling
             retry_failed_messages=False,
             max_retry_attempts=1,
+            # Human-like delays (disabled for minimal overhead)
+            enable_human_delays=False,
         )
 
     def validate_config(self) -> list[str]:
         """
         Validate configuration and return list of warnings/issues.
 
+        This method performs comprehensive validation of all configuration parameters,
+        including timing conflicts, rate limiting settings, retry configuration, and
+        human-like delay parameters.
+
+        Delay Validation:
+            When human-like delays are enabled, this method validates:
+            - All minimum delay values are non-negative (>= 0.0)
+            - All maximum delay values are >= their corresponding minimum values
+            - Batch read compression factor is between 0.1 and 1.0
+
         Returns:
-            List of validation messages (empty if all good)
+            List of validation messages (empty if configuration is valid).
+            Each message describes a specific configuration issue or warning.
+
+        Example:
+            >>> config = WhatsAppBotConfig.production()
+            >>> issues = config.validate_config()
+            >>> if issues:
+            ...     for issue in issues:
+            ...         print(f"Warning: {issue}")
+            ... else:
+            ...     print("Configuration is valid")
         """
         issues = []
 
@@ -541,6 +834,44 @@ class WhatsAppBotConfig(BaseModel):
                 f"Max message length ({self.max_message_length}) exceeds WhatsApp limit (4096). "
                 + "Messages will be truncated."
             )
+
+        # Check human-like delay configuration
+        if self.enable_human_delays:
+            # Validate read delays
+            if self.min_read_delay_seconds < 0.0:
+                issues.append(
+                    f"min_read_delay_seconds ({self.min_read_delay_seconds}) must be non-negative (>= 0.0)."
+                )
+            if self.max_read_delay_seconds < self.min_read_delay_seconds:
+                issues.append(
+                    f"max_read_delay_seconds ({self.max_read_delay_seconds}) must be >= min_read_delay_seconds ({self.min_read_delay_seconds})."
+                )
+
+            # Validate typing delays
+            if self.min_typing_delay_seconds < 0.0:
+                issues.append(
+                    f"min_typing_delay_seconds ({self.min_typing_delay_seconds}) must be non-negative (>= 0.0)."
+                )
+            if self.max_typing_delay_seconds < self.min_typing_delay_seconds:
+                issues.append(
+                    f"max_typing_delay_seconds ({self.max_typing_delay_seconds}) must be >= min_typing_delay_seconds ({self.min_typing_delay_seconds})."
+                )
+
+            # Validate send delays
+            if self.min_send_delay_seconds < 0.0:
+                issues.append(
+                    f"min_send_delay_seconds ({self.min_send_delay_seconds}) must be non-negative (>= 0.0)."
+                )
+            if self.max_send_delay_seconds < self.min_send_delay_seconds:
+                issues.append(
+                    f"max_send_delay_seconds ({self.max_send_delay_seconds}) must be >= min_send_delay_seconds ({self.min_send_delay_seconds})."
+                )
+
+            # Validate batch read compression factor
+            if not (0.1 <= self.batch_read_compression_factor <= 1.0):
+                issues.append(
+                    f"batch_read_compression_factor ({self.batch_read_compression_factor}) must be between 0.1 and 1.0."
+                )
 
         return issues
 

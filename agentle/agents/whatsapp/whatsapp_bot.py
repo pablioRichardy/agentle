@@ -43,6 +43,7 @@ from agentle.agents.whatsapp.providers.base.whatsapp_provider import WhatsAppPro
 from agentle.agents.whatsapp.providers.evolution.evolution_api_provider import (
     EvolutionAPIProvider,
 )
+from agentle.agents.whatsapp.human_delay_calculator import HumanDelayCalculator
 from agentle.generations.models.message_parts.file import FilePart
 from agentle.generations.models.message_parts.text import TextPart
 from agentle.generations.models.message_parts.tool_execution_suggestion import (
@@ -156,6 +157,7 @@ class WhatsAppBot(BaseModel):
     _response_callbacks: MutableSequence[CallbackWithContext] = PrivateAttr(
         default_factory=list
     )
+    _delay_calculator: HumanDelayCalculator | None = PrivateAttr(default=None)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -165,6 +167,55 @@ class WhatsAppBot(BaseModel):
             raise ValueError(
                 "Agent must have a conversation_store configured for WhatsApp integration. "
                 + "Please set agent.conversation_store before creating WhatsAppBot."
+            )
+
+        # Log configuration validation
+        validation_issues = self.config.validate_config()
+        if validation_issues:
+            logger.warning(
+                f"[CONFIG_VALIDATION] Configuration has {len(validation_issues)} validation issue(s):"
+            )
+            for issue in validation_issues:
+                logger.warning(f"[CONFIG_VALIDATION]   - {issue}")
+        else:
+            logger.info("[CONFIG_VALIDATION] Configuration validation passed")
+
+        # Initialize delay calculator if human delays are enabled
+        if self.config.enable_human_delays:
+            logger.info(
+                "[DELAY_CONFIG] ═══════════ HUMAN-LIKE DELAYS ENABLED ═══════════"
+            )
+            logger.info(
+                "[DELAY_CONFIG] Read delay bounds: "
+                + f"[{self.config.min_read_delay_seconds:.2f}s - {self.config.max_read_delay_seconds:.2f}s]"
+            )
+            logger.info(
+                "[DELAY_CONFIG] Typing delay bounds: "
+                + f"[{self.config.min_typing_delay_seconds:.2f}s - {self.config.max_typing_delay_seconds:.2f}s]"
+            )
+            logger.info(
+                "[DELAY_CONFIG] Send delay bounds: "
+                + f"[{self.config.min_send_delay_seconds:.2f}s - {self.config.max_send_delay_seconds:.2f}s]"
+            )
+            logger.info(
+                "[DELAY_CONFIG] Delay behavior settings: "
+                + f"jitter_enabled={self.config.enable_delay_jitter}, "
+                + f"show_typing={self.config.show_typing_during_delay}, "
+                + f"batch_compression={self.config.batch_read_compression_factor:.2f}"
+            )
+
+            # Initialize delay calculator
+            self._delay_calculator = HumanDelayCalculator(self.config)
+            logger.info("[DELAY_CONFIG] Delay calculator initialized successfully")
+            logger.info(
+                "[DELAY_CONFIG] ═══════════════════════════════════════════════"
+            )
+        else:
+            logger.info(
+                "[DELAY_CONFIG] Human-like delays disabled (enable_human_delays=False)"
+            )
+            logger.debug(
+                "[DELAY_CONFIG] To enable delays, set enable_human_delays=True in WhatsAppBotConfig"
             )
 
     def start(self) -> None:
@@ -227,7 +278,53 @@ class WhatsAppBot(BaseModel):
     ) -> GeneratedAssistantMessage[Any] | None:
         """
         Handle incoming WhatsApp message with enhanced error handling and batching.
+
+        This is the main entry point for processing incoming WhatsApp messages. It handles
+        rate limiting, spam protection, message batching, and applies human-like delays
+        to simulate realistic behavior patterns.
+
+        Message Processing Flow:
+            1. Retrieve or create user session
+            2. Check rate limiting (if spam protection enabled)
+            3. Apply read delay (if human delays enabled) - simulates reading time
+            4. Mark message as read (if auto_read_messages enabled)
+            5. Send welcome message (if first interaction)
+            6. Process message (with batching if enabled) or immediately
+            7. Return generated response
+
+        Human-Like Delays:
+            When enable_human_delays is True, this method applies a read delay before
+            marking the message as read. The delay simulates the time a human would take
+            to read and comprehend the incoming message, creating a realistic gap between
+            message receipt and read receipt.
+
+            For batched messages, a batch read delay is applied instead, which accounts
+            for reading multiple messages in sequence with compression for faster batch
+            reading.
+
+        Args:
+            message: The incoming WhatsApp message to process.
+            chat_id: Optional custom chat identifier for conversation tracking.
+                    If not provided, uses the sender's phone number.
+
+        Returns:
+            Generated assistant response message, or None if processing failed or
+            was rate limited.
+
+        Raises:
+            Exceptions are caught and logged. User-facing errors trigger error messages.
+
+        Example:
+            >>> message = WhatsAppTextMessage(
+            ...     from_number="1234567890",
+            ...     text="Hello!",
+            ...     id="msg_123"
+            ... )
+            >>> response = await bot.handle_message(message)
+            >>> if response:
+            ...     print(f"Response: {response.text}")
         """
+
         logger.info("[MESSAGE_HANDLER] ═══════════ MESSAGE HANDLER ENTRY ═══════════")
         logger.info(
             f"[MESSAGE_HANDLER] Received message from {message.from_number}: ID={message.id}, Type={type(message).__name__}"
@@ -273,6 +370,9 @@ class WhatsAppBot(BaseModel):
                     # CRITICAL: Update session to persist rate limiting state and return immediately
                     await self.provider.update_session(session)
                     return None
+
+            # Apply read delay before marking message as read (simulates human reading time)
+            await self._apply_read_delay(message)
 
             # Mark as read if configured (only after rate limiting check passes)
             if self.config.auto_read_messages:
@@ -1205,7 +1305,54 @@ class WhatsAppBot(BaseModel):
     async def _process_message_batch(
         self, phone_number: PhoneNumber, session: WhatsAppSession, processing_token: str
     ) -> GeneratedAssistantMessage[Any] | None:
-        """Process a batch of messages for a user with enhanced timeout protection."""
+        """Process a batch of messages for a user with enhanced timeout protection.
+
+        This method processes multiple messages that were received in quick succession
+        as a single batch. It applies batch-specific delays and combines all messages
+        into a single conversation context for more coherent responses.
+
+        Batch Processing Flow:
+            1. Validate pending messages exist
+            2. Mark session as sending to prevent cleanup
+            3. Apply batch read delay (if human delays enabled) - simulates reading all messages
+            4. Convert message batch to agent input
+            5. Generate single response for entire batch
+            6. Send response to user
+            7. Mark all messages as read
+            8. Update session state
+            9. Execute response callbacks
+
+        Human-Like Delays:
+            When enable_human_delays is True, this method applies a batch read delay
+            at the start of processing. The delay simulates the time a human would take
+            to read multiple messages in sequence, accounting for:
+            - Individual reading time for each message
+            - Brief pauses between messages (0.5s each)
+            - Compression factor (default 0.7x) for faster batch reading
+
+            This creates a realistic gap before the batch is processed, making the bot
+            appear more human-like when handling rapid message sequences.
+
+        Args:
+            phone_number: Phone number of the user whose messages are being processed.
+            session: The user's WhatsApp session containing pending messages.
+            processing_token: Unique token to prevent duplicate batch processing.
+
+        Returns:
+            Generated assistant response for the batch, or None if processing failed
+            or no messages were pending.
+
+        Raises:
+            Exceptions are caught and logged. Session state is cleaned up on errors.
+
+        Example:
+            >>> # Called automatically by batch processor task
+            >>> response = await self._process_message_batch(
+            ...     phone_number="1234567890",
+            ...     session=session,
+            ...     processing_token="batch_123"
+            ... )
+        """
         logger.info("[BATCH_PROCESSING] ═══════════ BATCH PROCESSING START ═══════════")
         logger.info(
             f"[BATCH_PROCESSING] Phone: {phone_number}, Token: {processing_token}"
@@ -1247,6 +1394,9 @@ class WhatsAppBot(BaseModel):
             logger.info(
                 f"[BATCH_PROCESSING] 📦 Processing batch of {len(pending_messages)} messages for {phone_number}"
             )
+
+            # Apply batch read delay before processing (simulates human reading multiple messages)
+            await self._apply_batch_read_delay(list(pending_messages))
 
             # Convert message batch to agent input
             logger.debug(
@@ -2062,7 +2212,51 @@ class WhatsAppBot(BaseModel):
         response: GeneratedAssistantMessage[Any] | str,
         reply_to: str | None = None,
     ) -> None:
-        """Send response message(s) to user with enhanced error handling and retry logic."""
+        """Send response message(s) to user with enhanced error handling and retry logic.
+
+        This method handles the complete response sending flow including text-to-speech,
+        human-like delays, typing indicators, message splitting, and error handling.
+
+        Response Sending Flow:
+            1. Extract and format response text
+            2. Attempt TTS audio generation (if configured and chance succeeds)
+            3. Apply typing delay (if human delays enabled and TTS not sent)
+            4. Show typing indicator (if configured and not already shown during delay)
+            5. Split long messages if needed
+            6. Send each message part with send delay between parts
+            7. Handle errors with retry logic
+
+        Human-Like Delays:
+            When enable_human_delays is True, this method applies two types of delays:
+
+            1. Typing Delay: Applied before sending the response to simulate the time
+               a human would take to compose and type the message. The delay is based
+               on response length and includes composition planning time.
+
+            2. Send Delay: Applied immediately before each message transmission to
+               simulate the brief final review time before hitting send. This delay
+               is applied to each message part independently.
+
+            If TTS audio is successfully sent, the typing delay is skipped since the
+            audio generation time already provides a natural delay.
+
+        Args:
+            to: Phone number of the recipient.
+            response: The response to send. Can be a GeneratedAssistantMessage or string.
+            reply_to: Optional message ID to reply to (for message quoting).
+
+        Raises:
+            Exceptions are caught and logged. Failed messages trigger retry logic
+            if configured.
+
+        Example:
+            >>> response = GeneratedAssistantMessage(text="Hello! How can I help?")
+            >>> await self._send_response(
+            ...     to="1234567890",
+            ...     response=response,
+            ...     reply_to="msg_123"
+            ... )
+        """
         # Extract text from GeneratedAssistantMessage if needed
         response_text = (
             response.text
@@ -2076,6 +2270,9 @@ class WhatsAppBot(BaseModel):
         logger.info(
             f"[SEND_RESPONSE] Sending response to {to} (length: {len(response_text)}, reply_to: {reply_to})"
         )
+
+        # Track if TTS was successfully sent (to skip typing delay for audio)
+        tts_sent_successfully = False
 
         # Check if we should send audio via TTS
         should_attempt_tts = (
@@ -2193,7 +2390,11 @@ class WhatsAppBot(BaseModel):
                             "format": str(speech_result.format),
                         },
                     )
-                    # Audio sent successfully, return early
+                    # Audio sent successfully, mark flag and return early
+                    tts_sent_successfully = True
+                    logger.info(
+                        "[TTS] Skipping typing delay since TTS audio was sent successfully"
+                    )
                     return
 
                 except Exception as e:
@@ -2225,9 +2426,34 @@ class WhatsAppBot(BaseModel):
         messages = self._split_message_by_line_breaks(response_text)
         logger.info(f"[SEND_RESPONSE] Split response into {len(messages)} parts")
 
+        # Apply typing delay before sending messages (simulates human typing time)
+        # This should be done before the typing indicator to coordinate properly
+        # Note: This is only reached if TTS was not used or if TTS failed and fell back to text
+        if should_attempt_tts and not tts_sent_successfully:
+            logger.info(
+                "[SEND_RESPONSE] TTS failed, applying typing delay for text fallback"
+            )
+        await self._apply_typing_delay(response_text, to)
+
         # Show typing indicator ONCE before sending all messages
         # Only send typing indicator if we're not attempting TTS or if TTS failed
-        if self.config.typing_indicator and not should_attempt_tts:
+        # Skip if typing delay already handled the indicator
+        typing_delay_handled_indicator = (
+            self.config.enable_human_delays
+            and self.config.show_typing_during_delay
+            and self.config.typing_indicator
+        )
+
+        if typing_delay_handled_indicator:
+            logger.debug(
+                "[SEND_RESPONSE] Skipping redundant typing indicator - already sent during typing delay"
+            )
+
+        if (
+            self.config.typing_indicator
+            and not should_attempt_tts
+            and not typing_delay_handled_indicator
+        ):
             try:
                 logger.debug(
                     f"[SEND_RESPONSE] Sending typing indicator to {to} before sending {len(messages)} message(s)"
@@ -2238,8 +2464,13 @@ class WhatsAppBot(BaseModel):
             except Exception as e:
                 # Don't let typing indicator failures break message sending
                 logger.warning(f"[SEND_RESPONSE] Failed to send typing indicator: {e}")
-        elif self.config.typing_indicator and should_attempt_tts:
+        elif (
+            self.config.typing_indicator
+            and should_attempt_tts
+            and not typing_delay_handled_indicator
+        ):
             # TTS was attempted but failed, send typing indicator for text fallback
+            # Skip if typing delay already handled the indicator
             try:
                 logger.debug(
                     f"[SEND_RESPONSE] TTS failed, sending typing indicator to {to} for text fallback"
@@ -2270,6 +2501,9 @@ class WhatsAppBot(BaseModel):
 
             for attempt in range(max_retries + 1):
                 try:
+                    # Apply send delay before transmitting message (simulates final review)
+                    await self._apply_send_delay()
+
                     sent_message = await self.provider.send_text_message(
                         to=to, text=msg, quoted_message_id=quoted_id
                     )
@@ -2310,15 +2544,30 @@ class WhatsAppBot(BaseModel):
             # Delay between messages (respecting typing duration + small buffer)
             if i < len(messages) - 1:
                 # Use typing duration if typing indicator is enabled, otherwise use a small delay
-                delay = (
+                inter_message_delay = (
                     self.config.typing_duration + 0.5
                     if self.config.typing_indicator
                     else 1.0
                 )
-                logger.debug(
-                    f"[SEND_RESPONSE] Waiting {delay}s before sending next message part"
-                )
-                await asyncio.sleep(delay)
+
+                # Calculate total delay including send delay if human delays are enabled
+                if self.config.enable_human_delays and self._delay_calculator:
+                    # Send delay will be applied before next message, so log total expected delay
+                    estimated_send_delay = (
+                        self.config.min_send_delay_seconds
+                        + self.config.max_send_delay_seconds
+                    ) / 2
+                    total_delay = inter_message_delay + estimated_send_delay
+                    logger.debug(
+                        f"[SEND_RESPONSE] Inter-message delay: {inter_message_delay:.2f}s "
+                        + f"(+ ~{estimated_send_delay:.2f}s send delay = ~{total_delay:.2f}s total)"
+                    )
+                else:
+                    logger.debug(
+                        f"[SEND_RESPONSE] Waiting {inter_message_delay}s before sending next message part"
+                    )
+
+                await asyncio.sleep(inter_message_delay)
 
         # Log final sending results
         if failed_parts:
@@ -2712,6 +2961,306 @@ class WhatsAppBot(BaseModel):
             logger.error(
                 f"[RATE_LIMIT_ERROR] Failed to send rate limit message to {to}: {e}"
             )
+
+    async def _apply_read_delay(self, message: WhatsAppMessage) -> None:
+        """Apply human-like read delay before marking message as read.
+
+        This method simulates the time a human would take to read and comprehend
+        an incoming message. The delay is calculated based on message content length
+        and includes reading time, context switching, and comprehension time.
+
+        The delay is applied BEFORE marking the message as read, creating a realistic
+        gap between message receipt and read receipt that matches human behavior.
+
+        Behavior:
+            - Skips delay if enable_human_delays is False
+            - Extracts text content from message (text or media caption)
+            - Calculates delay using HumanDelayCalculator
+            - Applies delay using asyncio.sleep (non-blocking)
+            - Logs delay start and completion
+            - Handles cancellation and errors gracefully
+
+        Args:
+            message: The WhatsApp message to process. Can be text or media message.
+
+        Raises:
+            asyncio.CancelledError: Re-raised to allow proper task cancellation.
+            Other exceptions are caught and logged, processing continues without delay.
+
+        Example:
+            >>> # Called automatically in handle_message() before marking as read
+            >>> await self._apply_read_delay(message)
+            >>> await self.provider.mark_message_as_read(message.id)
+        """
+        if not self.config.enable_human_delays or not self._delay_calculator:
+            logger.debug("[HUMAN_DELAY] ⏱️  Read delay skipped (delays disabled)")
+            return
+
+        try:
+            # Extract text content from message
+            text_content = ""
+            message_type = type(message).__name__
+            if isinstance(message, WhatsAppTextMessage):
+                text_content = message.text
+            elif isinstance(message, WhatsAppMediaMessage):
+                # For media messages, use caption if available
+                text_content = message.caption or ""
+
+            # Calculate read delay
+            delay = self._delay_calculator.calculate_read_delay(text_content)
+
+            # Log delay start
+            logger.info(
+                f"[HUMAN_DELAY] ⏱️  Starting read delay: {delay:.2f}s "
+                + f"for {len(text_content)} chars (message_type={message_type}, message_id={message.id})"
+            )
+
+            # Apply delay
+            await asyncio.sleep(delay)
+
+            # Log delay completion
+            logger.info(
+                f"[HUMAN_DELAY] ⏱️  Read delay completed: {delay:.2f}s "
+                + f"(message_id={message.id})"
+            )
+
+        except asyncio.CancelledError:
+            logger.warning(
+                f"[HUMAN_DELAY] ⏱️  Read delay cancelled for message {message.id}"
+            )
+            raise  # Re-raise to allow proper cancellation
+        except Exception as e:
+            logger.error(
+                f"[HUMAN_DELAY] ⏱️  Error applying read delay for message {message.id}: {e}",
+                exc_info=True,
+            )
+            # Continue without delay on error
+
+    async def _apply_typing_delay(self, response_text: str, to: PhoneNumber) -> None:
+        """Apply human-like typing delay before sending response.
+
+        This method simulates the time a human would take to compose and type
+        a response. The delay is calculated based on response content length
+        and includes composition planning, typing time, and multitasking overhead.
+
+        The delay is applied AFTER response generation but BEFORE sending the message,
+        creating a realistic gap that matches human typing behavior.
+
+        Behavior:
+            - Skips delay if enable_human_delays is False
+            - Calculates delay using HumanDelayCalculator based on response length
+            - Optionally sends typing indicator during delay (if show_typing_during_delay is True)
+            - Applies delay using asyncio.sleep (non-blocking)
+            - Logs delay start and completion
+            - Handles typing indicator failures gracefully
+            - Handles cancellation and errors gracefully
+
+        Args:
+            response_text: The response text that will be sent to the user.
+            to: The phone number of the recipient.
+
+        Raises:
+            asyncio.CancelledError: Re-raised to allow proper task cancellation.
+            Other exceptions are caught and logged, processing continues without delay.
+
+        Example:
+            >>> # Called automatically in _send_response() before sending
+            >>> response_text = "Hello! How can I help you?"
+            >>> await self._apply_typing_delay(response_text, phone_number)
+            >>> await self.provider.send_text_message(phone_number, response_text)
+        """
+        if not self.config.enable_human_delays or not self._delay_calculator:
+            logger.debug("[HUMAN_DELAY] ⌨️  Typing delay skipped (delays disabled)")
+            return
+
+        try:
+            # Calculate typing delay
+            delay = self._delay_calculator.calculate_typing_delay(response_text)
+
+            # Log delay start
+            logger.info(
+                f"[HUMAN_DELAY] ⌨️  Starting typing delay: {delay:.2f}s "
+                + f"for {len(response_text)} chars (to={to})"
+            )
+
+            # Show typing indicator during delay if configured
+            if self.config.show_typing_during_delay and self.config.typing_indicator:
+                try:
+                    logger.debug(
+                        f"[HUMAN_DELAY] ⌨️  Sending typing indicator for {int(delay)}s to {to}"
+                    )
+                    # Send typing indicator for the duration of the delay
+                    await self.provider.send_typing_indicator(to, int(delay))
+                except Exception as indicator_error:
+                    logger.warning(
+                        f"[HUMAN_DELAY] ⌨️  Failed to send typing indicator during delay to {to}: "
+                        + f"{indicator_error}"
+                    )
+                    # Continue with delay even if indicator fails
+
+            # Apply delay
+            await asyncio.sleep(delay)
+
+            # Log delay completion
+            logger.info(
+                f"[HUMAN_DELAY] ⌨️  Typing delay completed: {delay:.2f}s (to={to})"
+            )
+
+        except asyncio.CancelledError:
+            logger.warning(f"[HUMAN_DELAY] ⌨️  Typing delay cancelled for {to}")
+            raise  # Re-raise to allow proper cancellation
+        except Exception as e:
+            logger.error(
+                f"[HUMAN_DELAY] ⌨️  Error applying typing delay for {to}: {e}",
+                exc_info=True,
+            )
+            # Continue without delay on error
+
+    async def _apply_send_delay(self) -> None:
+        """Apply brief delay before sending message.
+
+        This method simulates the final review time before a human sends a message.
+        The delay is a random value within configured bounds, representing the brief
+        moment a human takes to review their message before hitting send.
+
+        The delay is applied immediately BEFORE each message transmission, creating
+        a small gap that adds to the natural feel of the conversation.
+
+        Behavior:
+            - Skips delay if enable_human_delays is False
+            - Generates random delay within configured send delay bounds
+            - Applies optional jitter if enabled
+            - Applies delay using asyncio.sleep (non-blocking)
+            - Logs delay start and completion
+            - Handles cancellation and errors gracefully
+
+        Raises:
+            asyncio.CancelledError: Re-raised to allow proper task cancellation.
+            Other exceptions are caught and logged, processing continues without delay.
+
+        Example:
+            >>> # Called automatically before each message transmission
+            >>> for message_part in message_parts:
+            ...     await self._apply_send_delay()
+            ...     await self.provider.send_text_message(phone_number, message_part)
+        """
+        if not self.config.enable_human_delays or not self._delay_calculator:
+            logger.debug("[HUMAN_DELAY] 📤 Send delay skipped (delays disabled)")
+            return
+
+        try:
+            # Calculate send delay
+            delay = self._delay_calculator.calculate_send_delay()
+
+            # Log delay start
+            logger.info(f"[HUMAN_DELAY] 📤 Starting send delay: {delay:.2f}s")
+
+            # Apply delay
+            await asyncio.sleep(delay)
+
+            # Log delay completion
+            logger.debug(f"[HUMAN_DELAY] 📤 Send delay completed: {delay:.2f}s")
+
+        except asyncio.CancelledError:
+            logger.warning("[HUMAN_DELAY] 📤 Send delay cancelled")
+            raise  # Re-raise to allow proper cancellation
+        except Exception as e:
+            logger.error(
+                f"[HUMAN_DELAY] 📤 Error applying send delay: {e}", exc_info=True
+            )
+            # Continue without delay on error
+
+    async def _apply_batch_read_delay(self, messages: list[dict[str, Any]]) -> None:
+        """Apply human-like read delay for batch of messages.
+
+        This method simulates the time a human would take to read multiple messages
+        in sequence. The delay accounts for reading each message individually, with
+        brief pauses between messages, and applies a compression factor to simulate
+        faster batch reading compared to reading messages one at a time.
+
+        The delay is applied at the START of batch processing, before any message
+        processing begins, creating a realistic gap that matches human batch reading.
+
+        Behavior:
+            - Skips delay if enable_human_delays is False
+            - Extracts text content from all messages (text and media captions)
+            - Calculates individual read delays for each message
+            - Adds 0.5s pause between each message
+            - Applies compression factor (default 0.7x for 30% faster reading)
+            - Clamps to reasonable bounds (2-20 seconds suggested)
+            - Applies delay using asyncio.sleep (non-blocking)
+            - Logs delay start and completion with message count
+            - Handles cancellation and errors gracefully
+
+        Args:
+            messages: List of message dictionaries from the batch. Each dict should
+                     contain 'type' and either 'text' or 'caption' fields.
+
+        Raises:
+            asyncio.CancelledError: Re-raised to allow proper task cancellation.
+            Other exceptions are caught and logged, processing continues without delay.
+
+        Example:
+            >>> # Called automatically in _process_message_batch() before processing
+            >>> pending_messages = [msg1_dict, msg2_dict, msg3_dict]
+            >>> await self._apply_batch_read_delay(pending_messages)
+            >>> # Now process the batch...
+        """
+        if not self.config.enable_human_delays or not self._delay_calculator:
+            logger.debug("[HUMAN_DELAY] 📚 Batch read delay skipped (delays disabled)")
+            return
+
+        try:
+            # Extract text content from all messages in batch
+            message_texts: list[str] = []
+            total_chars = 0
+            for msg in messages:
+                if msg.get("type") == "WhatsAppTextMessage":
+                    text = msg.get("text", "")
+                    if text:
+                        message_texts.append(text)
+                        total_chars += len(text)
+                elif msg.get("type") in [
+                    "WhatsAppImageMessage",
+                    "WhatsAppDocumentMessage",
+                    "WhatsAppAudioMessage",
+                    "WhatsAppVideoMessage",
+                ]:
+                    # For media messages, use caption if available
+                    caption = msg.get("caption", "")
+                    if caption:
+                        message_texts.append(caption)
+                        total_chars += len(caption)
+
+            # Calculate batch read delay
+            delay = self._delay_calculator.calculate_batch_read_delay(message_texts)
+
+            # Log delay start
+            logger.info(
+                f"[HUMAN_DELAY] 📚 Starting batch read delay: {delay:.2f}s "
+                + f"for {len(messages)} messages ({total_chars} total chars)"
+            )
+
+            # Apply delay
+            await asyncio.sleep(delay)
+
+            # Log delay completion
+            logger.info(
+                f"[HUMAN_DELAY] 📚 Batch read delay completed: {delay:.2f}s "
+                + f"for {len(messages)} messages"
+            )
+
+        except asyncio.CancelledError:
+            logger.warning(
+                f"[HUMAN_DELAY] 📚 Batch read delay cancelled for {len(messages)} messages"
+            )
+            raise  # Re-raise to allow proper cancellation
+        except Exception as e:
+            logger.error(
+                f"[HUMAN_DELAY] 📚 Error applying batch read delay for {len(messages)} messages: {e}",
+                exc_info=True,
+            )
+            # Continue without delay on error
 
     def _split_message(self, text: str) -> Sequence[str]:
         """Split long message into chunks."""
