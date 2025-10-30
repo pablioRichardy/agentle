@@ -14,6 +14,7 @@ Provides advanced features for managing collections of related endpoints with:
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import (
     Coroutine,
     Mapping,
@@ -513,13 +514,30 @@ class API(BaseModel):
                     continue
 
                 # Create endpoint
-                endpoint_name: str = cast(
-                    str,
-                    (
-                        operation_id
-                        or f"{method}_{path.replace('/', '_').replace('{', '').replace('}', '')}"
-                    ),
-                )
+                # Generate a valid function name from the path
+                if operation_id:
+                    endpoint_name = operation_id
+                else:
+                    # Clean the path to create a valid function name
+                    # Remove leading/trailing slashes and replace special chars
+                    clean_path = (
+                        path.strip("/")
+                        .replace("/", "_")
+                        .replace("{", "")
+                        .replace("}", "")
+                        .replace("-", "_")
+                    )
+                    # Remove any consecutive underscores
+                    clean_path = re.sub(r"_+", "_", clean_path)
+                    # Ensure it doesn't start with a number
+                    if clean_path and clean_path[0].isdigit():
+                        clean_path = f"n{clean_path}"
+                    # If empty after cleaning, use a generic name
+                    if not clean_path:
+                        clean_path = "root"
+                    endpoint_name = f"{method.lower()}_{clean_path}"
+
+                endpoint_name = cast(str, endpoint_name)
 
                 endpoint_description: str = cast(
                     str,
