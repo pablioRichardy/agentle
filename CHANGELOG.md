@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.9.26
+refactor(extractor): Enhance HTML processing and base64 image removal
+
+- Consolidate BeautifulSoup operations for more robust HTML processing
+- Implement comprehensive base64 image removal strategy with detailed debugging
+- Add multiple removal techniques for base64 images in img tags, anchors, and styles
+- Improve error handling and type checking during HTML manipulation
+- Update example code to use different LLM model and async extraction method
+- Add debug print statements to track base64 image removal process
+- Refactor main content extraction and tag filtering logic
+
 ## v0.9.25
 
 - refactor(extractor): reorganize imports and add model_config attribute
