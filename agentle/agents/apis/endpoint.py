@@ -381,9 +381,9 @@ class Endpoint(BaseModel):
             """Make a single request attempt."""
             # Create a fresh connector for each request attempt to avoid "Session is closed" errors on retries
             connector = aiohttp.TCPConnector(**connector_kwargs)
-            async with aiohttp.ClientSession(
-                connector=connector, timeout=timeout
-            ) as session:
+            session = None
+            try:
+                session = aiohttp.ClientSession(connector=connector, timeout=timeout)
                 # Prepare request kwargs
                 request_kwargs: dict[str, Any] = {
                     "headers": headers,
@@ -486,6 +486,12 @@ class Endpoint(BaseModel):
                         await self._response_cache.set(url, kwargs, result)
 
                     return result
+            finally:
+                # Always close the session to prevent "Session is closed" errors on retries
+                if session is not None:
+                    await session.close()
+                    # Give the connector time to close properly
+                    await asyncio.sleep(0.01)
 
         # Execute with retries
         last_exception = None

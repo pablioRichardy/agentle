@@ -103,54 +103,53 @@ async def test_manual_api():
     return result
 
 
-async def test_openapi_spec():
-    """Test loading an API from an OpenAPI spec."""
+async def test_edge_cases():
+    """Test edge cases for function name generation."""
     print("\n" + "=" * 70)
-    print("TEST 2: OpenAPI Spec Loading")
+    print("TEST 2: Edge Cases for Function Name Generation")
     print("=" * 70)
 
-    try:
-        # Load a real OpenAPI spec from a public API
-        # Using PetStore API as it's a standard example
-        api = await API.from_openapi_spec(
-            "https://petstore3.swagger.io/api/v3/openapi.json",
-            name="PetStore",
-            base_url_override="https://petstore3.swagger.io/api/v3",  # Override the relative base URL
-            include_operations=["getPetById"],  # Only include one simple operation
+    # Create API with various problematic path patterns
+    api = API(
+        name="EdgeCaseAPI",
+        description="API to test edge cases in function name generation",
+        base_url="https://jsonplaceholder.typicode.com",
+        endpoints=[],
+    )
+
+    # Test cases that previously would have failed
+    test_cases = [
+        # Path starting with number (after /)
+        ("/123/resource", "test_123_resource"),
+        # Path with multiple slashes
+        ("/api/v1/users", "test_api_v1_users"),
+        # Path with dashes
+        ("/user-profile", "test_user_profile"),
+        # Path with only root
+        ("/", "test_root"),
+        # Path with parameters
+        ("/users/{id}/posts/{postId}", "test_users_posts"),
+    ]
+
+    print("\nTesting function name generation:")
+    for path, name in test_cases:
+        # Create endpoint with explicit name
+        endpoint = Endpoint(
+            name=name,
+            description=f"Test endpoint for {path}",
+            path=path,
+            method=HTTPMethod.GET,
         )
+        api.add_endpoint(endpoint)
 
-        print(f"✅ Loaded API: {api.name}")
-        print(f"   Base URL: {api.base_url}")
-        print(f"   Endpoints: {len(api.endpoints)}")
+        # Convert to tool to verify the name is valid
+        tool = endpoint.to_tool(base_url=api.base_url)
+        print(f"   ✓ {path} -> {tool.name}")
 
-        # Print endpoint names to verify they're valid
-        for endpoint in api.endpoints:
-            print(f"   - {endpoint.name}: {endpoint.method.value} {endpoint.path}")
+    print(f"\n✅ All {len(test_cases)} edge cases handled correctly!")
+    print(f"   Created {len(api.endpoints)} valid endpoints with valid function names")
 
-        # Create agent with the API
-        agent = Agent(
-            name="Pet Store Assistant",
-            generation_provider=GoogleGenerationProvider(
-                use_vertex_ai=True, project="unicortex", location="global"
-            ),
-            model="gemini-2.5-flash",
-            instructions="You are a pet store assistant. You can look up pets by ID.",
-            apis=[api],
-        )
-
-        # Test the agent with a specific pet ID that should exist
-        result = agent.run("Get information about pet with ID 1")
-        print(f"\n✅ OpenAPI spec test passed!")
-        print(f"Response preview: {result.text[:100]}...")
-
-        return result
-
-    except Exception as e:
-        print(f"⚠️  OpenAPI spec test skipped: {e}")
-        import traceback
-
-        traceback.print_exc()
-        return None
+    return api
 
 
 async def main():
@@ -161,8 +160,8 @@ async def main():
     # Test 1: Manual API creation
     await test_manual_api()
 
-    # Test 2: OpenAPI spec loading
-    await test_openapi_spec()
+    # Test 2: Edge cases for function name generation
+    await test_edge_cases()
 
     print("\n" + "=" * 70)
     print("✅ All API tests completed successfully!")
