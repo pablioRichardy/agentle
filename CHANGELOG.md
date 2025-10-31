@@ -1,6 +1,7 @@
 # Changelog
 
-## v0.9.27
+
+## v0.9.26
 feat(api): Enhance API endpoint and function name generation
 
 - Improve aiohttp session handling in `make_single_request()` to prevent connection errors
@@ -11,7 +12,6 @@ feat(api): Enhance API endpoint and function name generation
 - Add comprehensive test cases for problematic path name conversions
 Addresses potential issues with API endpoint generation and async request management, improving overall robustness of API integration capabilities.
 
-## v0.9.26
 refactor(extractor): Enhance HTML processing and base64 image removal
 
 - Consolidate BeautifulSoup operations for more robust HTML processing
