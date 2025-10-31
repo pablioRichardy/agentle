@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.9.27
+feat(api): Enhance API endpoint and function name generation
+
+- Improve aiohttp session handling in `make_single_request()` to prevent connection errors
+- Add robust function name generation for OpenAPI spec endpoints
+- Create new test script to validate function name generation for OpenAPI specs
+- Update example script to demonstrate edge case handling for API endpoint names
+- Ensure proper session and connector closure in async API requests
+- Add comprehensive test cases for problematic path name conversions
+Addresses potential issues with API endpoint generation and async request management, improving overall robustness of API integration capabilities.
+
 ## v0.9.26
 refactor(extractor): Enhance HTML processing and base64 image removal
 
